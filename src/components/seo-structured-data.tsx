@@ -12,7 +12,7 @@ export function OrganizationSchema() {
     url: SITE_URL,
     logo: `${SITE_URL}/icon.svg`,
     description:
-      "A free platform to learn practical online digital skills in software development, creative media, and business growth.",
+      "A free platform to learn practical online AI and digital skills, creative media, and business growth.",
     sameAs: [
       "https://twitter.com/eaacademy",
       "https://linkedin.com/company/eaacademy",
@@ -20,7 +20,7 @@ export function OrganizationSchema() {
     ],
     offers: {
       "@type": "Offer",
-      category: "Free Online Digital Skills Education",
+      category: "Free Online AI & Digital Skills Education",
       price: "0",
       priceCurrency: "NGN",
       availability: "https://schema.org/InStock",

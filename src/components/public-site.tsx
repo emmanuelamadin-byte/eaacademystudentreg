@@ -410,7 +410,7 @@ export function Landing() {
                   <span className="classroom-accent">online digital skills.</span>
                 </motion.h1>
                 <motion.p variants={heroItem}>
-                  Join structured career tracks in software engineering, creative design,
+                  Join structured career tracks in AI &amp; modern digital skills, creative media,
                   and business growth. Attend interactive classes, submit practical assignments,
                   and prove what you can do at zero cost.
                 </motion.p>
@@ -888,7 +888,7 @@ const FAQS = [
   {
     question: "What online digital skills can I learn for free?",
     answer:
-      "You can master three high-income digital disciplines: Systems & Development (full-stack web development, software engineering, databases, and APIs), Creative Media Studio (visual storytelling, graphic design, and UI/UX), and Business Growth & Wealth (digital marketing, product strategy, and modern commerce).",
+      "You can master three high-income digital disciplines: Systems & Automation (practical AI tools, automated workflows, modern websites, and database foundations), Creative Media Studio (visual storytelling, AI video production, and digital design), and Business Growth & Wealth (digital marketing, business management, and modern commerce).",
   },
   {
     question: "Do I get a certificate or verifiable proof of learning?",
