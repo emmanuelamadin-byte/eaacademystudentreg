@@ -3,21 +3,19 @@
 import { useEffect, useState } from "react";
 import { getSupabase } from "./supabase";
 import {
+  clientSelectionFor,
   collectionSpec,
   databaseField,
   documentFilters,
   rowFromDatabase,
-  selectionFor,
 } from "./supabase-data";
 
-export type RecordFilter = [
-  string,
-  "==" | "in" | "array-contains",
-  unknown,
-];
+export type RecordFilter = [string, "==" | "in" | "array-contains", unknown];
 
 function message(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to load academy data.";
+  return error instanceof Error
+    ? error.message
+    : "Unable to load academy data.";
 }
 
 export function useRecords<T>(
@@ -43,7 +41,9 @@ export function useRecords<T>(
     const spec = collectionSpec(name);
     const load = async () => {
       try {
-        let request: any = supabase.from(spec.table).select(selectionFor(name));
+        let request: any = supabase
+          .from(spec.table)
+          .select(clientSelectionFor(name));
         for (const [field, operator, value] of parsed) {
           if (name === "comments" && field === "parentId") {
             request = request.or(
@@ -59,7 +59,11 @@ export function useRecords<T>(
         const { data: rows, error: requestError } = await request;
         if (requestError) throw requestError;
         if (cancelled) return;
-        setData((rows || []).map((row: Record<string, unknown>) => rowFromDatabase(name, row) as T));
+        setData(
+          (rows || []).map(
+            (row: Record<string, unknown>) => rowFromDatabase(name, row) as T,
+          ),
+        );
         setError(null);
         setLoading(false);
       } catch (cause) {
@@ -105,8 +109,12 @@ export function useRecord<T>(
     const spec = collectionSpec(name, id);
     const load = async () => {
       try {
-        let request: any = supabase.from(spec.table).select(selectionFor(name));
-        for (const [field, value] of Object.entries(documentFilters(name, id))) {
+        let request: any = supabase
+          .from(spec.table)
+          .select(clientSelectionFor(name));
+        for (const [field, value] of Object.entries(
+          documentFilters(name, id),
+        )) {
           request = request.eq(field, value);
         }
         const { data: row, error: requestError } = await request.maybeSingle();

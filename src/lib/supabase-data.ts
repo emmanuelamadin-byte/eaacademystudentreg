@@ -377,3 +377,38 @@ export function documentFilters(name: string, id: string) {
 export function selectionFor(name: string) {
   return name === "modules" ? "*, lessons(*)" : "*";
 }
+
+const LESSON_METADATA_COLUMNS = [
+  "id",
+  "module_id",
+  "track_id",
+  "title",
+  "duration",
+  "position",
+  "published",
+  "is_free",
+].join(",");
+
+/**
+ * Browser queries must not use `*` on lessons. Supabase intentionally grants
+ * the public roles access to lesson metadata but keeps video URLs, notes,
+ * resources, and solution code behind the authenticated academy API.
+ */
+export function clientSelectionFor(name: string) {
+  if (name === "modules") {
+    return [
+      "id",
+      "track_id",
+      "title",
+      "description",
+      "position",
+      "published",
+      "is_free",
+      "created_at",
+      "updated_at",
+      `lessons(${LESSON_METADATA_COLUMNS})`,
+    ].join(",");
+  }
+  if (name === "lessons") return LESSON_METADATA_COLUMNS;
+  return "*";
+}

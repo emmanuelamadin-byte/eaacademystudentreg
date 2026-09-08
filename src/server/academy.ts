@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { AcademyUser, Lesson } from "@/lib/types";
+import type { AcademyUser, CourseModule, Lesson } from "@/lib/types";
 import { calculateStreak } from "@/lib/streaks";
 import {
   actor,
@@ -91,6 +91,34 @@ export async function getLesson(
     lesson.free = lesson.free && courseModule.free === true;
   }
   return lesson;
+}
+
+export async function listClassroomLessons(
+  user: AcademyUser,
+): Promise<Lesson[]> {
+  const [lessonSnapshot, moduleSnapshot] = await Promise.all([
+    db().collection("lessons").where("published", "==", true).get(),
+    db().collection("modules").get(),
+  ]);
+  const modules = new Map(
+    moduleSnapshot.docs.map((item) => [item.id, item.data() as CourseModule]),
+  );
+
+  return lessonSnapshot.docs.flatMap((item) => {
+    const lesson = { ...item.data(), id: item.id } as Lesson;
+    const courseModule = modules.get(lesson.moduleId);
+    if (
+      !courseModule ||
+      !canReadLesson(user, lesson, {
+        published: courseModule.published === true,
+        free: courseModule.free === true,
+      })
+    )
+      return [];
+    if (!managesTrack(user, lesson.classId)) delete lesson.solutionCode;
+    lesson.free = lesson.free && courseModule.free === true;
+    return [lesson];
+  });
 }
 async function ensureProfile(token: AuthToken, p: Payload) {
   const input = z
@@ -323,6 +351,8 @@ export async function dispatch(
     }
     case "lesson.get":
       return getLesson(user, parsedId(p));
+    case "classroom.list":
+      return listClassroomLessons(user);
     case "module.save": {
       const value = s.moduleSchema.parse(p.module);
       return save("modules", value, user, value.classId);

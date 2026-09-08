@@ -627,7 +627,12 @@ type ClassPostDraft = {
 
 function Classroom() {
   const { user } = useAcademy();
-  const lessons = useRecords<Lesson>("lessons", [["published", "==", true]]);
+  const lessonIndex = useRecords<Lesson>("lessons", [
+    ["published", "==", true],
+  ]);
+  const [classLessons, setClassLessons] = useState<Lesson[]>([]);
+  const [classLessonsLoading, setClassLessonsLoading] = useState(true);
+  const [classLessonsError, setClassLessonsError] = useState("");
   const modules = useRecords<CourseModule>("modules");
   const assignments = useRecords<Assignment>("assignments", [
     ["published", "==", true],
@@ -641,6 +646,25 @@ function Classroom() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (!user || lessonIndex.loading) return;
+    let cancelled = false;
+    setClassLessonsLoading(true);
+    setClassLessonsError("");
+    void api<Lesson[]>("classroom.list")
+      .then((items) => {
+        if (!cancelled) setClassLessons(items);
+      })
+      .catch((cause) => {
+        if (!cancelled) setClassLessonsError(errorMessage(cause));
+      })
+      .finally(() => {
+        if (!cancelled) setClassLessonsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lessonIndex.data, lessonIndex.loading, user]);
   const staffScopes =
     user?.role === "Admin"
       ? TRACKS.map((track) => track.id)
@@ -662,7 +686,7 @@ function Classroom() {
   if (!user) return null;
   const staff = user.role !== "Student";
   const scopes = staffScopes;
-  const visible = lessons.data
+  const visible = classLessons
     .filter((lesson) =>
       staff
         ? scopes.includes(lesson.classId)
@@ -896,8 +920,10 @@ function Classroom() {
           </form>
         </section>
       )}
-      {(lessons.error || progress.error) && (
-        <p className="alert alert-error">{lessons.error || progress.error}</p>
+      {(lessonIndex.error || classLessonsError || progress.error) && (
+        <p className="alert alert-error">
+          {lessonIndex.error || classLessonsError || progress.error}
+        </p>
       )}
       <section className="class-feed">
         {visible.map((lesson) => (
@@ -909,7 +935,7 @@ function Classroom() {
           />
         ))}
       </section>
-      {!lessons.loading && !visible.length && (
+      {!lessonIndex.loading && !classLessonsLoading && !visible.length && (
         <Empty
           title="Your classroom is ready"
           body={

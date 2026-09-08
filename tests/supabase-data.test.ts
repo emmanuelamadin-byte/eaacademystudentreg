@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clientSelectionFor,
   collectionSpec,
   documentFilters,
   rowFromDatabase,
@@ -30,5 +31,23 @@ describe("Supabase singleton settings mapping", () => {
       scholarshipGoal: 0,
       scholarshipCost: 3000,
     });
+  });
+});
+
+describe("Supabase browser selections", () => {
+  it("requests only granted lesson metadata from public roles", () => {
+    const lessonSelection = clientSelectionFor("lessons");
+    expect(lessonSelection).not.toContain("*");
+    expect(lessonSelection).toContain("title");
+    expect(lessonSelection).not.toContain("video_url");
+    expect(lessonSelection).not.toContain("content");
+    expect(lessonSelection).not.toContain("solution_code");
+  });
+
+  it("does not expand protected lesson fields in module queries", () => {
+    const moduleSelection = clientSelectionFor("modules");
+    expect(moduleSelection).toContain("lessons(id,module_id,track_id,title");
+    expect(moduleSelection).not.toContain("lessons(*)");
+    expect(moduleSelection).not.toContain("video_url");
   });
 });

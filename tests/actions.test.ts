@@ -153,7 +153,11 @@ vi.mock("../src/server/supabase", async () => {
     },
   };
 });
-import { dispatch, getLesson } from "../src/server/academy";
+import {
+  dispatch,
+  getLesson,
+  listClassroomLessons,
+} from "../src/server/academy";
 const token = {
   uid: "student",
   email: "student@example.com",
@@ -301,6 +305,43 @@ describe("server action boundaries", () => {
       targetTrack: "system-dev",
       actionScreen: `/app/lesson/${result.id}`,
     });
+  });
+  it("returns only classroom lessons the signed-in student may access", async () => {
+    state.documents.set("modules/free-module", {
+      published: true,
+      free: true,
+    });
+    state.documents.set("modules/premium-module", {
+      published: true,
+      free: false,
+    });
+    state.documents.set("lessons/free-class", {
+      moduleId: "free-module",
+      classId: "system-dev",
+      title: "Free class",
+      published: true,
+      free: true,
+      solutionCode: "staff only",
+    });
+    state.documents.set("lessons/premium-class", {
+      moduleId: "premium-module",
+      classId: "system-dev",
+      title: "Premium class",
+      published: true,
+      free: false,
+    });
+    state.documents.set("lessons/other-track-class", {
+      moduleId: "free-module",
+      classId: "creative-media",
+      title: "Other track class",
+      published: true,
+      free: true,
+    });
+
+    const lessons = await listClassroomLessons(student);
+
+    expect(lessons.map((lesson) => lesson.id)).toEqual(["free-class"]);
+    expect(lessons[0]?.solutionCode).toBeUndefined();
   });
   it("rejects incomplete first-time profiles and non-Google signup", async () => {
     await expect(
