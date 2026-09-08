@@ -1534,7 +1534,7 @@ function LearningRecord() {
   const fullCertUrl =
     typeof window !== "undefined" && activeRecordUrl
       ? new URL(activeRecordUrl, window.location.origin).href
-      : `https://eaacademy.org${activeRecordUrl || ""}`;
+      : `https://student.cleanbrandagency.com${activeRecordUrl || ""}`;
   const linkedInCertUrl = activeRecordId
     ? getLinkedInCertUrl({
         certName: certTitle,

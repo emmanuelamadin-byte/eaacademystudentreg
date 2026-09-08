@@ -10,7 +10,7 @@ describe("Certificate & LinkedIn Integration (P2)", () => {
   const sampleCert = {
     certName: "Systems & Development — Professional Certificate",
     certId: "ea-cert-9988-uuid",
-    certUrl: "https://eaacademy.org/verify/ea-cert-9988-uuid",
+    certUrl: "https://student.cleanbrandagency.com/verify/ea-cert-9988-uuid",
     issuedAt: "2026-06-15T10:00:00Z",
   };
 

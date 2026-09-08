@@ -8,7 +8,7 @@ describe("Search Engine Optimization (SEO)", () => {
     expect(map.length).toBeGreaterThanOrEqual(8);
 
     const urls = map.map((entry) => entry.url);
-    expect(urls.some((u) => u.endsWith("/") || u.match(/eaacademy\.org$/))).toBe(true);
+    expect(urls.some((u) => u.endsWith("/") || u.match(/cleanbrandagency\.com$/))).toBe(true);
     expect(urls.some((u) => u.includes("/tracks"))).toBe(true);
     expect(urls.some((u) => u.includes("/pricing"))).toBe(true);
     expect(urls.some((u) => u.includes("/donate"))).toBe(true);

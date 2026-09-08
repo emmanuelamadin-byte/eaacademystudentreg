@@ -1,7 +1,7 @@
 import { TRACKS } from "@/lib/types";
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://eaacademy.org";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://student.cleanbrandagency.com";
 
 export function OrganizationSchema() {
   const schema = {

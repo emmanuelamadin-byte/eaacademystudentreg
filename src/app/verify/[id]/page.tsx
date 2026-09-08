@@ -61,7 +61,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const certUrl =
     typeof window !== "undefined"
       ? window.location.href
-      : `https://eaacademy.org/verify/${id}`;
+      : `https://student.cleanbrandagency.com/verify/${id}`;
   const linkedInAddUrl = record
     ? getLinkedInCertUrl({
         certName: certTitle,
@@ -235,7 +235,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                   <div className="certificate-id-box">
                     <span className="cert-id-label">CRYPTOGRAPHIC RECORD ID</span>
                     <code className="cert-id-code">{record.id}</code>
-                    <small className="cert-id-url">eaacademy.org/verify/{record.id.slice(0, 8)}...</small>
+                    <small className="cert-id-url">student.cleanbrandagency.com/verify/{record.id.slice(0, 8)}...</small>
                   </div>
                 </div>
               </div>
