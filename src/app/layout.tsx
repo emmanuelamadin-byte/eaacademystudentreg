@@ -56,7 +56,15 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "EA Academy",
   },
-  icons: { icon: "/icon.svg", apple: "/icons/icon-192.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -67,9 +75,9 @@ export const metadata: Metadata = {
       "Master high-demand digital skills with free career tracks in software engineering, creative design, and digital commerce. Build real projects and earn verified credentials.",
     images: [
       {
-        url: `${SITE_URL}/icons/icon-512.png`,
-        width: 512,
-        height: 512,
+        url: `${SITE_URL}/og-image.jpg`,
+        width: 1200,
+        height: 630,
         alt: "EA Academy — Free Online Digital Skills Learning Platform",
       },
     ],
@@ -80,7 +88,7 @@ export const metadata: Metadata = {
     description:
       "Join free career tracks in software engineering, creative design, and digital business. Learn practical skills and submit assignments.",
     creator: "@eaacademy",
-    images: [`${SITE_URL}/icons/icon-512.png`],
+    images: [`${SITE_URL}/og-image.jpg`],
   },
   robots: {
     index: true,
