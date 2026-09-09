@@ -398,6 +398,31 @@ export async function setStudentBirthday(
   return data as { month: number; day: number; birthdayChanges: number };
 }
 
+export type StudentRosterClaim = {
+  email: string;
+  name: string;
+  phoneNumber?: string;
+  countryCode?: string;
+  enrolledClassId: AcademyUser["enrolledClassId"];
+  membershipPlan: "Free";
+  enrolledAt: string;
+  whatsappConsent: boolean;
+  communicationConsentVersion?: string;
+  phoneReviewRequired: boolean;
+};
+
+export async function claimStudentRoster(
+  email: string,
+  userId: string,
+): Promise<StudentRosterClaim | undefined> {
+  const { data, error } = await adminClient().rpc("claim_student_roster", {
+    p_email: email,
+    p_user_id: userId,
+  });
+  throwDatabase(error);
+  return (data as StudentRosterClaim | null) || undefined;
+}
+
 export async function document(collection: string, id: string) {
   const snap = await db().collection(collection).doc(id).get();
   if (!snap.exists) throw new ApiError(404, "This item could not be found.");

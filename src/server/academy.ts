@@ -5,6 +5,7 @@ import type { AcademyUser, CourseModule, Lesson } from "@/lib/types";
 import { calculateStreak } from "@/lib/streaks";
 import {
   actor,
+  claimStudentRoster,
   db,
   document,
   limit,
@@ -139,6 +140,16 @@ async function ensureProfile(token: AuthToken, p: Payload) {
     })
     .parse(p);
   const ref = db().collection("users").doc(token.uid);
+  const normalizedEmail = token.email?.trim().toLowerCase();
+  const canClaimRoster =
+    token.provider === "google" &&
+    token.email_verified === true &&
+    Boolean(normalizedEmail);
+  const rosterData =
+    canClaimRoster && normalizedEmail
+      ? await claimStudentRoster(normalizedEmail, token.uid)
+      : undefined;
+  const rosterCanBeClaimed = Boolean(rosterData);
   await db().runTransaction(async (tx) => {
     const previous = await tx.get(ref);
     const role = initialRole(token.email, token.email_verified);
@@ -161,15 +172,20 @@ async function ensureProfile(token: AuthToken, p: Payload) {
     if (token.provider !== "google")
       throw new ApiError(403, "Use Google to create an EA Academy account.");
     const settings = await tx.get(db().collection("settings").doc("public"));
-    if (settings.data()?.enrollmentOpen === false && role !== "Admin")
+    if (
+      settings.data()?.enrollmentOpen === false &&
+      role !== "Admin" &&
+      !rosterCanBeClaimed
+    )
       throw new ApiError(403, "New enrollment is currently closed.");
-    if (!input.enrolledClassId && role !== "Admin")
+    if (!input.enrolledClassId && role !== "Admin" && !rosterCanBeClaimed)
       throw new ApiError(
         409,
         "Choose your permanent primary track to finish enrollment.",
       );
     if (
       role !== "Admin" &&
+      !rosterCanBeClaimed &&
       (!input.countryCode || !input.phoneNumber || !input.birthday)
     )
       throw new ApiError(
@@ -186,20 +202,64 @@ async function ensureProfile(token: AuthToken, p: Payload) {
         );
       phoneNumber = parsePhoneNumber(input.phoneNumber, country).number;
     }
+    const safeRosterPhone =
+      rosterCanBeClaimed &&
+      rosterData?.phoneReviewRequired !== true &&
+      typeof rosterData?.phoneNumber === "string"
+        ? rosterData.phoneNumber
+        : undefined;
+    const rosterWhatsappConsent =
+      rosterCanBeClaimed &&
+      rosterData?.whatsappConsent === true &&
+      Boolean(safeRosterPhone);
+    const enrolledAt =
+      rosterCanBeClaimed && typeof rosterData?.enrolledAt === "string"
+        ? rosterData.enrolledAt
+        : now();
     tx.set(
       ref,
       {
         id: token.uid,
-        name: input.name || token.name || "Academy learner",
-        email: token.email || "",
+        name:
+          (rosterCanBeClaimed && String(rosterData?.name || "").trim()) ||
+          input.name ||
+          token.name ||
+          "Academy learner",
+        email: normalizedEmail || "",
         role,
-        enrolledClassId: input.enrolledClassId || "system-dev",
+        enrolledClassId:
+          (rosterCanBeClaimed && rosterData?.enrolledClassId) ||
+          input.enrolledClassId ||
+          "system-dev",
         membershipPlan: "Free",
-        enrolledAt: now(),
+        enrolledAt,
         lastActiveAt: now(),
-        ...(input.countryCode ? { countryCode: input.countryCode } : {}),
-        ...(phoneNumber ? { phoneNumber } : {}),
+        ...((rosterCanBeClaimed && rosterData?.countryCode) || input.countryCode
+          ? {
+              countryCode:
+                (rosterCanBeClaimed && rosterData?.countryCode) ||
+                input.countryCode,
+            }
+          : {}),
+        ...(safeRosterPhone || phoneNumber
+          ? { phoneNumber: safeRosterPhone || phoneNumber }
+          : {}),
         ...(input.birthday ? { birthday: input.birthday } : {}),
+        ...(rosterCanBeClaimed
+          ? {
+              emailNotificationsEnabled: true,
+              birthdayEmailEnabled: true,
+              whatsappNotificationsEnabled: rosterWhatsappConsent,
+              birthdayWhatsappEnabled: false,
+              ...(rosterWhatsappConsent
+                ? {
+                    whatsappOptedInAt: enrolledAt,
+                    communicationConsentVersion:
+                      rosterData?.communicationConsentVersion,
+                  }
+                : {}),
+            }
+          : {}),
       },
       { merge: true },
     );

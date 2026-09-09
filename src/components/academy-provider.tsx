@@ -43,13 +43,21 @@ export function AcademyProvider({ children }: { children: ReactNode }) {
       if (!data.session?.user) setLoading(false);
     });
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthUser(session?.user || null);
-      if (!session?.user) {
+      const nextUser = session?.user || null;
+      if (!nextUser) {
+        setAuthUser(null);
         setUser(null);
         setLoading(false);
-      } else {
-        setLoading(true);
+        return;
       }
+      setAuthUser((prev) => {
+        // If the same user is already loaded, avoid resetting state or unmounting components
+        if (prev?.id === nextUser.id) {
+          return prev;
+        }
+        setLoading(true);
+        return nextUser;
+      });
     });
     return () => data.subscription.unsubscribe();
   }, []);

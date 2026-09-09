@@ -145,6 +145,21 @@ vi.mock("../src/server/supabase", async () => {
       });
       return { month, day, birthdayChanges };
     },
+    claimStudentRoster: async (email: string, userId: string) => {
+      const path = `studentRoster/${email}`;
+      const roster = state.documents.get(path);
+      if (!roster || roster.status === "inactive") return undefined;
+      if (roster.status === "claimed" && roster.claimedUserId !== userId)
+        return undefined;
+      const claimed = {
+        ...roster,
+        status: "claimed",
+        claimedUserId: userId,
+        claimedAt: new Date().toISOString(),
+      };
+      state.documents.set(path, claimed);
+      return claimed;
+    },
     db: () => store,
     document: async (name: string, id: string) => {
       const doc = state.documents.get(`${name}/${id}`);
@@ -202,6 +217,81 @@ describe("server action boundaries", () => {
       birthday: { month: 2, day: 29 },
       enrolledClassId: "creative-media",
     });
+  });
+  it("claims a verified legacy roster entry without asking for onboarding again", async () => {
+    state.documents.set("studentRoster/legacy@example.com", {
+      email: "legacy@example.com",
+      name: "Legacy Student",
+      phoneNumber: "+2348012345678",
+      countryCode: "NG",
+      enrolledClassId: "creative-media",
+      membershipPlan: "Free",
+      enrolledAt: "2026-07-30T18:21:22.000Z",
+      status: "pending",
+      whatsappConsent: true,
+      communicationConsentVersion: "legacy-ea-academy-import-v1",
+      phoneReviewRequired: false,
+    });
+
+    await dispatch(
+      {
+        ...newGoogleToken,
+        email: "Legacy@Example.com",
+        email_verified: true,
+      } as AuthToken,
+      "profile.ensure",
+      {},
+    );
+
+    expect(state.documents.get("users/new-student")).toMatchObject({
+      name: "Legacy Student",
+      email: "legacy@example.com",
+      phoneNumber: "+2348012345678",
+      countryCode: "NG",
+      enrolledClassId: "creative-media",
+      membershipPlan: "Free",
+      enrolledAt: "2026-07-30T18:21:22.000Z",
+      whatsappNotificationsEnabled: true,
+      birthdayWhatsappEnabled: false,
+    });
+    expect(
+      state.documents.get("studentRoster/legacy@example.com"),
+    ).toMatchObject({
+      status: "claimed",
+      claimedUserId: "new-student",
+    });
+  });
+  it("withholds a shared roster phone until an administrator reviews it", async () => {
+    state.documents.set("studentRoster/review@example.com", {
+      email: "review@example.com",
+      name: "Review Student",
+      phoneNumber: "+2348012345678",
+      countryCode: "NG",
+      enrolledClassId: "system-dev",
+      membershipPlan: "Free",
+      enrolledAt: "2026-07-30T18:21:22.000Z",
+      status: "pending",
+      whatsappConsent: true,
+      communicationConsentVersion: "legacy-ea-academy-import-v1",
+      phoneReviewRequired: true,
+    });
+
+    await dispatch(
+      {
+        ...newGoogleToken,
+        email: "review@example.com",
+        email_verified: true,
+      } as AuthToken,
+      "profile.ensure",
+      {},
+    );
+
+    expect(state.documents.get("users/new-student")).toMatchObject({
+      whatsappNotificationsEnabled: false,
+    });
+    expect(state.documents.get("users/new-student")).not.toHaveProperty(
+      "phoneNumber",
+    );
   });
   it("repairs a pre-existing administrator profile without a primary track", async () => {
     const owner = {
