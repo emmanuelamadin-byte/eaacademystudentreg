@@ -518,6 +518,73 @@ export async function dispatch(
       });
       return { id: ref.id, moduleId };
     }
+    case "class.update": {
+      const { id, post } = s.classUpdateSchema.parse(p);
+      const lesson = await document("lessons", id);
+      requireTrackStaff(user, String(lesson.classId));
+      requireTrackStaff(user, post.classId);
+
+      const targetModuleId = post.moduleId || String(lesson.moduleId);
+      const courseModule = await document("modules", targetModuleId);
+      if (courseModule.classId !== post.classId)
+        throw new ApiError(400, "Choose a module in the same track.");
+
+      if (post.assignmentId) {
+        const assignment = await document("assignments", post.assignmentId);
+        if (
+          assignment.classId !== post.classId ||
+          assignment.published !== true
+        )
+          throw new ApiError(
+            400,
+            "Choose a published assignment from the same track.",
+          );
+      }
+
+      const timestamp = now();
+      const updates = clean({
+        classId: post.classId,
+        moduleId: targetModuleId,
+        assignmentId: post.assignmentId || undefined,
+        title: post.title,
+        content: post.content,
+        videoUrl: post.videoUrl,
+        duration: post.duration || "Self-paced",
+        resources: post.resources,
+        free: post.free,
+        updatedAt: timestamp,
+      });
+
+      await db().collection("lessons").doc(id).update(updates);
+
+      const moduleRef = db().collection("modules").doc(targetModuleId);
+      const modSnap = await moduleRef.get();
+      if (modSnap.exists) {
+        const modData = modSnap.data();
+        if (Array.isArray(modData?.lessons)) {
+          const existingSummary = modData.lessons.find((l: { id: string }) => l.id === id);
+          const order = existingSummary?.order ?? (lesson.order || 0);
+          const updatedSummaries = modData.lessons
+            .filter((l: { id: string }) => l.id !== id)
+            .concat([
+              {
+                id,
+                title: post.title,
+                duration: post.duration || "Self-paced",
+                order,
+                free: post.free,
+              },
+            ])
+            .sort((a: { order: number }, b: { order: number }) => a.order - b.order);
+          await moduleRef.update({
+            lessons: updatedSummaries,
+            lessonCount: updatedSummaries.length,
+          });
+        }
+      }
+
+      return { id, moduleId: targetModuleId };
+    }
     case "lesson.save": {
       const value = s.lessonSchema.parse(p.lesson);
       requireTrackStaff(user, value.classId);

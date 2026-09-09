@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { extractVideoUrl } from "../lib/video";
 import { TRACK_IDS } from "./policy";
 export const id = z.string().regex(/^[a-zA-Z0-9_-]{1,160}$/);
 const optionalId = z.preprocess(
@@ -15,6 +16,14 @@ export const url = z
   .max(2000)
   .refine((s) => /^https:\/\//i.test(s), "Use an HTTPS URL.");
 export const optionalUrl = z.union([url, z.literal("")]).optional();
+export const videoUrlInput = z.preprocess(
+  (val) => (typeof val === "string" ? extractVideoUrl(val) : val),
+  url,
+);
+export const optionalVideoUrlInput = z.preprocess(
+  (val) => (typeof val === "string" ? extractVideoUrl(val) : val),
+  optionalUrl,
+);
 export const date = z
   .string()
   .max(40)
@@ -56,7 +65,7 @@ export const lessonSchema = z.object({
   classId: track,
   title: short,
   duration: z.string().max(40),
-  videoUrl: optionalUrl.default(""),
+  videoUrl: optionalVideoUrlInput.default(""),
   content: z.string().max(100000),
   initialCode: z.string().max(50000).optional(),
   solutionCode: z.string().max(50000).optional(),
@@ -74,13 +83,17 @@ export const classPostSchema = z.object({
   assignmentId: optionalId,
   title: short,
   content: z.string().trim().min(1).max(100000),
-  videoUrl: url,
+  videoUrl: videoUrlInput,
   duration: z.string().trim().max(40).default("Self-paced"),
   free: z.boolean().default(false),
   resources: z
     .array(z.object({ title: short, url }))
     .max(30)
     .default([]),
+});
+export const classUpdateSchema = z.object({
+  id,
+  post: classPostSchema,
 });
 export const assignmentSchema = z.object({
   id: optionalId,

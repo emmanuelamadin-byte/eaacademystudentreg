@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -18,11 +18,13 @@ import {
   GraduationCap,
   Lock,
   MessageCircle,
+  Pencil,
   Play,
   Plus,
   Send,
   Sparkles,
   Target,
+  Trash2,
   Trophy,
   Award,
   Linkedin,
@@ -33,6 +35,7 @@ import {
 import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
 import { useRecords } from "@/lib/hooks";
+import { extractVideoUrl, getVideoEmbed } from "@/lib/video";
 import {
   getCertificateTitle,
   getLinkedInCertUrl,
@@ -64,7 +67,8 @@ const errorMessage = (error: unknown) =>
     : "Something went wrong. Please try again.";
 const safeUrl = (value: string) => {
   try {
-    const url = new URL(value);
+    const clean = extractVideoUrl(value);
+    const url = new URL(clean);
     return ["https:", "http:"].includes(url.protocol) ? url.href : "#";
   } catch {
     return "#";
@@ -646,6 +650,16 @@ function Classroom() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const refreshFeed = useCallback(async () => {
+    if (!user) return;
+    try {
+      const items = await api<Lesson[]>("classroom.list");
+      setClassLessons(items);
+    } catch (cause) {
+      setClassLessonsError(errorMessage(cause));
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!user || lessonIndex.loading) return;
     let cancelled = false;
@@ -744,6 +758,7 @@ function Classroom() {
       });
       setComposer(false);
       setMessage("Class posted. Students can now see it in their classroom.");
+      await refreshFeed();
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -839,15 +854,15 @@ function Classroom() {
               />
             </label>
             <label>
-              Video link
+              Video link or embed code (YouTube, Vimeo, Loom, Drive, Bunny, direct MP4, or &lt;iframe&gt;)
               <input
                 required
-                type="url"
+                type="text"
                 value={draft.videoUrl}
                 onChange={(event) =>
                   setDraft({ ...draft, videoUrl: event.target.value })
                 }
-                placeholder="https://youtube.com/... or https://iframe.mediadelivery.net/..."
+                placeholder="https://youtube.com/..., Vimeo, Loom, or paste <iframe> embed code"
               />
             </label>
             <div className="grid-2">
@@ -932,6 +947,10 @@ function Classroom() {
             lesson={lesson}
             completed={completed.has(lesson.id)}
             canComplete={!staff}
+            matchingAssignments={assignments.data.filter(
+              (a) => a.classId === lesson.classId,
+            )}
+            onUpdated={refreshFeed}
           />
         ))}
       </section>
@@ -953,128 +972,389 @@ function ClassPostCard({
   lesson,
   completed,
   canComplete,
+  matchingAssignments = [],
+  onUpdated,
 }: {
   lesson: Lesson;
   completed: boolean;
   canComplete: boolean;
+  matchingAssignments?: Assignment[];
+  onUpdated?: () => Promise<void> | void;
 }) {
+  const { user } = useAcademy();
+  const canManage =
+    user?.role === "Admin" ||
+    (user?.role === "Instructor" &&
+      (user.instructorTrackIds || []).includes(lesson.classId));
+
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(completed);
   const [error, setError] = useState("");
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  const [editDraft, setEditDraft] = useState({
+    title: lesson.title,
+    videoUrl: lesson.videoUrl || "",
+    duration: lesson.duration || "Self-paced",
+    content: lesson.content || "",
+    moduleId: lesson.moduleId || "",
+    assignmentId: lesson.assignmentId || "",
+    free: !!lesson.free,
+    resources: lesson.resources?.map((r) => r.url).join("\n") || "",
+  });
+
+  useEffect(() => {
+    setEditDraft({
+      title: lesson.title,
+      videoUrl: lesson.videoUrl || "",
+      duration: lesson.duration || "Self-paced",
+      content: lesson.content || "",
+      moduleId: lesson.moduleId || "",
+      assignmentId: lesson.assignmentId || "",
+      free: !!lesson.free,
+      resources: lesson.resources?.map((r) => r.url).join("\n") || "",
+    });
+  }, [lesson]);
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingEdit(true);
+    setEditError("");
+    try {
+      const resources = editDraft.resources
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((value) => {
+          const parsed = new URL(value);
+          if (parsed.protocol !== "https:")
+            throw new Error("Resource links must use HTTPS.");
+          return {
+            title: parsed.hostname.replace(/^www\./, ""),
+            url: parsed.href,
+          };
+        });
+
+      await api("class.update", {
+        id: lesson.id,
+        post: {
+          classId: lesson.classId,
+          moduleId: editDraft.moduleId || undefined,
+          assignmentId: editDraft.assignmentId || undefined,
+          title: editDraft.title,
+          content: editDraft.content,
+          videoUrl: editDraft.videoUrl,
+          duration: editDraft.duration || "Self-paced",
+          free: editDraft.free,
+          resources,
+        },
+      });
+      setIsEditing(false);
+      await onUpdated?.();
+    } catch (cause) {
+      setEditError(errorMessage(cause));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this class post? This action cannot be undone.",
+      )
+    )
+      return;
+    setDeleting(true);
+    setError("");
+    try {
+      await api("lesson.delete", { id: lesson.id });
+      await onUpdated?.();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const assignmentUrl = lesson.assignmentId
     ? `/app/assignments/${lesson.assignmentId}`
     : "";
+
   return (
     <article className="card class-post">
       <div className="class-post-meta">
-        <span className="badge">
-          {TRACKS.find((track) => track.id === lesson.classId)?.name}
-        </span>
-        <span className="muted">
-          {lesson.createdAt
-            ? new Date(lesson.createdAt).toLocaleDateString("en-NG", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })
-            : "Recorded class"}
-        </span>
-      </div>
-      <h2>{lesson.title}</h2>
-      <p className="muted">{lesson.duration || "Self-paced"}</p>
-      <div className="class-post-video">
-        <LessonVideo url={lesson.videoUrl} title={lesson.title} />
-      </div>
-      <div className="class-post-notes prose">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {lesson.content}
-        </ReactMarkdown>
-      </div>
-      {!!lesson.resources?.length && (
-        <div className="class-resources">
-          {lesson.resources.map((resource, index) => (
-            <a
-              key={`${resource.url}-${index}`}
-              href={safeUrl(resource.url)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <FileText size={15} /> {resource.title}
-            </a>
-          ))}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          <span className="badge">
+            {TRACKS.find((track) => track.id === lesson.classId)?.name}
+          </span>
+          {lesson.free && (
+            <span className="badge badge-success">Free class</span>
+          )}
         </div>
-      )}
-      {error && <p className="alert alert-error">{error}</p>}
-      <div className="button-row">
-        <Link className="btn btn-primary" href={`/app/lesson/${lesson.id}`}>
-          Open class & discussion <ArrowRight size={16} />
-        </Link>
-        {assignmentUrl && (
-          <Link className="btn btn-secondary" href={assignmentUrl}>
-            View assignment
-          </Link>
-        )}
-        {canComplete && (
-          <button
-            className="btn btn-secondary"
-            disabled={done || saving}
-            onClick={async () => {
-              setSaving(true);
-              setError("");
-              try {
-                await api("progress.complete", { lessonId: lesson.id });
-                setDone(true);
-              } catch (cause) {
-                setError(errorMessage(cause));
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            <CheckCircle2 size={16} />
-            {done ? "Completed" : saving ? "Saving…" : "Mark complete"}
-          </button>
-        )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <span className="muted">
+            {lesson.createdAt
+              ? new Date(lesson.createdAt).toLocaleDateString("en-NG", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "Recorded class"}
+          </span>
+          {canManage && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setEditError("");
+                  setIsEditing((v) => !v);
+                }}
+                title="Edit this class"
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 13,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                }}
+              >
+                <Pencil size={13} /> {isEditing ? "Cancel" : "Edit"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleDelete}
+                disabled={deleting}
+                title="Delete this class"
+                style={{
+                  padding: "4px 8px",
+                  fontSize: 13,
+                  color: "#d93025",
+                }}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {isEditing ? (
+        <form
+          className="workspace-form class-edit-form"
+          onSubmit={handleSaveEdit}
+          style={{ marginTop: 18 }}
+        >
+          <div className="grid-2">
+            <label>
+              Class title
+              <input
+                required
+                maxLength={200}
+                value={editDraft.title}
+                onChange={(event) =>
+                  setEditDraft({ ...editDraft, title: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              Duration
+              <input
+                maxLength={40}
+                value={editDraft.duration}
+                onChange={(event) =>
+                  setEditDraft({ ...editDraft, duration: event.target.value })
+                }
+                placeholder="45 minutes"
+              />
+            </label>
+          </div>
+
+          <label>
+            Video link or embed code (YouTube, Vimeo, Loom, Drive, Bunny, direct MP4, or &lt;iframe&gt;)
+            <input
+              required
+              type="text"
+              value={editDraft.videoUrl}
+              onChange={(event) =>
+                setEditDraft({ ...editDraft, videoUrl: event.target.value })
+              }
+              placeholder="https://youtube.com/..., Vimeo, Loom, or paste <iframe> embed code"
+            />
+          </label>
+
+          {matchingAssignments.length > 0 && (
+            <label>
+              Related assignment (optional)
+              <select
+                value={editDraft.assignmentId}
+                onChange={(event) =>
+                  setEditDraft({
+                    ...editDraft,
+                    assignmentId: event.target.value,
+                  })
+                }
+              >
+                <option value="">No assignment</option>
+                {matchingAssignments.map((assignment) => (
+                  <option key={assignment.id} value={assignment.id}>
+                    {assignment.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <label>
+            Class notes (Markdown supported)
+            <textarea
+              required
+              rows={6}
+              value={editDraft.content}
+              onChange={(event) =>
+                setEditDraft({ ...editDraft, content: event.target.value })
+              }
+              placeholder="Summarize the class, key ideas, and what students should do next."
+            />
+          </label>
+
+          <label>
+            Resource links (optional, one HTTPS link per line)
+            <textarea
+              rows={3}
+              value={editDraft.resources}
+              onChange={(event) =>
+                setEditDraft({ ...editDraft, resources: event.target.value })
+              }
+              placeholder={
+                "https://example.com/worksheet.pdf\nhttps://example.com/slides"
+              }
+            />
+          </label>
+
+          <label className="check-label">
+            <input
+              type="checkbox"
+              checked={editDraft.free}
+              onChange={(event) =>
+                setEditDraft({ ...editDraft, free: event.target.checked })
+              }
+            />
+            Make this class available to Free students in this track
+          </label>
+
+          {editError && <p className="alert alert-error">{editError}</p>}
+
+          <div className="button-row" style={{ marginTop: 14 }}>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={savingEdit}
+            >
+              {savingEdit ? "Saving changes…" : "Save changes"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setIsEditing(false)}
+              disabled={savingEdit}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <h2>{lesson.title}</h2>
+          <p className="muted">{lesson.duration || "Self-paced"}</p>
+          <div className="class-post-video">
+            <LessonVideo url={lesson.videoUrl} title={lesson.title} />
+          </div>
+          <div className="class-post-notes prose">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {lesson.content}
+            </ReactMarkdown>
+          </div>
+          {!!lesson.resources?.length && (
+            <div className="class-resources">
+              {lesson.resources.map((resource, index) => (
+                <a
+                  key={`${resource.url}-${index}`}
+                  href={safeUrl(resource.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FileText size={15} /> {resource.title}
+                </a>
+              ))}
+            </div>
+          )}
+          {error && <p className="alert alert-error">{error}</p>}
+          <div className="button-row">
+            <Link className="btn btn-primary" href={`/app/lesson/${lesson.id}`}>
+              Open class & discussion <ArrowRight size={16} />
+            </Link>
+            {assignmentUrl && (
+              <Link className="btn btn-secondary" href={assignmentUrl}>
+                View assignment
+              </Link>
+            )}
+            {canComplete && (
+              <button
+                className="btn btn-secondary"
+                disabled={done || saving}
+                onClick={async () => {
+                  setSaving(true);
+                  setError("");
+                  try {
+                    await api("progress.complete", { lessonId: lesson.id });
+                    setDone(true);
+                  } catch (cause) {
+                    setError(errorMessage(cause));
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                <CheckCircle2 size={16} />
+                {done ? "Completed" : saving ? "Saving…" : "Mark complete"}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </article>
   );
 }
 
 function LessonVideo({ url, title }: { url: string; title: string }) {
-  let embed = "";
-  try {
-    const parsed = new URL(url);
-    if (
-      ["youtube.com", "www.youtube.com", "m.youtube.com"].includes(
-        parsed.hostname,
-      )
-    ) {
-      const id =
-        parsed.searchParams.get("v") || parsed.pathname.split("/").pop();
-      if (id && /^[\w-]+$/.test(id))
-        embed = `https://www.youtube-nocookie.com/embed/${id}`;
-    } else if (
-      parsed.hostname === "youtu.be" &&
-      /^[\w-]+$/.test(parsed.pathname.slice(1))
-    )
-      embed = `https://www.youtube-nocookie.com/embed/${parsed.pathname.slice(1)}`;
-    else if (
-      ["vimeo.com", "www.vimeo.com", "player.vimeo.com"].includes(
-        parsed.hostname,
-      )
-    ) {
-      const id = parsed.pathname.split("/").pop();
-      if (id && /^\d+$/.test(id))
-        embed = `https://player.vimeo.com/video/${id}`;
-    } else if (
-      ["iframe.mediadelivery.net", "video.bunnycdn.com"].includes(
-        parsed.hostname,
-      )
-    ) {
-      embed = parsed.href;
-    }
-  } catch {}
-  if (!url)
+  if (!url) {
     return (
       <div className="video-empty">
         <Play size={40} />
@@ -1083,27 +1363,53 @@ function LessonVideo({ url, title }: { url: string; title: string }) {
         </p>
       </div>
     );
-  return embed ? (
-    <iframe
-      className="lesson-video"
-      src={embed}
-      title={title}
-      allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-      allowFullScreen
-      referrerPolicy="strict-origin-when-cross-origin"
-    />
-  ) : (
-    <video
-      className="lesson-video"
-      controls
-      preload="metadata"
-      src={safeUrl(url)}
-    >
-      Your browser cannot play this video.{" "}
-      <a href={safeUrl(url)}>Open the video</a>.
-    </video>
+  }
+
+  const { embedUrl, isDirectVideo } = getVideoEmbed(url);
+
+  if (isDirectVideo) {
+    return (
+      <video
+        className="lesson-video"
+        controls
+        preload="metadata"
+        src={safeUrl(embedUrl || url)}
+      >
+        Your browser cannot play this video.{" "}
+        <a href={safeUrl(embedUrl || url)}>Open the video</a>.
+      </video>
+    );
+  }
+
+  if (embedUrl) {
+    return (
+      <iframe
+        className="lesson-video"
+        src={embedUrl}
+        title={title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+      />
+    );
+  }
+
+  return (
+    <div className="video-empty">
+      <Play size={40} />
+      <p>Unable to embed this video player directly.</p>
+      <a
+        className="btn btn-secondary"
+        href={safeUrl(url)}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open video link in new tab <ExternalLink size={14} />
+      </a>
+    </div>
   );
 }
+
 function LessonPlayer({ id }: { id?: string }) {
   const { user } = useAcademy();
   const [lesson, setLesson] = useState<Lesson | null>(null);

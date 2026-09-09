@@ -395,6 +395,33 @@ describe("server action boundaries", () => {
       targetTrack: "system-dev",
       actionScreen: `/app/lesson/${result.id}`,
     });
+
+    // Test class.update action
+    const updateResult = (await dispatch(token, "class.update", {
+      id: result.id,
+      post: {
+        classId: "system-dev",
+        moduleId: result.moduleId,
+        title: "Updated Web Class Title",
+        content: "Updated content and notes.",
+        videoUrl:
+          '<iframe width="560" height="315" src="https://www.youtube.com/embed/updated123" frameborder="0"></iframe>',
+        duration: "60 minutes",
+        free: false,
+        resources: [
+          { title: "Updated Slides", url: "https://example.com/slides.pdf" },
+        ],
+      },
+    })) as { id: string; moduleId: string };
+
+    expect(updateResult.id).toBe(result.id);
+    expect(state.documents.get(`lessons/${result.id}`)).toMatchObject({
+      title: "Updated Web Class Title",
+      videoUrl: "https://www.youtube.com/embed/updated123",
+      duration: "60 minutes",
+      content: "Updated content and notes.",
+      free: false,
+    });
   });
   it("returns only classroom lessons the signed-in student may access", async () => {
     state.documents.set("modules/free-module", {
