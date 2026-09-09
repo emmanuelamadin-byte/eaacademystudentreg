@@ -5604,3 +5604,225 @@ tr:last-child td {
     justify-content: center;
   }
 }
+
+/* ==========================================================================
+   PREMIUM MOBILE APP EXPERIENCE (Strictly isolated to mobile <= 768px)
+   Does not affect desktop view in any way.
+   ========================================================================== */
+
+/* 1. Global Reset: Hide mobile-only bottom bar on desktop */
+.mobile-bottom-nav {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  /* Touch ergonomics & smooth feel */
+  *,
+  *::before,
+  *::after {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Safe area inset support */
+  body {
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
+
+  /* 2. Native App Bottom Navigation Bar (Tab Bar) */
+  .mobile-bottom-nav {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 62px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(0, 39, 81, 0.08);
+    box-shadow: 0 -4px 24px -2px rgba(0, 39, 81, 0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 50;
+    user-select: none;
+  }
+
+  .mobile-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: #64748b;
+    font-size: 10.5px;
+    font-weight: 500;
+    background: transparent;
+    border: none;
+    padding: 6px 0;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-tab svg {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+    stroke-width: 2.1px;
+  }
+
+  .mobile-tab.active {
+    color: #002751;
+    font-weight: 700;
+  }
+
+  .mobile-tab.active svg {
+    color: #ef8f53;
+    transform: translateY(-2px) scale(1.08);
+  }
+
+  .mobile-tab.active::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    width: 20px;
+    height: 3px;
+    background: linear-gradient(90deg, #ef8f53, #f59e0b);
+    border-radius: 999px;
+  }
+
+  /* Prevent bottom content from being hidden behind the bottom tab bar */
+  .workspace-content {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 16px)) !important;
+  }
+
+  /* 3. Native App Mobile Workspace Header */
+  .workspace-header {
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 39, 81, 0.08);
+    height: 58px;
+    padding-top: env(safe-area-inset-top, 0);
+    padding-inline: 16px;
+    z-index: 30;
+    box-shadow: 0 1px 3px rgba(0, 39, 81, 0.02);
+  }
+
+  .workspace-breadcrumb {
+    gap: 8px;
+  }
+
+  .workspace-breadcrumb strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  /* 4. Native App Slide-Over Sheet / Drawer */
+  .sidebar {
+    width: min(85vw, 320px);
+    border-radius: 0 24px 24px 0;
+    box-shadow: 12px 0 40px rgba(0, 39, 81, 0.18);
+    border-right: 1px solid rgba(0, 39, 81, 0.08);
+    background: #ffffff;
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .sidebar-backdrop {
+    background: rgba(0, 28, 63, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: opacity 0.25s ease;
+  }
+
+  .sidebar-link {
+    min-height: 44px;
+    border-radius: 12px;
+    margin-inline: 4px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+
+  .sidebar-link:active {
+    background: #f1f5f9;
+    transform: scale(0.98);
+  }
+
+  /* 5. Mobile Cards: Tactile, Native App Elevation & Radius */
+  .card,
+  .stat-card,
+  .track-card,
+  .testimonial-card,
+  .story-card,
+  .auth-form-wrap {
+    border-radius: 20px;
+    border: 1px solid rgba(0, 39, 81, 0.07);
+    box-shadow: 0 3px 12px -2px rgba(0, 39, 81, 0.05), 0 1px 3px rgba(0, 39, 81, 0.03);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .card:active,
+  .track-card:active {
+    transform: scale(0.99);
+  }
+
+  /* 6. Buttons & Touch Targets: Minimum 44px ergonomics */
+  .btn,
+  .icon-btn,
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .icon-btn {
+    min-width: 44px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 12px;
+  }
+
+  .btn {
+    border-radius: 12px;
+    font-weight: 600;
+  }
+
+  .btn:active {
+    transform: scale(0.98);
+  }
+
+  /* 7. Public Site Mobile Navigation Polish */
+  .public-header {
+    height: 64px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding-inline: 16px;
+  }
+
+  .public-nav {
+    border-radius: 0 0 24px 24px;
+    box-shadow: 0 24px 48px -12px rgba(0, 39, 81, 0.16);
+    border-bottom: 1px solid rgba(0, 39, 81, 0.08);
+    padding: 16px 18px 24px;
+  }
+
+  .public-nav > a {
+    min-height: 48px;
+    font-size: 14.5px;
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .public-nav > a:active {
+    background: #f8fafc;
+    transform: scale(0.99);
+  }
+}
+

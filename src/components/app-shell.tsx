@@ -72,6 +72,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [search, setSearch] = useState("");
   const [seen, setSeen] = useState("");
   const online = useOnline();
+
+  useEffect(() => {
+    setMenu(false);
+  }, [pathname]);
   const userId = user?.id;
   const validPrimaryTrack =
     !!user && TRACKS.some((track) => track.id === user.enrolledClassId);
@@ -182,6 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Link
         key={href}
         href={href}
+        onClick={() => setMenu(false)}
         className={pathname === href ? "sidebar-link active" : "sidebar-link"}
       >
         <Icon size={19} />
@@ -387,6 +392,47 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </footer>
       </div>
+      {/* Native App Bottom Navigation Bar (Mobile only, hidden on desktop) */}
+      <nav className="mobile-bottom-nav" aria-label="Mobile application navigation">
+        <Link
+          href="/app/dashboard"
+          className={`mobile-tab ${pathname === "/app/dashboard" ? "active" : ""}`}
+        >
+          <LayoutDashboard size={20} />
+          <span>Overview</span>
+        </Link>
+        <Link
+          href="/app/classes"
+          className={`mobile-tab ${pathname.startsWith("/app/classes") ? "active" : ""}`}
+        >
+          <Video size={20} />
+          <span>Classes</span>
+        </Link>
+        <Link
+          href="/app/tracks"
+          className={`mobile-tab ${pathname.startsWith("/app/tracks") ? "active" : ""}`}
+        >
+          <BookOpen size={20} />
+          <span>Tracks</span>
+        </Link>
+        <Link
+          href="/app/assignments"
+          className={`mobile-tab ${pathname.startsWith("/app/assignments") ? "active" : ""}`}
+        >
+          <ClipboardList size={20} />
+          <span>Tasks</span>
+        </Link>
+        <button
+          type="button"
+          className={`mobile-tab ${menu ? "active" : ""}`}
+          onClick={() => setMenu(!menu)}
+          aria-label={menu ? "Close menu drawer" : "Open menu drawer"}
+          aria-expanded={menu}
+        >
+          <Menu size={20} />
+          <span>More</span>
+        </button>
+      </nav>
     </div>
   );
 }
