@@ -353,7 +353,12 @@ function Dashboard() {
             <span className="eyebrow">DIGITAL PRODUCTS & MASTERCLASSES</span>
             <h2>Shop</h2>
           </div>
-          <Link href="/shop" className="dashboard-shop-browse-link">
+          <Link
+            href="/shop"
+            scroll={true}
+            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+            className="dashboard-shop-browse-link"
+          >
             Explore all items <ArrowRight size={15} />
           </Link>
         </div>
@@ -371,7 +376,12 @@ function Dashboard() {
               const isOwned = myPurchases.data.some((p) => p.itemId === item.id);
               return (
                 <article key={item.id} className="dashboard-shop-card">
-                  <Link href={`/shop/${item.slug}`} className="dashboard-shop-card-img">
+                  <Link
+                    href={`/shop/${item.slug}`}
+                    scroll={true}
+                    onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+                    className="dashboard-shop-card-img"
+                  >
                     {item.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.thumbnailUrl} alt={item.title} loading="lazy" />
@@ -387,7 +397,13 @@ function Dashboard() {
                   <div className="dashboard-shop-card-body">
                     <div className="dashboard-shop-card-category">{item.category}</div>
                     <h3 className="dashboard-shop-card-title">
-                      <Link href={`/shop/${item.slug}`}>{item.title}</Link>
+                      <Link
+                        href={`/shop/${item.slug}`}
+                        scroll={true}
+                        onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+                      >
+                        {item.title}
+                      </Link>
                     </h3>
                     <p className="dashboard-shop-card-sub">{item.subtitle}</p>
                     <div className="dashboard-shop-card-footer">
@@ -400,12 +416,19 @@ function Dashboard() {
                       {isOwned ? (
                         <Link
                           href={isCourse ? `/app/learn-course/${item.id}` : "/app/library"}
+                          scroll={true}
+                          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
                           className="btn btn-secondary btn-small"
                         >
                           {isCourse ? "Open classroom" : "Download"}
                         </Link>
                       ) : (
-                        <Link href={`/shop/${item.slug}`} className="btn btn-primary btn-small">
+                        <Link
+                          href={`/shop/${item.slug}`}
+                          scroll={true}
+                          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+                          className="btn btn-primary btn-small"
+                        >
                           View details
                         </Link>
                       )}
@@ -429,7 +452,12 @@ function Dashboard() {
                 </p>
               </div>
             </div>
-            <Link href="/shop" className="btn btn-primary">
+            <Link
+              href="/shop"
+              scroll={true}
+              onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+              className="btn btn-primary"
+            >
               Browse shop <ArrowRight size={15} />
             </Link>
           </div>

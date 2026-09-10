@@ -92,7 +92,12 @@ export function StudentLibrary() {
           </p>
         </div>
         <div className="workspace-inline">
-          <Link href="/shop" className="btn btn-secondary">
+          <Link
+            href="/shop"
+            scroll={true}
+            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+            className="btn btn-secondary"
+          >
             <ShoppingBag size={16} />
             Browse Shop
           </Link>
@@ -171,7 +176,13 @@ export function StudentLibrary() {
             You have not purchased any standalone courses or digital products yet.
             Visit our shop to explore masterclasses, templates, and downloadable guides.
           </p>
-          <Link href="/shop" className="btn btn-primary" style={{ marginTop: "1rem" }}>
+          <Link
+            href="/shop"
+            scroll={true}
+            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+            className="btn btn-primary"
+            style={{ marginTop: "1rem" }}
+          >
             Explore Academy Shop
             <ArrowRight size={15} />
           </Link>

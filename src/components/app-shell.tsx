@@ -202,7 +202,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Link
         key={href}
         href={href}
-        onClick={() => setMenu(false)}
+        scroll={true}
+        onClick={() => {
+          setMenu(false);
+          window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        }}
         className={pathname === href ? "sidebar-link active" : "sidebar-link"}
       >
         <Icon size={19} />
@@ -422,6 +426,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <nav className="mobile-bottom-nav" aria-label="Mobile application navigation">
         <Link
           href="/app/dashboard"
+          scroll={true}
+          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
           className={`mobile-tab ${pathname === "/app/dashboard" ? "active" : ""}`}
         >
           <LayoutDashboard size={20} />
@@ -429,6 +435,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <Link
           href="/app/classes"
+          scroll={true}
+          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
           className={`mobile-tab ${pathname.startsWith("/app/classes") ? "active" : ""}`}
         >
           <Video size={20} />
@@ -436,6 +444,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <Link
           href="/app/tracks"
+          scroll={true}
+          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
           className={`mobile-tab ${pathname.startsWith("/app/tracks") ? "active" : ""}`}
         >
           <BookOpen size={20} />
@@ -443,6 +453,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <Link
           href="/app/assignments"
+          scroll={true}
+          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
           className={`mobile-tab ${pathname.startsWith("/app/assignments") ? "active" : ""}`}
         >
           <ClipboardList size={20} />

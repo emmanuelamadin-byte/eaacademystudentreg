@@ -50,7 +50,14 @@ export function PublicHeader() {
             <Link href="/tracks" onClick={() => setOpen(false)}>
               Career tracks
             </Link>
-            <Link href="/shop" onClick={() => setOpen(false)}>
+            <Link
+              href="/shop"
+              scroll={true}
+              onClick={() => {
+                setOpen(false);
+                window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+              }}
+            >
               Shop
             </Link>
             <Link href="/#approach" onClick={() => setOpen(false)}>
@@ -143,7 +150,15 @@ export function PublicFooter() {
         <div>
           <span className="eyebrow">YOUR NEXT STEP</span>
           <Link href="/tracks">Explore career tracks</Link>
-          <Link href="/shop">Academy Shop</Link>
+          <Link
+            href="/shop"
+            scroll={true}
+            onClick={() => {
+              window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+            }}
+          >
+            Academy Shop
+          </Link>
           <Link href="/pricing">Get Premium</Link>
           <Link href="/donate">Support a scholar</Link>
         </div>

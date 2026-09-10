@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { AcademyProvider } from "@/components/academy-provider";
 import { PwaTools } from "@/components/pwa-tools";
+import { NavigationScrollHandler } from "@/components/navigation-scroll-handler";
 import {
   OrganizationSchema,
   WebSiteSchema,
@@ -126,6 +127,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <AcademyProvider>
+          <NavigationScrollHandler />
           <div id="main-content">{children}</div>
           <PwaTools />
         </AcademyProvider>

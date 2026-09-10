@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -33,6 +33,14 @@ export function ShopCatalogPage() {
   const { data: items, loading, error } = useRecords<ShopItem>("shopItems", [
     ["published", "==", true],
   ]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    const raf = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<"all" | "course" | "digital_product">("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -259,7 +267,12 @@ function ShopProductCard({ item }: { item: ShopItem }) {
 
   return (
     <article className="shop-card">
-      <Link href={`/shop/${item.slug}`} className="shop-card-image-wrap">
+      <Link
+        href={`/shop/${item.slug}`}
+        scroll={true}
+        onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+        className="shop-card-image-wrap"
+      >
         {item.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -293,7 +306,13 @@ function ShopProductCard({ item }: { item: ShopItem }) {
         </div>
 
         <h3 className="shop-card-title">
-          <Link href={`/shop/${item.slug}`}>{item.title}</Link>
+          <Link
+            href={`/shop/${item.slug}`}
+            scroll={true}
+            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+          >
+            {item.title}
+          </Link>
         </h3>
         <p className="shop-card-subtitle">{item.subtitle}</p>
 
@@ -352,7 +371,12 @@ function ShopProductCard({ item }: { item: ShopItem }) {
               </span>
             )}
           </div>
-          <Link href={`/shop/${item.slug}`} className="btn btn-secondary shop-card-btn">
+          <Link
+            href={`/shop/${item.slug}`}
+            scroll={true}
+            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+            className="btn btn-secondary shop-card-btn"
+          >
             {isCourse ? "View course" : "View material"}
             <ArrowRight size={14} />
           </Link>
@@ -371,6 +395,14 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
     [item.curriculum?.[0]?.id || ""]: true,
   });
   const [previewLesson, setPreviewLesson] = useState<ShopCourseLesson | null>(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    const raf = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [item.id]);
 
   const isCourse = item.type === "course";
   const discountPercent =
@@ -422,7 +454,13 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
       <PublicHeader />
       <main className="shop-detail-main">
         <div className="shop-detail-breadcrumb container">
-          <Link href="/shop">Shop</Link>
+          <Link
+            href="/shop"
+            scroll={true}
+            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+          >
+            Shop
+          </Link>
           <span>/</span>
           <span className="shop-detail-breadcrumb-current">{item.title}</span>
         </div>
