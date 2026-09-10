@@ -203,10 +203,109 @@ export interface Payment {
   id: string;
   studentId: string;
   amount: number;
-  kind: "premium" | "donation";
+  kind: "premium" | "donation" | "shop_item";
   status: string;
   createdAt: string;
   reference: string;
+  itemId?: string;
+  itemTitle?: string;
+}
+
+export type ShopItemType = "course" | "digital_product";
+
+export interface ShopCourseLessonResource {
+  title: string;
+  url: string;
+  size?: string;
+}
+
+export interface ShopCourseLesson {
+  id: string;
+  title: string;
+  duration: string;
+  videoUrl: string;
+  content: string;
+  resources?: ShopCourseLessonResource[];
+  isFreePreview: boolean;
+  order: number;
+}
+
+export interface ShopCourseModule {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  lessons: ShopCourseLesson[];
+}
+
+export interface ShopItem {
+  id: string;
+  slug: string;
+  type: ShopItemType;
+  title: string;
+  subtitle: string;
+  description: string;
+  price: number;
+  compareAtPrice?: number;
+  category: string;
+  tags: string[];
+  badge?: string;
+  thumbnailUrl: string;
+  previewVideoUrl?: string;
+  whatYouWillLearn: string[];
+  requirements?: string[];
+  targetAudience?: string[];
+  published: boolean;
+  featured?: boolean;
+  salesCount?: number;
+  createdAt: string;
+  updatedAt: string;
+  // Course specific
+  level?: "All Levels" | "Beginner" | "Intermediate" | "Advanced";
+  totalDuration?: string;
+  certificateEnabled?: boolean;
+  curriculum?: ShopCourseModule[];
+  // Digital Product specific
+  fileUrl?: string;
+  fileSize?: string;
+  fileFormat?: string;
+  version?: string;
+  includes?: string[];
+}
+
+export interface ShopPurchase {
+  id: string;
+  studentId: string;
+  studentEmail: string;
+  studentName: string;
+  itemId: string;
+  itemSlug: string;
+  itemTitle: string;
+  itemType: ShopItemType;
+  amount: number;
+  paymentReference: string;
+  purchasedAt: string;
+}
+
+export interface ShopCourseProgress {
+  id: string;
+  studentId: string;
+  courseId: string;
+  completedLessonIds: string[];
+  lastLessonId: string;
+  completed: boolean;
+  completedAt?: string;
+  certificateId?: string;
+}
+
+export interface ShopCertificate {
+  id: string;
+  studentId: string;
+  studentName: string;
+  courseId: string;
+  courseTitle: string;
+  issuedAt: string;
+  verificationCode: string;
 }
 export const TRACKS = [
   {

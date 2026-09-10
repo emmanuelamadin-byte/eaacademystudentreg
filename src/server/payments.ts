@@ -57,11 +57,12 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
   await limit(user.id, "checkout", 6);
   const input = z
     .object({
-      kind: z.enum(["premium", "donation"]),
+      kind: z.enum(["premium", "donation", "shop_item"]),
       amount: z.number().min(100).max(10000000).optional(),
       donorName: z.string().trim().max(100).optional(),
       anonymous: z.boolean().default(false),
       recurring: z.boolean().default(true),
+      itemId: z.string().optional(),
     })
     .parse(p);
   if (!user.email)
@@ -75,11 +76,37 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
       503,
       "The public application URL has not been configured.",
     );
-  const amount =
-    input.kind === "premium"
-      ? premiumAmountKobo()
-      : Math.round((input.amount || 0) * 100);
-  if (amount < 10000) throw new ApiError(400, "The minimum donation is ₦100.");
+
+  let amount: number;
+  let shopItemData: Record<string, unknown> | null = null;
+
+  if (input.kind === "premium") {
+    amount = premiumAmountKobo();
+  } else if (input.kind === "shop_item") {
+    if (!input.itemId) {
+      throw new ApiError(400, "Choose an item to purchase.");
+    }
+    const itemDoc = await db().collection("shopItems").doc(input.itemId).get();
+    if (!itemDoc.exists || !itemDoc.data()?.published) {
+      throw new ApiError(404, "This course or product is no longer available.");
+    }
+    shopItemData = itemDoc.data()!;
+    const alreadyPurchased = await db()
+      .collection("shopPurchases")
+      .doc(`${user.id}_${input.itemId}`)
+      .get();
+    if (alreadyPurchased.exists) {
+      throw new ApiError(
+        409,
+        "You already own this item. View it anytime in your Library.",
+      );
+    }
+    amount = Math.round(Number(shopItemData!.price) * 100);
+  } else {
+    amount = Math.round((input.amount || 0) * 100);
+  }
+
+  if (amount < 10000) throw new ApiError(400, "The minimum amount is ₦100.");
   let plan: string | undefined;
   if (input.kind === "premium" && input.recurring) {
     plan = process.env.PAYSTACK_MONTHLY_PLAN_CODE;
@@ -117,6 +144,10 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
       studentId: user.id,
       email: user.email,
       kind: input.kind,
+      itemId: input.itemId || null,
+      itemTitle: shopItemData?.title || null,
+      itemType: shopItemData?.type || null,
+      itemSlug: shopItemData?.slug || null,
       amount,
       currency: "NGN",
       recurring: !!plan,
@@ -126,6 +157,12 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
       createdAt: new Date().toISOString(),
       status: "pending",
     });
+
+  const callbackUrl =
+    input.kind === "shop_item"
+      ? `${origin.replace(/\/$/, "")}/app/library?purchased=${encodeURIComponent(input.itemId || "")}&ref=${encodeURIComponent(reference)}`
+      : `${origin.replace(/\/$/, "")}/app/billing`;
+
   const result = await paystack<{
     authorization_url: string;
     access_code: string;
@@ -135,10 +172,14 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
     amount,
     currency: "NGN",
     reference,
-    callback_url: `${origin.replace(/\/$/, "")}/app/billing`,
+    callback_url: callbackUrl,
     channels: plan ? ["card"] : ["card", "bank_transfer"],
     ...(plan ? { plan } : {}),
-    metadata: { academyReference: reference },
+    metadata: {
+      academyReference: reference,
+      kind: input.kind,
+      itemId: input.itemId || undefined,
+    },
   });
   return {
     url: result.authorization_url,
@@ -259,7 +300,32 @@ async function applyPayment(
           },
         );
       }
-    } else
+    } else if (intent!.kind === "shop_item") {
+      const purchaseId = `${intent!.studentId}_${intent!.itemId}`;
+      tx.set(store.collection("shopPurchases").doc(purchaseId), {
+        id: purchaseId,
+        studentId: intent!.studentId,
+        studentEmail: intent!.email,
+        studentName: owner.data()?.name || intent!.donorName || "Student",
+        itemId: intent!.itemId,
+        itemSlug: intent!.itemSlug || "",
+        itemTitle: intent!.itemTitle || "",
+        itemType: intent!.itemType || "course",
+        amount: transaction.amount / 100,
+        paymentReference: transaction.reference,
+        purchasedAt: paidAt,
+        createdAt: paidAt,
+      });
+      if (intent!.itemId) {
+        const itemRef = store.collection("shopItems").doc(String(intent!.itemId));
+        tx.update(itemRef, {
+          salesCount: (itemRef as unknown as { salesCount?: number })?.salesCount
+            ? Number((itemRef as unknown as { salesCount?: number }).salesCount) + 1
+            : 1,
+          updatedAt: paidAt,
+        });
+      }
+    } else {
       tx.create(store.collection("donations").doc(transaction.reference), {
         id: transaction.reference,
         donorName: intent!.anonymous ? "Anonymous" : intent!.donorName,
@@ -267,6 +333,7 @@ async function applyPayment(
         amount: transaction.amount / 100,
         createdAt: paidAt,
       });
+    }
     if (initial.exists) tx.update(intentRef, { status: "success" });
   });
   return {

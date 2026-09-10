@@ -25,6 +25,8 @@ import {
   Heart,
   WifiOff,
   Video,
+  ShoppingBag,
+  Store,
 } from "lucide-react";
 import { useAcademy } from "./academy-provider";
 import { Brand, Loading, SetupNotice } from "./ui";
@@ -36,6 +38,7 @@ import { isBirthdayToday, localDateParts } from "@/lib/birthdays";
 
 const studentLinks = [
   { href: "/app/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/app/library", label: "My library", icon: ShoppingBag },
   { href: "/app/classes", label: "Classroom", icon: Video },
   { href: "/app/tracks", label: "My learning", icon: BookOpen },
   { href: "/app/assignments", label: "Assignments", icon: ClipboardList },
@@ -49,8 +52,9 @@ const communityLinks = [
 ];
 const adminLinks = [
   { href: "/app/admin", label: "Command center", icon: Shield },
+  { href: "/app/shop-studio", label: "Shop studio", icon: Store },
   { href: "/app/users", label: "People", icon: Users },
-  { href: "/app/courses", label: "Course editor", icon: BookOpen },
+  { href: "/app/courses", label: "Track editor", icon: BookOpen },
   { href: "/app/submissions", label: "Review submissions", icon: FileCheck },
   { href: "/app/notifications", label: "Announcements", icon: Send },
   { href: "/app/settings", label: "Platform settings", icon: Settings },

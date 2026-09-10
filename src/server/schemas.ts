@@ -155,3 +155,73 @@ export const settingsSchema = z.object({
     ])
     .optional(),
 });
+
+export const shopItemSlug = z
+  .string()
+  .trim()
+  .min(2)
+  .max(120)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens (e.g. ai-masterclass).");
+
+export const shopCourseLessonResourceSchema = z.object({
+  title: short,
+  url,
+  size: z.string().trim().max(40).optional(),
+});
+
+export const shopCourseLessonSchema = z.object({
+  id: id,
+  title: short,
+  duration: z.string().trim().max(40).default("10:00"),
+  videoUrl: optionalVideoUrlInput.default(""),
+  content: z.string().max(100000).default(""),
+  resources: z.array(shopCourseLessonResourceSchema).max(30).default([]),
+  isFreePreview: z.boolean().default(false),
+  order: z.number().int().min(0).max(10000).default(0),
+});
+
+export const shopCourseModuleSchema = z.object({
+  id: id,
+  title: short,
+  description: z.string().max(5000).default(""),
+  order: z.number().int().min(0).max(10000).default(0),
+  lessons: z.array(shopCourseLessonSchema).max(100).default([]),
+});
+
+export const shopItemSchema = z.object({
+  id: optionalId,
+  slug: shopItemSlug,
+  type: z.enum(["course", "digital_product"]),
+  title: short,
+  subtitle: z.string().trim().min(1).max(300),
+  description: z.string().trim().min(1).max(50000),
+  price: z.number().int().min(100).max(10000000),
+  compareAtPrice: z.number().int().min(100).max(10000000).optional().nullable(),
+  category: short,
+  tags: z.array(z.string().trim().max(40)).max(20).default([]),
+  badge: z.string().trim().max(40).optional().nullable(),
+  thumbnailUrl: url,
+  previewVideoUrl: optionalVideoUrlInput.default(""),
+  whatYouWillLearn: z.array(short).max(30).default([]),
+  requirements: z.array(short).max(20).default([]),
+  targetAudience: z.array(short).max(20).default([]),
+  published: z.boolean().default(false),
+  featured: z.boolean().default(false),
+  // Course specific fields
+  level: z.enum(["All Levels", "Beginner", "Intermediate", "Advanced"]).default("All Levels"),
+  totalDuration: z.string().trim().max(50).optional().nullable(),
+  certificateEnabled: z.boolean().default(true),
+  curriculum: z.array(shopCourseModuleSchema).max(50).default([]),
+  // Digital Product specific fields
+  fileUrl: optionalUrl.default(""),
+  fileSize: z.string().trim().max(40).optional().nullable(),
+  fileFormat: z.string().trim().max(50).optional().nullable(),
+  version: z.string().trim().max(30).optional().nullable(),
+  includes: z.array(short).max(30).default([]),
+});
+
+export const shopProgressUpdateSchema = z.object({
+  courseId: id,
+  lessonId: id,
+  completed: z.boolean().default(true),
+});

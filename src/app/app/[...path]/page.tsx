@@ -17,6 +17,18 @@ const Billing = dynamic(() => import("@/features/billing"), {
 const Account = dynamic(() => import("@/features/account"), {
   loading: Loading,
 });
+const ShopStudio = dynamic(
+  () => import("@/features/shop-studio").then((m) => m.ShopStudio),
+  { loading: Loading },
+);
+const StudentLibrary = dynamic(
+  () => import("@/features/library").then((m) => m.StudentLibrary),
+  { loading: Loading },
+);
+const CoursePlayer = dynamic(
+  () => import("@/features/course-player").then((m) => m.CoursePlayer),
+  { loading: Loading },
+);
 export default function Page({
   params,
 }: {
@@ -66,6 +78,39 @@ export default function Page({
     );
   if (["community", "showcase", "sessions"].includes(section))
     return <Community section={section} id={id} />;
+  if (section === "shop-studio") {
+    if (user?.role !== "Admin") {
+      return (
+        <EmptyState
+          title="This area is for academy administrators"
+          action={
+            <Link href="/app/dashboard" className="btn btn-primary">
+              Your workspace
+            </Link>
+          }
+        >
+          Manage your courses and digital materials.
+        </EmptyState>
+      );
+    }
+    return <ShopStudio />;
+  }
+  if (section === "library") return <StudentLibrary />;
+  if (section === "learn-course") {
+    if (!id) {
+      return (
+        <EmptyState
+          title="Select a course to begin"
+          action={
+            <Link href="/app/library" className="btn btn-primary">
+              My Library
+            </Link>
+          }
+        />
+      );
+    }
+    return <CoursePlayer courseId={id} />;
+  }
   if (section === "billing")
     return (
       <Suspense fallback={<Loading />}>

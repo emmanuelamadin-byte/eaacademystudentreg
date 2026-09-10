@@ -1,7 +1,15 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { AcademyUser, CourseModule, Lesson } from "@/lib/types";
+import type {
+  AcademyUser,
+  CourseModule,
+  Lesson,
+  ShopItem,
+  ShopPurchase,
+  ShopCourseProgress,
+  ShopCertificate,
+} from "@/lib/types";
 import { calculateStreak } from "@/lib/streaks";
 import {
   actor,
@@ -1141,7 +1149,309 @@ export async function dispatch(
       await db().collection("transcripts").doc(id).set(data);
       return { ...data, url: `/verify/${id}` };
     }
+    case "shop.admin.list":
+      return listAdminShopItems(user);
+    case "shop.admin.get":
+      return getAdminShopItem(user, parsedId(p));
+    case "shop.admin.save":
+      return saveShopItem(user, p.item);
+    case "shop.admin.delete":
+      return deleteShopItem(user, parsedId(p));
+    case "shop.library":
+      return getStudentLibrary(user);
+    case "shop.course.get":
+      return getShopCourse(user, z.string().parse(p.courseId || p.id));
+    case "shop.course.progress":
+      return updateShopProgress(user, p);
+    case "shop.certificate.get":
+      return getShopCertificate(user, parsedId(p));
     default:
       throw new ApiError(400, "Unknown academy action.");
   }
+}
+
+export async function listPublicShopItems() {
+  const snapshot = await db()
+    .collection("shopItems")
+    .where("published", "==", true)
+    .get();
+  return snapshot.docs
+    .map((d) => {
+      const data = d.data() as ShopItem;
+      if (data.type === "course" && Array.isArray(data.curriculum)) {
+        data.curriculum = data.curriculum.map((m) => ({
+          ...m,
+          lessons: (m.lessons || []).map((l) => ({
+            ...l,
+            videoUrl: l.isFreePreview ? l.videoUrl : "",
+            content: l.isFreePreview ? l.content : "",
+            resources: l.isFreePreview ? l.resources : [],
+          })),
+        }));
+      }
+      return { ...data, id: d.id };
+    })
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+}
+
+export async function getPublicShopItem(slug: string) {
+  const snapshot = await db()
+    .collection("shopItems")
+    .where("slug", "==", slug)
+    .limit(1)
+    .get();
+  if (snapshot.empty) throw new ApiError(404, "Product or course not found.");
+  const doc = snapshot.docs[0];
+  const data = doc.data() as ShopItem;
+  if (!data.published) throw new ApiError(404, "Product or course not found.");
+  if (data.type === "course" && Array.isArray(data.curriculum)) {
+    data.curriculum = data.curriculum.map((m) => ({
+      ...m,
+      lessons: (m.lessons || []).map((l) => ({
+        ...l,
+        videoUrl: l.isFreePreview ? l.videoUrl : "",
+        content: l.isFreePreview ? l.content : "",
+        resources: l.isFreePreview ? l.resources : [],
+      })),
+    }));
+  }
+  return { ...data, id: doc.id };
+}
+
+async function listAdminShopItems(user: AcademyUser) {
+  requireAdmin(user);
+  const snapshot = await db().collection("shopItems").get();
+  return snapshot.docs
+    .map((d) => ({ ...d.data(), id: d.id }) as ShopItem)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+}
+
+async function getAdminShopItem(user: AcademyUser, id: string) {
+  requireAdmin(user);
+  const doc = await db().collection("shopItems").doc(id).get();
+  if (!doc.exists) throw new ApiError(404, "Shop item not found.");
+  return { ...doc.data(), id: doc.id } as ShopItem;
+}
+
+async function saveShopItem(user: AcademyUser, item: unknown) {
+  requireAdmin(user);
+  const value = s.shopItemSchema.parse(item);
+  const slugSnapshot = await db()
+    .collection("shopItems")
+    .where("slug", "==", value.slug)
+    .get();
+  for (const doc of slugSnapshot.docs) {
+    if (value.id && doc.id !== value.id) {
+      throw new ApiError(409, "A course or product with this slug already exists.");
+    }
+    if (!value.id) {
+      throw new ApiError(409, "A course or product with this slug already exists.");
+    }
+  }
+  const ref = value.id
+    ? db().collection("shopItems").doc(value.id)
+    : db().collection("shopItems").doc();
+  const existing = value.id ? (await ref.get()).data() : null;
+  const record = clean({
+    ...value,
+    id: ref.id,
+    salesCount: typeof existing?.salesCount === "number" ? existing.salesCount : 0,
+    createdAt: existing?.createdAt || now(),
+    updatedAt: now(),
+  });
+  await ref.set(record, { merge: true });
+  return { id: ref.id, slug: value.slug };
+}
+
+async function deleteShopItem(user: AcademyUser, id: string) {
+  requireAdmin(user);
+  await db().collection("shopItems").doc(id).delete();
+  return { id };
+}
+
+async function getStudentLibrary(user: AcademyUser) {
+  const purchasesSnap = await db()
+    .collection("shopPurchases")
+    .where("studentId", "==", user.id)
+    .get();
+  const purchases = purchasesSnap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+  })) as ShopPurchase[];
+
+  const items = await Promise.all(
+    purchases.map(async (p) => {
+      const doc = await db().collection("shopItems").doc(p.itemId).get();
+      return doc.exists ? ({ ...doc.data(), id: doc.id } as ShopItem) : null;
+    }),
+  );
+
+  const courseIds = purchases
+    .filter((p) => p.itemType === "course")
+    .map((p) => p.itemId);
+  const progressSnap = await Promise.all(
+    courseIds.map((cid) =>
+      db().collection("shopCourseProgress").doc(`${user.id}_${cid}`).get(),
+    ),
+  );
+  const progressMap = Object.fromEntries(
+    progressSnap
+      .filter((p) => p.exists)
+      .map((p) => [p.data()!.courseId, p.data()! as ShopCourseProgress]),
+  );
+
+  const courses = purchases
+    .filter((p) => p.itemType === "course")
+    .map((p) => {
+      const item = items.find((it) => it && it.id === p.itemId);
+      const prog = progressMap[p.itemId] || null;
+      let totalLessons = 0;
+      if (item && Array.isArray(item.curriculum)) {
+        totalLessons = item.curriculum.reduce(
+          (sum, mod) => sum + (mod.lessons?.length || 0),
+          0,
+        );
+      }
+      const completedCount = prog?.completedLessonIds?.length || 0;
+      const percent =
+        totalLessons > 0
+          ? Math.min(100, Math.round((completedCount / totalLessons) * 100))
+          : 0;
+      return {
+        purchase: p,
+        item,
+        progress: prog,
+        totalLessons,
+        completedCount,
+        percent,
+      };
+    });
+
+  const digitalProducts = purchases
+    .filter((p) => p.itemType === "digital_product")
+    .map((p) => {
+      const item = items.find((it) => it && it.id === p.itemId);
+      return {
+        purchase: p,
+        item,
+      };
+    });
+
+  return { courses, digitalProducts };
+}
+
+async function getShopCourse(user: AcademyUser, courseId: string) {
+  const courseDoc = await db().collection("shopItems").doc(courseId).get();
+  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
+  const courseData = courseDoc.data() as ShopItem;
+  if (courseData.type !== "course")
+    throw new ApiError(400, "This item is not a course.");
+
+  const isStaff = user.role === "Admin" || user.role === "Instructor";
+  if (!isStaff) {
+    const purchase = await db()
+      .collection("shopPurchases")
+      .doc(`${user.id}_${courseId}`)
+      .get();
+    if (!purchase.exists) {
+      throw new ApiError(
+        403,
+        "You must purchase this course to access its classroom lessons.",
+      );
+    }
+  }
+
+  const progressDoc = await db()
+    .collection("shopCourseProgress")
+    .doc(`${user.id}_${courseId}`)
+    .get();
+
+  return {
+    course: { ...courseData, id: courseDoc.id },
+    progress: progressDoc.exists
+      ? (progressDoc.data() as ShopCourseProgress)
+      : null,
+  };
+}
+
+async function updateShopProgress(user: AcademyUser, p: Payload) {
+  const input = s.shopProgressUpdateSchema.parse(p);
+  const isStaff = user.role === "Admin" || user.role === "Instructor";
+  if (!isStaff) {
+    const purchase = await db()
+      .collection("shopPurchases")
+      .doc(`${user.id}_${input.courseId}`)
+      .get();
+    if (!purchase.exists) {
+      throw new ApiError(403, "You have not purchased this course.");
+    }
+  }
+
+  const courseDoc = await db().collection("shopItems").doc(input.courseId).get();
+  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
+  const course = courseDoc.data() as ShopItem;
+
+  const allLessons: string[] = [];
+  (course.curriculum || []).forEach((mod) => {
+    (mod.lessons || []).forEach((lesson) => {
+      if (lesson.id) allLessons.push(lesson.id);
+    });
+  });
+
+  const progRef = db()
+    .collection("shopCourseProgress")
+    .doc(`${user.id}_${input.courseId}`);
+  const currentSnap = await progRef.get();
+  const currentProg = currentSnap.data() as ShopCourseProgress | undefined;
+
+  let completedIds: string[] = currentProg?.completedLessonIds || [];
+  if (input.completed) {
+    if (!completedIds.includes(input.lessonId)) {
+      completedIds = [...completedIds, input.lessonId];
+    }
+  } else {
+    completedIds = completedIds.filter((id) => id !== input.lessonId);
+  }
+
+  const isAllCompleted =
+    allLessons.length > 0 && allLessons.every((id) => completedIds.includes(id));
+  let certificateId = currentProg?.certificateId || null;
+
+  if (isAllCompleted && !certificateId && course.certificateEnabled !== false) {
+    certificateId = randomUUID();
+    const certRef = db().collection("shopCertificates").doc(certificateId);
+    await certRef.set({
+      id: certificateId,
+      studentId: user.id,
+      studentName: user.name,
+      courseId: input.courseId,
+      courseTitle: course.title,
+      issuedAt: now(),
+      verificationCode: `EACERT-${certificateId.slice(0, 8).toUpperCase()}`,
+    });
+  }
+
+  const updated: ShopCourseProgress = {
+    id: `${user.id}_${input.courseId}`,
+    studentId: user.id,
+    courseId: input.courseId,
+    completedLessonIds: completedIds,
+    lastLessonId: input.lessonId,
+    completed: isAllCompleted,
+    completedAt: isAllCompleted ? currentProg?.completedAt || now() : undefined,
+    certificateId: certificateId || undefined,
+  };
+
+  await progRef.set(clean(updated), { merge: true });
+  return { progress: updated, certificateId };
+}
+
+async function getShopCertificate(user: AcademyUser, id: string) {
+  const certDoc = await db().collection("shopCertificates").doc(id).get();
+  if (!certDoc.exists) throw new ApiError(404, "Certificate not found.");
+  const cert = certDoc.data() as ShopCertificate;
+  if (cert.studentId !== user.id && user.role !== "Admin") {
+    throw new ApiError(403, "Access denied to this certificate.");
+  }
+  return cert;
 }
