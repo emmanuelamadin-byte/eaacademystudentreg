@@ -12,6 +12,7 @@ import type { User } from "@supabase/supabase-js";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { api, ApiRequestError } from "@/lib/api";
 import { rowFromDatabase } from "@/lib/supabase-data";
+import { needsProfileBootstrap } from "@/lib/profile-bootstrap";
 import type { AcademyUser } from "@/lib/types";
 
 interface AcademyContext {
@@ -65,17 +66,18 @@ export function AcademyProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = useCallback(async (id: string) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) return null;
     const { data, error: profileError } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", id)
       .maybeSingle();
     if (profileError) throw profileError;
-    setUser(
-      data ? (rowFromDatabase("users", data) as unknown as AcademyUser) : null,
-    );
-    return Boolean(data);
+    const profile = data
+      ? (rowFromDatabase("users", data) as unknown as AcademyUser)
+      : null;
+    setUser(profile);
+    return profile;
   }, []);
 
   useEffect(() => {
@@ -84,8 +86,8 @@ export function AcademyProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const profileExists = await loadProfile(authUser.id);
-        if (!profileExists) {
+        const profile = await loadProfile(authUser.id);
+        if (needsProfileBootstrap(profile)) {
           try {
             await api("profile.ensure");
             await loadProfile(authUser.id);

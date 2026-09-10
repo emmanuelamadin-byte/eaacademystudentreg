@@ -164,7 +164,7 @@ async function ensureProfile(token: AuthToken, p: Payload) {
     const complete =
       previous.exists &&
       (previous.data()?.role === "Admin" || previous.data()?.enrolledClassId);
-    if (complete) {
+    if (complete && !rosterCanBeClaimed) {
       const updates: Record<string, unknown> = { lastActiveAt: now() };
       // Enrollment is deliberately immutable, including when ensure is retried.
       if (role === "Admin" && previous.data()?.role !== "Admin")
@@ -1242,10 +1242,16 @@ async function saveShopItem(user: AcademyUser, item: unknown) {
     .get();
   for (const doc of slugSnapshot.docs) {
     if (value.id && doc.id !== value.id) {
-      throw new ApiError(409, "A course or product with this slug already exists.");
+      throw new ApiError(
+        409,
+        "A course or product with this slug already exists.",
+      );
     }
     if (!value.id) {
-      throw new ApiError(409, "A course or product with this slug already exists.");
+      throw new ApiError(
+        409,
+        "A course or product with this slug already exists.",
+      );
     }
   }
   const ref = value.id
@@ -1255,7 +1261,8 @@ async function saveShopItem(user: AcademyUser, item: unknown) {
   const record = clean({
     ...value,
     id: ref.id,
-    salesCount: typeof existing?.salesCount === "number" ? existing.salesCount : 0,
+    salesCount:
+      typeof existing?.salesCount === "number" ? existing.salesCount : 0,
     createdAt: existing?.createdAt || now(),
     updatedAt: now(),
   });
@@ -1387,7 +1394,10 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
     }
   }
 
-  const courseDoc = await db().collection("shopItems").doc(input.courseId).get();
+  const courseDoc = await db()
+    .collection("shopItems")
+    .doc(input.courseId)
+    .get();
   if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
   const course = courseDoc.data() as ShopItem;
 
@@ -1414,7 +1424,8 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
   }
 
   const isAllCompleted =
-    allLessons.length > 0 && allLessons.every((id) => completedIds.includes(id));
+    allLessons.length > 0 &&
+    allLessons.every((id) => completedIds.includes(id));
   let certificateId = currentProg?.certificateId || null;
 
   if (isAllCompleted && !certificateId && course.certificateEnabled !== false) {
