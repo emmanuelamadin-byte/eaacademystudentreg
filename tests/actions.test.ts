@@ -261,7 +261,7 @@ describe("server action boundaries", () => {
       claimedUserId: "new-student",
     });
   });
-  it("withholds a shared roster phone until an administrator reviews it", async () => {
+  it("disables WhatsApp for a shared roster phone until it is reviewed", async () => {
     state.documents.set("studentRoster/review@example.com", {
       email: "review@example.com",
       name: "Review Student",
@@ -287,11 +287,9 @@ describe("server action boundaries", () => {
     );
 
     expect(state.documents.get("users/new-student")).toMatchObject({
+      phoneNumber: "+2348012345678",
       whatsappNotificationsEnabled: false,
     });
-    expect(state.documents.get("users/new-student")).not.toHaveProperty(
-      "phoneNumber",
-    );
   });
   it("repairs a pre-existing administrator profile without a primary track", async () => {
     const owner = {

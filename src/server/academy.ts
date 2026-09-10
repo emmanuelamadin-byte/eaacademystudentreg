@@ -202,16 +202,15 @@ async function ensureProfile(token: AuthToken, p: Payload) {
         );
       phoneNumber = parsePhoneNumber(input.phoneNumber, country).number;
     }
-    const safeRosterPhone =
-      rosterCanBeClaimed &&
-      rosterData?.phoneReviewRequired !== true &&
-      typeof rosterData?.phoneNumber === "string"
+    const rosterPhone =
+      rosterCanBeClaimed && typeof rosterData?.phoneNumber === "string"
         ? rosterData.phoneNumber
         : undefined;
     const rosterWhatsappConsent =
       rosterCanBeClaimed &&
+      rosterData?.phoneReviewRequired !== true &&
       rosterData?.whatsappConsent === true &&
-      Boolean(safeRosterPhone);
+      Boolean(rosterPhone);
     const enrolledAt =
       rosterCanBeClaimed && typeof rosterData?.enrolledAt === "string"
         ? rosterData.enrolledAt
@@ -241,8 +240,8 @@ async function ensureProfile(token: AuthToken, p: Payload) {
                 input.countryCode,
             }
           : {}),
-        ...(safeRosterPhone || phoneNumber
-          ? { phoneNumber: safeRosterPhone || phoneNumber }
+        ...(rosterPhone || phoneNumber
+          ? { phoneNumber: rosterPhone || phoneNumber }
           : {}),
         ...(input.birthday ? { birthday: input.birthday } : {}),
         ...(rosterCanBeClaimed
@@ -562,7 +561,9 @@ export async function dispatch(
       if (modSnap.exists) {
         const modData = modSnap.data();
         if (Array.isArray(modData?.lessons)) {
-          const existingSummary = modData.lessons.find((l: { id: string }) => l.id === id);
+          const existingSummary = modData.lessons.find(
+            (l: { id: string }) => l.id === id,
+          );
           const order = existingSummary?.order ?? (lesson.order || 0);
           const updatedSummaries = modData.lessons
             .filter((l: { id: string }) => l.id !== id)
@@ -575,7 +576,9 @@ export async function dispatch(
                 free: post.free,
               },
             ])
-            .sort((a: { order: number }, b: { order: number }) => a.order - b.order);
+            .sort(
+              (a: { order: number }, b: { order: number }) => a.order - b.order,
+            );
           await moduleRef.update({
             lessons: updatedSummaries,
             lessonCount: updatedSummaries.length,

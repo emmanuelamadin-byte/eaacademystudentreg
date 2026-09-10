@@ -1,5 +1,15 @@
 import { getSupabase } from "./supabase";
 
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 export async function accessToken() {
   const { data } = (await getSupabase()?.auth.getSession()) || { data: null };
   return data?.session?.access_token;
@@ -21,12 +31,13 @@ export async function api<T = Record<string, unknown>>(
   const body = await response.json().catch(() => ({
     error: "The server returned an unexpected response. Please try again.",
   }));
-  if (!response.ok)
-    throw new Error(
+  if (!response.ok) {
+    const message =
       typeof body.error === "string"
         ? body.error
-        : body.error?.message || "Unable to complete this request.",
-    );
+        : body.error?.message || "Unable to complete this request.";
+    throw new ApiRequestError(message, response.status);
+  }
   return body.data as T;
 }
 export async function uploadFile(

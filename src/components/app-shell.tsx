@@ -71,11 +71,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [bell, setBell] = useState(false);
   const [search, setSearch] = useState("");
   const [seen, setSeen] = useState("");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const online = useOnline();
 
   useEffect(() => {
     setMenu(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!showLogoutModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !signingOut) setShowLogoutModal(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showLogoutModal, signingOut]);
   const userId = user?.id;
   const validPrimaryTrack =
     !!user && TRACKS.some((track) => track.id === user.enrolledClassId);
@@ -248,6 +259,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             { href: "/app/billing", label: "Membership", icon: Wallet },
             { href: "/app/account", label: "Settings", icon: Settings },
           ])}
+          <button
+            type="button"
+            className="sidebar-link sidebar-logout-nav-item"
+            onClick={() => setShowLogoutModal(true)}
+          >
+            <LogOut size={16} />
+            <span>Log out</span>
+          </button>
         </nav>
         {!isPremium(user) && (
           <div className="sidebar-upgrade">
@@ -266,11 +285,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <small>{isPremium(user) ? "Premium member" : "Free member"}</small>
           </div>
           <button
-            className="icon-btn"
-            aria-label="Sign out"
-            onClick={() => void signOut().then(() => router.push("/"))}
+            type="button"
+            className="sidebar-logout-btn"
+            aria-label="Log out of account"
+            title="Log out"
+            onClick={() => setShowLogoutModal(true)}
           >
-            <LogOut size={17} />
+            <LogOut size={15} />
+            <span className="logout-btn-label">Log out</span>
           </button>
         </div>
       </aside>
@@ -377,7 +399,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
-        <main className="workspace-content">
+        <main key={pathname} className="workspace-content">
           <LearningSync />
           {children}
         </main>
@@ -433,6 +455,61 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span>More</span>
         </button>
       </nav>
+
+      {/* Log Out Confirmation Dialog */}
+      {showLogoutModal && (
+        <div
+          className="logout-modal-backdrop"
+          role="presentation"
+          onClick={() => !signingOut && setShowLogoutModal(false)}
+        >
+          <div
+            className="logout-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="logout-modal-icon">
+              <LogOut size={24} />
+            </div>
+            <h3 id="logout-dialog-title">Log out of EA Academy?</h3>
+            <p>
+              Are you sure you want to log out? You will need to sign back in
+              with your email ({user.email}) to access your enrolled tracks,
+              classes, and assignments.
+            </p>
+            <div className="logout-modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowLogoutModal(false)}
+                disabled={signingOut}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={signingOut}
+                onClick={async () => {
+                  setSigningOut(true);
+                  try {
+                    await signOut();
+                    setShowLogoutModal(false);
+                    setMenu(false);
+                    router.push("/");
+                  } catch {
+                    setSigningOut(false);
+                  }
+                }}
+              >
+                {signingOut ? "Signing out…" : "Yes, Log out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

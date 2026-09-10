@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
+import { api, ApiRequestError } from "@/lib/api";
 import { rowFromDatabase } from "@/lib/supabase-data";
 import type { AcademyUser } from "@/lib/types";
 
@@ -72,10 +73,9 @@ export function AcademyProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
     if (profileError) throw profileError;
     setUser(
-      data
-        ? (rowFromDatabase("users", data) as unknown as AcademyUser)
-        : null,
+      data ? (rowFromDatabase("users", data) as unknown as AcademyUser) : null,
     );
+    return Boolean(data);
   }, []);
 
   useEffect(() => {
@@ -84,7 +84,18 @@ export function AcademyProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const load = async () => {
       try {
-        await loadProfile(authUser.id);
+        const profileExists = await loadProfile(authUser.id);
+        if (!profileExists) {
+          try {
+            await api("profile.ensure");
+            await loadProfile(authUser.id);
+          } catch (cause) {
+            // A 409 means this is a genuinely new, unlisted learner who still
+            // needs the normal signup form. Other failures must remain visible.
+            if (!(cause instanceof ApiRequestError && cause.status === 409))
+              throw cause;
+          }
+        }
         if (!cancelled) setError(null);
       } catch (cause) {
         if (!cancelled)
