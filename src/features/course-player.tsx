@@ -21,7 +21,6 @@ import {
   ExternalLink,
   ChevronRight,
   ChevronLeft,
-  Sparkles,
 } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
@@ -533,7 +532,7 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
           >
             <div className="certificate-modal-top">
               <div className="cert-badge">
-                <Sparkles size={16} />
+                <Award size={16} />
                 <span>OFFICIAL CREDENTIAL</span>
               </div>
               <button

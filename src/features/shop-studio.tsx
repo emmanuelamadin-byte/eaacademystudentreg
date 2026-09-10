@@ -18,7 +18,6 @@ import {
   ChevronUp,
   Download,
   Award,
-  Sparkles,
   ExternalLink,
   PlayCircle,
   HelpCircle,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Play, RotateCcw, Sparkles } from "lucide-react";
+import { Play, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import ReactMarkdown from "react-markdown";
 import { useAcademy } from "@/components/academy-provider";
@@ -194,7 +194,6 @@ export default function CodeSandbox({
         disabled={reviewing || !code.trim()}
         onClick={ask}
       >
-        <Sparkles size={16} />
         {reviewing ? "Reviewing…" : "Get AI debugging hints"}
       </button>
       <button
@@ -202,7 +201,7 @@ export default function CodeSandbox({
         disabled={reviewing || !code.trim()}
         onClick={generateTests}
       >
-        <Sparkles size={16} /> Generate exercise tests
+        Generate exercise tests
       </button>
       {tests && (
         <div className="ai-response">

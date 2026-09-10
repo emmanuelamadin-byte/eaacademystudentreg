@@ -459,7 +459,6 @@ export function Donations() {
               </>
             )}
             <div className="donation-quote">
-              <span>✳</span>
               <p>
                 A small act of generosity.
                 <br />A meaningful new beginning.

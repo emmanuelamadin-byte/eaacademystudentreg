@@ -1373,3 +1373,249 @@
 .learning-surface .learning-hero h2 {
   color: white;
 }
+
+/* Dashboard Shop Section */
+.learning-surface .dashboard-shop-section {
+  margin: 32px 0;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.learning-surface .dashboard-shop-section .section-heading {
+  margin-bottom: 20px;
+}
+
+.learning-surface .dashboard-shop-browse-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #002751;
+  text-decoration: none;
+}
+
+.learning-surface .dashboard-shop-browse-link:hover {
+  color: #ea580c;
+}
+
+.learning-surface .dashboard-shop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .learning-surface .dashboard-shop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .learning-surface .dashboard-shop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.learning-surface .dashboard-shop-card {
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.learning-surface .dashboard-shop-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+}
+
+.learning-surface .dashboard-shop-card-img {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #e2e8f0;
+  display: block;
+  overflow: hidden;
+}
+
+.learning-surface .dashboard-shop-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.learning-surface .dashboard-shop-card:hover .dashboard-shop-card-img img {
+  transform: scale(1.03);
+}
+
+.learning-surface .dashboard-shop-card-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+.learning-surface .dashboard-shop-type-tag {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: #ffffff;
+}
+
+.learning-surface .dashboard-shop-type-tag.course {
+  background: #0284c7;
+}
+
+.learning-surface .dashboard-shop-type-tag.product {
+  background: #16a34a;
+}
+
+.learning-surface .dashboard-shop-card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.learning-surface .dashboard-shop-card-category {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.learning-surface .dashboard-shop-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0 0 6px;
+}
+
+.learning-surface .dashboard-shop-card-title a {
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.learning-surface .dashboard-shop-card-title a:hover {
+  color: #0284c7;
+}
+
+.learning-surface .dashboard-shop-card-sub {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+  margin: 0 0 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.learning-surface .dashboard-shop-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.learning-surface .dashboard-shop-card-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.learning-surface .dashboard-shop-card-price strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.learning-surface .dashboard-shop-card-price small {
+  font-size: 12px;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.learning-surface .dashboard-shop-loading {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.learning-surface .dashboard-shop-card-skeleton {
+  height: 260px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  animation: pulse 1.5s infinite;
+}
+
+.learning-surface .dashboard-shop-empty-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 26px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+@media (max-width: 700px) {
+  .learning-surface .dashboard-shop-empty-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.learning-surface .dashboard-shop-empty-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.learning-surface .dashboard-shop-empty-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: #e2e8f0;
+  color: #002751;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.learning-surface .dashboard-shop-empty-content h3 {
+  font-size: 16px;
+  margin: 0 0 4px;
+  color: #0f172a;
+}
+
+.learning-surface .dashboard-shop-empty-content p {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 580px;
+}
+

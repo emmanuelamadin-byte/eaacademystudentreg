@@ -2,6 +2,7 @@
 import { use, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { useAcademy } from "@/components/academy-provider";
 import { Loading, EmptyState } from "@/components/ui";
 const Learning = dynamic(() => import("@/features/learning"), {
@@ -95,6 +96,7 @@ export default function Page({
     }
     return <ShopStudio />;
   }
+  if (section === "shop") redirect("/shop");
   if (section === "library") return <StudentLibrary />;
   if (section === "learn-course") {
     if (!id) {

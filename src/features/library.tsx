@@ -10,7 +10,6 @@ import {
   PlayCircle,
   CheckCircle2,
   Clock,
-  Sparkles,
   ExternalLink,
   Award,
   ArrowRight,

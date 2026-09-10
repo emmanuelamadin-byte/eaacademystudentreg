@@ -8,7 +8,7 @@ import {
   ChevronUp,
   MessageCircle,
   Plus,
-  Sparkles,
+  PanelsTopLeft,
 } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
 import { useRecord, useRecords } from "@/lib/hooks";
@@ -529,7 +529,7 @@ function Showcase({ user }: { user: AcademyUser }) {
                   ?.color,
               }}
             >
-              <Sparkles size={32} aria-hidden="true" />
+              <PanelsTopLeft size={32} aria-hidden="true" />
             </div>
             <span className="badge">{trackName(item.classId)}</span>
             <h3>{item.title}</h3>

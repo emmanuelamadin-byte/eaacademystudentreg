@@ -22,7 +22,6 @@ import {
   Play,
   Plus,
   Send,
-  Sparkles,
   Target,
   Trash2,
   Trophy,
@@ -31,6 +30,8 @@ import {
   Share2,
   Copy,
   ExternalLink,
+  Store,
+  ShoppingBag,
 } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
@@ -52,6 +53,8 @@ import {
   type Progress,
   type Discussion,
   type CareerPathClassId,
+  type ShopItem,
+  type ShopPurchase,
 } from "@/lib/types";
 import type { StreakSummary } from "@/lib/streaks";
 import { isBirthdayToday } from "@/lib/birthdays";
@@ -145,6 +148,14 @@ function Dashboard() {
     [["targetTrack", "in", ["all", user?.enrolledClassId || "system-dev"]]],
     !!user,
   );
+  const shopItems = useRecords<ShopItem>("shopItems", [
+    ["published", "==", true],
+  ]);
+  const myPurchases = useRecords<ShopPurchase>(
+    "shopPurchases",
+    [["studentId", "==", user?.id || ""]],
+    !!user,
+  );
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -226,7 +237,6 @@ function Dashboard() {
       )}
       {isBirthdayToday(user.birthday, user.timeZone || "UTC") && (
         <section className="birthday-greeting" role="status">
-          <span aria-hidden="true">🎉</span>
           <div>
             <strong>Happy birthday, {user.name.split(" ")[0]}!</strong>
             <p>
@@ -335,6 +345,97 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* SHOP SECTION */}
+      <section className="dashboard-shop-section">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">DIGITAL PRODUCTS & MASTERCLASSES</span>
+            <h2>Shop</h2>
+          </div>
+          <Link href="/shop" className="dashboard-shop-browse-link">
+            Explore all items <ArrowRight size={15} />
+          </Link>
+        </div>
+
+        {shopItems.loading ? (
+          <div className="dashboard-shop-loading">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="dashboard-shop-card-skeleton" />
+            ))}
+          </div>
+        ) : shopItems.data.length > 0 ? (
+          <div className="dashboard-shop-grid">
+            {shopItems.data.slice(0, 3).map((item) => {
+              const isCourse = item.type === "course";
+              const isOwned = myPurchases.data.some((p) => p.itemId === item.id);
+              return (
+                <article key={item.id} className="dashboard-shop-card">
+                  <Link href={`/shop/${item.slug}`} className="dashboard-shop-card-img">
+                    {item.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.thumbnailUrl} alt={item.title} loading="lazy" />
+                    ) : (
+                      <div className="dashboard-shop-card-fallback">
+                        {isCourse ? <BookOpen size={28} /> : <Download size={28} />}
+                      </div>
+                    )}
+                    <span className={`dashboard-shop-type-tag ${isCourse ? "course" : "product"}`}>
+                      {isCourse ? "Course" : "Digital Asset"}
+                    </span>
+                  </Link>
+                  <div className="dashboard-shop-card-body">
+                    <div className="dashboard-shop-card-category">{item.category}</div>
+                    <h3 className="dashboard-shop-card-title">
+                      <Link href={`/shop/${item.slug}`}>{item.title}</Link>
+                    </h3>
+                    <p className="dashboard-shop-card-sub">{item.subtitle}</p>
+                    <div className="dashboard-shop-card-footer">
+                      <div className="dashboard-shop-card-price">
+                        <strong>₦{item.price.toLocaleString("en-NG")}</strong>
+                        {item.compareAtPrice && item.compareAtPrice > item.price && (
+                          <small>₦{item.compareAtPrice.toLocaleString("en-NG")}</small>
+                        )}
+                      </div>
+                      {isOwned ? (
+                        <Link
+                          href={isCourse ? `/app/learn-course/${item.id}` : "/app/library"}
+                          className="btn btn-secondary btn-small"
+                        >
+                          {isCourse ? "Open classroom" : "Download"}
+                        </Link>
+                      ) : (
+                        <Link href={`/shop/${item.slug}`} className="btn btn-primary btn-small">
+                          View details
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="dashboard-shop-empty-banner">
+            <div className="dashboard-shop-empty-content">
+              <div className="dashboard-shop-empty-icon">
+                <Store size={26} />
+              </div>
+              <div>
+                <h3>EA Academy Shop</h3>
+                <p>
+                  Explore standard professional masterclasses, certification courses, and
+                  production-ready digital assets, templates, and guides.
+                </p>
+              </div>
+            </div>
+            <Link href="/shop" className="btn btn-primary">
+              Browse shop <ArrowRight size={15} />
+            </Link>
+          </div>
+        )}
+      </section>
+
       <div className="dashboard-columns">
         <section>
           <div className="section-heading">
@@ -1579,7 +1680,7 @@ function LessonPlayer({ id }: { id?: string }) {
             { id: "sandbox", label: "Code sandbox", icon: Code2 },
             { id: "resources", label: "Resources", icon: Download },
             { id: "discussion", label: "Discussion", icon: MessageCircle },
-            { id: "tutor", label: "AI tutor", icon: Sparkles },
+            { id: "tutor", label: "AI tutor", icon: MessageCircle },
           ].map((item) => (
             <button
               key={item.id}
@@ -1782,7 +1883,7 @@ function Tutor({ lessonId }: { lessonId: string }) {
   return (
     <section className="tutor">
       <div className="tutor-intro">
-        <Sparkles size={25} />
+        <MessageCircle size={25} />
         <div>
           <h3>A little help, right when you need it.</h3>
           <p className="muted">
@@ -1821,7 +1922,7 @@ function Tutor({ lessonId }: { lessonId: string }) {
           />
         </label>
         <button className="btn btn-primary" disabled={busy || !prompt.trim()}>
-          <Sparkles size={16} />
+          <Send size={16} />
           {busy ? "Thinking…" : "Ask AI tutor"}
         </button>
       </form>

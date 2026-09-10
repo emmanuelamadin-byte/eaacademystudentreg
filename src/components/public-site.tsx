@@ -19,7 +19,6 @@ import {
   Video,
   BookOpenCheck,
   Play,
-  Sparkles,
   ChevronDown,
   Star,
   BadgeCheck,
@@ -161,7 +160,6 @@ export function PublicFooter() {
           )}
         </div>
         <div className="footer-note">
-          <span className="tiny-star">✳</span>
           <p>
             Built for ambition.
             <br />
@@ -350,7 +348,7 @@ function HeroVideoCard() {
             aria-label="Play sample academy lesson video"
           >
             <div className="hero-video-badge">
-              <Sparkles size={13} /> Lesson preview
+              Lesson preview
             </div>
             <div className="hero-video-play-btn">
               <Play size={24} fill="currentColor" />

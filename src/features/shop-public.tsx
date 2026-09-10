@@ -7,7 +7,6 @@ import {
   BookOpen,
   Download,
   GraduationCap,
-  Sparkles,
   Clock,
   PlayCircle,
   CheckCircle2,
@@ -75,7 +74,6 @@ export function ShopCatalogPage() {
       <main className="shop-catalog-main">
         <section className="shop-hero container">
           <div className="shop-hero-badge">
-            <Sparkles size={14} />
             <span>EA ACADEMY STORE</span>
           </div>
           <h1 className="shop-hero-title">

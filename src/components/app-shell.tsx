@@ -38,6 +38,7 @@ import { isBirthdayToday, localDateParts } from "@/lib/birthdays";
 
 const studentLinks = [
   { href: "/app/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/shop", label: "Shop", icon: Store },
   { href: "/app/library", label: "My library", icon: ShoppingBag },
   { href: "/app/classes", label: "Classroom", icon: Video },
   { href: "/app/tracks", label: "My learning", icon: BookOpen },
@@ -274,7 +275,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         {!isPremium(user) && (
           <div className="sidebar-upgrade">
-            <span>✳</span>
             <h4>Make room for more.</h4>
             <p>Every track. ₦3,000 / month.</p>
             <Link href="/app/billing">
