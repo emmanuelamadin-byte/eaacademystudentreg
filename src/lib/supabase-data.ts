@@ -56,6 +56,10 @@ const specs: Record<string, CollectionSpec> = {
     schema: "private",
     primary: ["user_id", "action"],
   },
+  shopItems: { table: "shop_items", primary: ["id"] },
+  shopPurchases: { table: "shop_purchases", primary: ["id"] },
+  shopCourseProgress: { table: "shop_course_progress", primary: ["id"] },
+  shopCertificates: { table: "shop_certificates", primary: ["id"] },
 };
 
 const fields: Record<string, Record<string, string>> = {
@@ -233,6 +237,10 @@ const fields: Record<string, Record<string, string>> = {
     amount: "amount_kobo",
     planCode: "plan_code",
     donorName: "donor_name",
+    itemId: "item_id",
+    itemTitle: "item_title",
+    itemType: "item_type",
+    itemSlug: "item_slug",
     createdAt: "created_at",
     updatedAt: "updated_at",
   },
@@ -259,6 +267,52 @@ const fields: Record<string, Record<string, string>> = {
     name: "action",
     count: "request_count",
     until: "window_ends_at",
+  },
+  shopItems: {
+    compareAtPrice: "compare_at_price",
+    thumbnailUrl: "thumbnail_url",
+    previewVideoUrl: "preview_video_url",
+    whatYouWillLearn: "what_you_will_learn",
+    targetAudience: "target_audience",
+    salesCount: "sales_count",
+    totalDuration: "total_duration",
+    certificateEnabled: "certificate_enabled",
+    fileUrl: "file_url",
+    fileSize: "file_size",
+    fileFormat: "file_format",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+  shopPurchases: {
+    studentId: "student_id",
+    studentEmail: "student_email",
+    studentName: "student_name",
+    itemId: "item_id",
+    itemSlug: "item_slug",
+    itemTitle: "item_title",
+    itemType: "item_type",
+    paymentReference: "payment_reference",
+    purchasedAt: "purchased_at",
+    createdAt: "created_at",
+  },
+  shopCourseProgress: {
+    studentId: "student_id",
+    courseId: "course_id",
+    completedLessonIds: "completed_lesson_ids",
+    lastLessonId: "last_lesson_id",
+    completedAt: "completed_at",
+    certificateId: "certificate_id",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+  shopCertificates: {
+    studentId: "student_id",
+    studentName: "student_name",
+    courseId: "course_id",
+    courseTitle: "course_title",
+    issuedAt: "issued_at",
+    verificationCode: "verification_code",
+    createdAt: "created_at",
   },
 };
 
@@ -325,6 +379,16 @@ export function rowFromDatabase(name: string, source: Row): Row {
       if (result[field] !== undefined) result[field] = Number(result[field]);
     }
   }
+  if (name === "shopItems") {
+    if (result.price !== undefined) result.price = Number(result.price);
+    if (result.compareAtPrice !== undefined)
+      result.compareAtPrice = Number(result.compareAtPrice);
+    if (result.salesCount !== undefined)
+      result.salesCount = Number(result.salesCount);
+  }
+  if (name === "shopPurchases") {
+    if (result.amount !== undefined) result.amount = Number(result.amount);
+  }
   return result;
 }
 
@@ -389,6 +453,38 @@ const LESSON_METADATA_COLUMNS = [
   "is_free",
 ].join(",");
 
+const SHOP_ITEM_CLIENT_COLUMNS = [
+  "id",
+  "slug",
+  "type",
+  "title",
+  "subtitle",
+  "description",
+  "price",
+  "compare_at_price",
+  "category",
+  "tags",
+  "badge",
+  "thumbnail_url",
+  "preview_video_url",
+  "what_you_will_learn",
+  "requirements",
+  "target_audience",
+  "published",
+  "featured",
+  "sales_count",
+  "level",
+  "total_duration",
+  "certificate_enabled",
+  "curriculum",
+  "file_size",
+  "file_format",
+  "version",
+  "includes",
+  "created_at",
+  "updated_at",
+].join(",");
+
 /**
  * Browser queries must not use `*` on lessons. Supabase intentionally grants
  * the public roles access to lesson metadata but keeps video URLs, notes,
@@ -410,5 +506,6 @@ export function clientSelectionFor(name: string) {
     ].join(",");
   }
   if (name === "lessons") return LESSON_METADATA_COLUMNS;
+  if (name === "shopItems") return SHOP_ITEM_CLIENT_COLUMNS;
   return "*";
 }
