@@ -350,8 +350,8 @@ function HeroVideoCard() {
             </button>
             <iframe
               className="hero-video-iframe"
-              src="https://www.youtube-nocookie.com/embed/SqcY0GlETPk?autoplay=1&rel=0"
-              title="EA Academy Lesson Preview"
+              src="https://www.youtube-nocookie.com/embed/7nLBDiFGwt4?autoplay=1&rel=0"
+              title="Welcome to EA Academy"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
@@ -360,23 +360,23 @@ function HeroVideoCard() {
           <button
             className="hero-video-overlay"
             onClick={() => setIsPlaying(true)}
-            aria-label="Play sample academy lesson video"
+            aria-label="Watch the EA Academy welcome video"
           >
             <div className="hero-video-badge">
-              Lesson preview
+              Welcome video
             </div>
             <div className="hero-video-play-btn">
               <Play size={24} fill="currentColor" />
             </div>
-            <div className="hero-video-duration">3:45</div>
+            <div className="hero-video-duration">Watch now</div>
           </button>
         )}
       </div>
 
       <div className="hero-video-info">
         <div className="hero-video-progress-meta">
-          <strong>Foundation & Architecture</strong>
-          <span>Lesson 1 of 4</span>
+          <strong>Welcome to EA Academy</strong>
+          <span>From the founder</span>
         </div>
         <div className="hero-video-progress-bar">
           <div className="hero-video-progress-fill" />
@@ -386,17 +386,17 @@ function HeroVideoCard() {
             <span className="hero-video-check-box checked">
               <Check size={12} strokeWidth={3} />
             </span>
-            <span>Setting up your modern workspace</span>
+            <span>Free tracks in AI, media &amp; business</span>
           </div>
           <div className="hero-video-check-item">
             <span className="hero-video-check-box">
               <Play size={10} />
             </span>
-            <span>Building scalable system foundations</span>
+            <span>Hands-on assignments &amp; instructor feedback</span>
           </div>
           <div className="hero-video-check-item">
             <span className="hero-video-check-box" />
-            <span>Practical assignment submission</span>
+            <span>Earn verified certificates at zero cost</span>
           </div>
         </div>
       </div>
