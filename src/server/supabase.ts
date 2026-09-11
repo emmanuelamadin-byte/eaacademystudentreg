@@ -41,7 +41,8 @@ function throwDatabase(error: { message: string; code?: string } | null) {
   if (error.code === "23505")
     throw new ApiError(409, "This record already exists.");
   console.error("Supabase request failed:", error.message);
-  throw new ApiError(500, "The database request could not be completed.");
+  const detail = error.message ? `: ${error.message}` : "";
+  throw new ApiError(500, `The database request could not be completed${detail}.`);
 }
 
 type Filter = [string, string, unknown];
@@ -331,15 +332,23 @@ export async function limit(
   maximum: number,
   seconds = 60,
 ) {
-  const { data, error } = await adminClient().rpc("consume_rate_limit", {
-    p_user_id: uid,
-    p_action: name,
-    p_maximum: maximum,
-    p_window_seconds: seconds,
-  });
-  throwDatabase(error);
-  if (data !== true)
-    throw new ApiError(429, "Please wait a moment before trying again.");
+  try {
+    const { data, error } = await adminClient().rpc("consume_rate_limit", {
+      p_user_id: uid,
+      p_action: name,
+      p_maximum: maximum,
+      p_window_seconds: seconds,
+    });
+    if (error) {
+      console.warn("Rate limit check failed, failing open for user action:", error.message);
+      return;
+    }
+    if (data !== true)
+      throw new ApiError(429, "Please wait a moment before trying again.");
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 429) throw err;
+    console.warn("Rate limit check transient exception, failing open:", err);
+  }
 }
 
 export async function reserveReview(
