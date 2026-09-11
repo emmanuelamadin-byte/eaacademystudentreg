@@ -331,46 +331,19 @@ export function TrackCards() {
   );
 }
 function HeroVideoCard() {
-  const [isPlaying, setIsPlaying] = useState(false);
-
   return (
     <motion.div
       className="hero-video-card"
       variants={heroItem}
     >
       <div className="hero-video-player-box">
-        {isPlaying ? (
-          <>
-            <button
-              className="hero-video-close"
-              onClick={() => setIsPlaying(false)}
-              aria-label="Close video player"
-            >
-              <X size={15} />
-            </button>
-            <iframe
-              className="hero-video-iframe"
-              src="https://www.youtube-nocookie.com/embed/7nLBDiFGwt4?autoplay=1&rel=0"
-              title="Welcome to EA Academy"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </>
-        ) : (
-          <button
-            className="hero-video-overlay"
-            onClick={() => setIsPlaying(true)}
-            aria-label="Watch the EA Academy welcome video"
-          >
-            <div className="hero-video-badge">
-              Welcome video
-            </div>
-            <div className="hero-video-play-btn">
-              <Play size={24} fill="currentColor" />
-            </div>
-            <div className="hero-video-duration">Watch now</div>
-          </button>
-        )}
+        <iframe
+          className="hero-video-iframe"
+          src="https://www.youtube-nocookie.com/embed/7nLBDiFGwt4?autoplay=1&mute=1&loop=1&playlist=7nLBDiFGwt4&rel=0&controls=1"
+          title="Welcome to EA Academy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
       </div>
 
       <div className="hero-video-info">
