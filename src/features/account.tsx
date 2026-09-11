@@ -1,10 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Bell, Check, AlertCircle } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
 import { TRACKS } from "@/lib/types";
 import { api } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
 import { formatBirthday } from "@/lib/birthdays";
+import {
+  isPushSupported,
+  getNotificationPermission,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "@/lib/push";
 export default function Account() {
   const { user, refreshProfile } = useAcademy();
   const [name, setName] = useState(user?.name || "");
@@ -53,6 +60,38 @@ export default function Account() {
     user?.birthdayWhatsappEnabled,
     user?.whatsappOptedInAt,
   ]);
+
+  const [pushStatus, setPushStatus] = useState<NotificationPermission | "unsupported">("unsupported");
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    setPushStatus(getNotificationPermission());
+  }, []);
+
+  async function handleTogglePush() {
+    setPushBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      if (pushStatus === "granted") {
+        await unsubscribeFromPush();
+        setPushStatus(getNotificationPermission());
+        setMessage("Push notifications disabled for this device.");
+      } else {
+        const res = await subscribeToPush(user);
+        setPushStatus(res.permission);
+        if (res.success) {
+          setMessage("Native phone push notifications are now active on this device!");
+        } else if (res.error) {
+          setError(res.error);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update push notifications.");
+    } finally {
+      setPushBusy(false);
+    }
+  }
   async function run(action: () => Promise<unknown>, success: string) {
     setBusy(true);
     setError("");
@@ -287,6 +326,82 @@ export default function Account() {
           <p className="muted">
             In-app announcements update automatically while you use the academy.
           </p>
+
+          <div
+            style={{
+              padding: "1rem",
+              borderRadius: "var(--radius-md, 8px)",
+              border: "1px solid var(--border, rgba(0, 0, 0, 0.1))",
+              background: "var(--surface-muted, rgba(0, 0, 0, 0.02))",
+              marginBottom: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "1rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  background:
+                    pushStatus === "granted"
+                      ? "rgba(34, 197, 94, 0.15)"
+                      : "rgba(100, 116, 139, 0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color:
+                    pushStatus === "granted"
+                      ? "rgb(22, 163, 74)"
+                      : "var(--text-muted, #64748b)",
+                }}
+              >
+                <Bell size={18} />
+              </div>
+              <div>
+                <strong style={{ display: "block", fontSize: "0.95rem" }}>
+                  Device Push Notifications
+                </strong>
+                <span
+                  style={{
+                    fontSize: "0.82rem",
+                    color: "var(--text-muted, #64748b)",
+                  }}
+                >
+                  {pushStatus === "granted"
+                    ? "Active — announcements buzz this device even when the app is closed."
+                    : pushStatus === "denied"
+                      ? "Blocked by browser settings — enable notifications in your browser."
+                      : pushStatus === "unsupported"
+                        ? "Unsupported on this browser. On iPhone, Add to Home Screen first."
+                        : "Turn on to get lock-screen alerts whenever an announcement is posted."}
+                </span>
+              </div>
+            </div>
+            {pushStatus !== "unsupported" && pushStatus !== "denied" && (
+              <button
+                type="button"
+                className={
+                  pushStatus === "granted"
+                    ? "btn btn-secondary btn-sm"
+                    : "btn btn-primary btn-sm"
+                }
+                onClick={handleTogglePush}
+                disabled={pushBusy}
+              >
+                {pushBusy
+                  ? "Updating…"
+                  : pushStatus === "granted"
+                    ? "Disable on this device"
+                    : "Enable on this device"}
+              </button>
+            )}
+          </div>
+
           <form
             className="communication-preferences"
             onSubmit={(event) => {

@@ -87,11 +87,13 @@ self.addEventListener("push", (event) => {
         "You have a new academy update.",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
+      vibrate: [200, 100, 200],
       data: {
         url:
           payload.data?.url || payload.data?.actionScreen || "/app/dashboard",
       },
       tag: payload.data?.notificationId || "academy-announcement",
+      renotify: true,
     }),
   );
 });

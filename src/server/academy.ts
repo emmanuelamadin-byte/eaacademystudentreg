@@ -44,6 +44,7 @@ import {
   processMessageQueue,
   saveCommunicationPreferences,
 } from "./communications";
+import { savePushToken, removePushToken } from "./push";
 import {
   getCountries,
   isValidPhoneNumber,
@@ -323,6 +324,23 @@ export async function dispatch(
         })
         .parse(p.preferences);
       return saveCommunicationPreferences(user.id, preferences);
+    }
+    case "push.subscribe": {
+      const subscription = z
+        .object({
+          endpoint: z.string().url(),
+          expirationTime: z.number().nullable().optional(),
+          keys: z.object({
+            p256dh: z.string().min(1),
+            auth: z.string().min(1),
+          }),
+        })
+        .parse(p.subscription);
+      return savePushToken(user, subscription);
+    }
+    case "push.unsubscribe": {
+      const endpoint = z.string().url().parse(p.endpoint);
+      return removePushToken(user, endpoint);
     }
     case "broadcast.list": {
       requireAdmin(user);

@@ -3,6 +3,7 @@ import "server-only";
 import { ApiError } from "./policy";
 import { adminClient } from "./supabase";
 import { localDateParts } from "@/lib/birthdays";
+import { sendPushToAudience } from "./push";
 import type { AcademyUser, CareerPathClassId } from "@/lib/types";
 
 export type MessageChannel = "in-app" | "email" | "whatsapp";
@@ -210,10 +211,20 @@ export async function createBroadcast(
         priority: "normal",
         action_path: input.actionPath,
         created_at: new Date().toISOString(),
-        push_sent: false,
+        push_sent: true,
         push_delivered: 0,
       });
     databaseError(error);
+
+    // Send native phone push notifications to all registered student devices
+    void sendPushToAudience(input.audience, input.trackId, {
+      title: input.title,
+      message: input.message,
+      url: input.actionPath || "/app/dashboard",
+      tag: `announcement-${broadcastId}`,
+    }).catch((pushErr) => {
+      console.error("Failed to deliver broadcast push notifications:", pushErr);
+    });
   }
 
   const deliveries = recipients.flatMap((recipient) => {
