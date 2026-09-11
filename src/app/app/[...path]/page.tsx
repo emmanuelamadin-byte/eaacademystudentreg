@@ -97,7 +97,12 @@ export default function Page({
     return <ShopStudio />;
   }
   if (section === "shop") redirect("/shop");
-  if (section === "library") return <StudentLibrary />;
+  if (section === "library")
+    return (
+      <Suspense fallback={<Loading />}>
+        <StudentLibrary />
+      </Suspense>
+    );
   if (section === "learn-course") {
     if (!id) {
       return (

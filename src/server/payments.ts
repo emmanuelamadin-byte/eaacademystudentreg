@@ -26,34 +26,49 @@ async function paystack<T>(
   method = "GET",
   body?: object,
 ): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`https://api.paystack.co${path}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${secret()}`,
-        "Content-Type": "application/json",
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      signal: AbortSignal.timeout(20000),
-      cache: "no-store",
-    });
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(
-      502,
-      "Paystack is temporarily unavailable. Please try again.",
-    );
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(`https://api.paystack.co${path}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${secret()}`,
+          "Content-Type": "application/json",
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        signal: AbortSignal.timeout(20000),
+        cache: "no-store",
+      });
+
+      const value = await response.json().catch(() => null);
+      if (!response.ok || !value?.status) {
+        const detail = value?.message ? `: ${value.message}` : "";
+        throw new ApiError(
+          502,
+          `Paystack could not complete this request${detail}. Please check your payment settings or try again.`,
+        );
+      }
+      return value.data as T;
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      lastError = error;
+      console.error(
+        `Paystack API request failed (attempt ${attempt + 1}) for ${path}:`,
+        error instanceof Error ? error.message : error,
+      );
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      }
+    }
   }
-  const value = await response.json();
-  if (!response.ok || !value.status) {
-    const detail = value?.message ? `: ${value.message}` : "";
-    throw new ApiError(
-      502,
-      `Paystack could not complete this request${detail}. Please check your payment settings or try again.`,
-    );
-  }
-  return value.data as T;
+
+  const isTimeout =
+    lastError instanceof Error &&
+    (lastError.name === "TimeoutError" || lastError.name === "AbortError");
+  const message = isTimeout
+    ? "Paystack took too long to respond. Please try verifying again in a moment."
+    : "Paystack is temporarily unavailable. Please try again.";
+  throw new ApiError(502, message);
 }
 export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
   await limit(user.id, "checkout", 6);
@@ -347,10 +362,62 @@ async function applyPayment(
   };
 }
 export async function verifyPayment(user: AcademyUser, reference: string) {
+  if (!reference || !/^[a-zA-Z0-9_.-]{1,160}$/.test(reference)) {
+    throw new ApiError(400, "Invalid payment reference.");
+  }
   await limit(user.id, "verify", 12);
-  const transaction = await paystack<PaystackTransaction>(
-    `/transaction/verify/${encodeURIComponent(reference)}`,
-  );
+  const store = db();
+
+  // Fast path: if this payment was already confirmed (by prior check or webhook), return success immediately
+  const [existingPaymentSnap, existingIntentSnap] = await Promise.all([
+    store.collection("payments").doc(reference).get(),
+    store.collection("billingIntents").doc(reference).get(),
+  ]);
+
+  if (existingPaymentSnap.exists) {
+    const paymentData = existingPaymentSnap.data();
+    if (paymentData && paymentData.studentId === user.id) {
+      return {
+        status: "success",
+        reference,
+        kind: paymentData.kind || "premium",
+      };
+    }
+  }
+
+  if (existingIntentSnap.exists) {
+    const intentData = existingIntentSnap.data();
+    if (
+      intentData &&
+      intentData.studentId === user.id &&
+      intentData.status === "success"
+    ) {
+      return {
+        status: "success",
+        reference,
+        kind: intentData.kind || "premium",
+      };
+    }
+  }
+
+  let transaction: PaystackTransaction;
+  try {
+    transaction = await paystack<PaystackTransaction>(
+      `/transaction/verify/${encodeURIComponent(reference)}`,
+    );
+  } catch (error) {
+    // If external call failed, fallback check if background webhook succeeded in the meantime
+    const recheckPayment = await store.collection("payments").doc(reference).get();
+    if (recheckPayment.exists && recheckPayment.data()?.studentId === user.id) {
+      return {
+        status: "success",
+        reference,
+        kind: recheckPayment.data()?.kind || "premium",
+      };
+    }
+    throw error;
+  }
+
   return applyPayment(transaction, user.id);
 }
 export async function webhook(raw: string, signature: string | null) {

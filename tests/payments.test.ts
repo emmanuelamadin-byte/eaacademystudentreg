@@ -92,6 +92,22 @@ describe("payment verification and ledger integrity", () => {
       [...state.documents.keys()].filter((key) => key.startsWith("payments/")),
     ).toHaveLength(1);
   });
+  it("succeeds if payment was already recorded even if Paystack network fails", async () => {
+    state.documents.set("payments/ea_payment", {
+      studentId: user.id,
+      amount: 3000,
+      kind: "premium",
+      status: "success",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("Network timeout or connection refused");
+      }),
+    );
+    const result = await verifyPayment(user, "ea_payment");
+    expect(result.status).toBe("success");
+  });
   it("rejects amount mismatches without granting membership", async () => {
     vi.stubGlobal(
       "fetch",

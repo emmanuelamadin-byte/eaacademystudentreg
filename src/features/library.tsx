@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   BookOpen,
   Download,
@@ -46,34 +46,53 @@ interface LibraryData {
 export function StudentLibrary() {
   const { user } = useAcademy();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const ref =
+    searchParams.get("ref") ||
+    searchParams.get("reference") ||
+    searchParams.get("trxref");
+  const verifiedRef = useRef<string | null>(null);
+
   const [data, setData] = useState<LibraryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "courses" | "products">("all");
 
-  useEffect(() => {
-    let mounted = true;
-    async function fetchLibrary() {
-      try {
-        setLoading(true);
-        const res = await api<LibraryData>("shop.library");
-        if (mounted) {
-          setData(res);
-          setError(null);
-        }
-      } catch (err: unknown) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : "Unable to load your library.");
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
+  const fetchLibrary = async () => {
+    try {
+      setLoading(true);
+      const res = await api<LibraryData>("shop.library");
+      setData(res);
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to load your library.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     void fetchLibrary();
-    return () => {
-      mounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    if (!ref || !user || verifiedRef.current === ref) return;
+    verifiedRef.current = ref;
+    setPurchaseNotice("Confirming your purchase with Paystack…");
+    api("billing.verify", { reference: ref })
+      .then(() => {
+        setPurchaseNotice("Purchase confirmed! Your item is now available in your library.");
+        if (typeof window !== "undefined" && window.history?.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        return fetchLibrary();
+      })
+      .catch((err) => {
+        setPurchaseNotice(null);
+        setError(err instanceof Error ? err.message : "Unable to verify purchase.");
+      });
+  }, [ref, user]);
 
   const totalCourses = data?.courses.length || 0;
   const totalProducts = data?.digitalProducts.length || 0;
@@ -103,6 +122,18 @@ export function StudentLibrary() {
           </Link>
         </div>
       </div>
+
+      {purchaseNotice && (
+        <div className="alert alert-success" role="status" style={{ marginBottom: "1.5rem" }}>
+          {purchaseNotice}
+        </div>
+      )}
+
+      {error && (
+        <div className="alert alert-error" role="alert" style={{ marginBottom: "1.5rem" }}>
+          {error}
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="library-stats-grid">

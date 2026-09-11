@@ -206,21 +206,30 @@ export default function Billing() {
     [["studentId", "==", user?.id || ""]],
     !!user,
   );
+  const runVerification = (ref: string) => {
+    setMessage("Confirming your payment with Paystack…");
+    setError("");
+    api("billing.verify", { reference: ref })
+      .then(() => refreshProfile())
+      .then(() => {
+        setMessage("Payment confirmed. Your account has been updated.");
+        setError("");
+        if (typeof window !== "undefined" && window.history?.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      })
+      .catch((err) => {
+        setMessage("");
+        setError(err instanceof Error ? err.message : String(err));
+        verified.current = null;
+      });
+  };
+
   useEffect(() => {
     if (!reference || !user || verified.current === reference) return;
     verified.current = reference;
-    setMessage("Confirming your payment with Paystack…");
-    api("billing.verify", { reference })
-      .then(() => refreshProfile())
-      .then(() =>
-        setMessage("Payment confirmed. Your account has been updated."),
-      )
-      .catch((err) => {
-        setMessage("");
-        setError(err.message);
-        verified.current = null;
-      });
-  }, [reference, user, refreshProfile]);
+    runVerification(reference);
+  }, [reference, user]);
   async function manage() {
     setBusy(true);
     setError("");
@@ -244,8 +253,27 @@ export default function Billing() {
         </div>
       )}
       {error && (
-        <div className="alert alert-error" role="alert">
-          {error}
+        <div
+          className="alert alert-error"
+          role="alert"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "0.75rem",
+          }}
+        >
+          <span>{error}</span>
+          {reference && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => runVerification(reference)}
+            >
+              Verify again
+            </button>
+          )}
         </div>
       )}
       <Pricing embedded />
