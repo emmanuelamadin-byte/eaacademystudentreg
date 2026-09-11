@@ -1300,6 +1300,104 @@ select.input {
 .field textarea::placeholder {
   color: #64748b;
 }
+.workspace-form {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+}
+.workspace-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #0f172a;
+  width: 100%;
+}
+.workspace-form input,
+.workspace-form select,
+.workspace-form textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  min-height: 44px;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.workspace-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+.workspace-form input::placeholder,
+.workspace-form textarea::placeholder {
+  color: #64748b;
+}
+.workspace-form input:focus,
+.workspace-form select:focus,
+.workspace-form textarea:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(0, 39, 81, 0.12);
+}
+.workspace-form input:disabled,
+.workspace-form select:disabled,
+.workspace-form textarea:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+.workspace-form .check-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+  margin: 6px 0;
+}
+.workspace-form .check-label input[type="checkbox"],
+.workspace-form input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.workspace-form .code-input {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 13.5px;
+  min-height: 140px;
+}
+.workspace-form fieldset {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+.workspace-form legend {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: #0f172a;
+  padding: 0 8px;
+}
+.workspace-form .button-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
 .checkbox-label {
   display: flex;
   align-items: center;

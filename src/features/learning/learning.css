@@ -534,16 +534,22 @@
   border: 0;
   max-height: 650px;
 }
+.class-composer,
 .learning-surface .class-composer {
   max-width: 980px;
   padding: 30px;
   border-top: 4px solid #0a5a93;
+  margin-bottom: 28px;
 }
+.class-composer > div:first-child,
 .learning-surface .class-composer > div:first-child {
   margin-bottom: 24px;
 }
+.class-composer h2,
 .learning-surface .class-composer h2 {
   margin: 7px 0 8px;
+  font-size: 26px;
+  color: #0f172a;
 }
 .learning-surface .class-feed {
   display: grid;
