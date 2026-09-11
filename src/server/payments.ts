@@ -46,11 +46,13 @@ async function paystack<T>(
     );
   }
   const value = await response.json();
-  if (!response.ok || !value.status)
+  if (!response.ok || !value.status) {
+    const detail = value?.message ? `: ${value.message}` : "";
     throw new ApiError(
       502,
-      "Paystack could not complete this request. Please check your payment settings or try again.",
+      `Paystack could not complete this request${detail}. Please check your payment settings or try again.`,
     );
+  }
   return value.data as T;
 }
 export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
@@ -109,7 +111,9 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
   if (amount < 10000) throw new ApiError(400, "The minimum amount is ₦100.");
   let plan: string | undefined;
   if (input.kind === "premium" && input.recurring) {
-    plan = process.env.PAYSTACK_MONTHLY_PLAN_CODE;
+    plan = (
+      process.env.PAYSTACK_MONTHLY_PLAN_CODE || "PLN_kup0du3f4nyzghd"
+    ).trim();
     if (!plan)
       throw new ApiError(
         503,
