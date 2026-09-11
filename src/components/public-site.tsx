@@ -700,45 +700,45 @@ export interface StudentStory {
 
 export const STUDENT_STORIES: StudentStory[] = [
   {
-    id: "david-oghenekaro",
-    name: "David Oghenekaro",
-    role: "Junior Full-Stack Developer",
-    track: "Systems & Development",
-    trackColor: "#0284c7",
-    trackBg: "#f0f9ff",
-    initials: "DO",
-    avatarBg: "#e0f2fe",
-    outcome: "Built 4 live production apps",
-    quote:
-      "I started with zero software background. The focus on real code submissions and Git workflows rather than passive videos made all the difference. In under five months, I built a portfolio of four production apps and landed my first software role.",
-    rating: 5,
-  },
-  {
-    id: "amina-bello",
-    name: "Amina Bello",
-    role: "UI/UX & Brand Designer",
+    id: "nosiru-akindele",
+    name: "Nosiru Akindele",
+    role: "EA Academy Student",
     track: "Creative Media Studio",
     trackColor: "#ea580c",
     trackBg: "#fff7ed",
-    initials: "AB",
+    initials: "NA",
     avatarBg: "#ffedd5",
-    outcome: "Tripled freelance client rates",
+    outcome: "Weekly live sessions & mentorship",
     quote:
-      "The mentor feedback on my Figma design briefs and visual storytelling completely elevated how I present client work. Instead of generic templates, I learned real design systems. My client closing rate and pricing tripled.",
+      "I have learnt a lot and gained confidence to do more, especially when I get the opportunity to join other tracks of the learning program from EA Academy in the weekly session. How he explains things makes it easy for me to understand, and for some things I don't understand, I make sure I ask and he's always ready to explain it so I can understand it better. And he shares tips on different ways we can go about solving issues we face and he's available to help even at inconvenient times for him. Thank you Mr Emmanuel.",
     rating: 5,
   },
   {
-    id: "tunde-adeyemi",
-    name: "Tunde Adeyemi",
-    role: "E-commerce Founder",
+    id: "osawaru-peter",
+    name: "Osawaru Peter",
+    role: "EA Academy Student",
+    track: "Systems & Development",
+    trackColor: "#0284c7",
+    trackBg: "#f0f9ff",
+    initials: "OP",
+    avatarBg: "#e0f2fe",
+    outcome: "Hands-on weekly teaching",
+    quote:
+      "Firstly I really want to thank EA Academy for at least finding and creating time to teach us all in the weekly sessions. I've learnt a lot from your teachings and I'm still learning a lot. Thank you sir Emmanuel.",
+    rating: 5,
+  },
+  {
+    id: "kaiun",
+    name: "Kaiun",
+    role: "Digital Marketing Student",
     track: "Business Growth & Wealth",
     trackColor: "#16a34a",
     trackBg: "#f0fdf4",
-    initials: "TA",
+    initials: "KA",
     avatarBg: "#dcfce7",
-    outcome: "+180% store revenue growth",
+    outcome: "Understood 90% of Meta ads",
     quote:
-      "Most online business courses stay abstract. EA Academy gave me direct unit economics models, customer retention funnels, and real paid traffic strategy. Applying these exact frameworks grew my e-commerce revenue by 180% in four months.",
+      "I appreciate the efforts you put into your classes. The simple breakdown of Meta ads made me understand 90% of information I was struggling to put together.",
     rating: 5,
   },
 ];
@@ -754,11 +754,11 @@ export function StudentStoriesSection() {
       transition={revealTransition}
     >
       <div className="section-heading centered-heading">
-        <span className="eyebrow">PROVEN STUDENT OUTCOMES</span>
-        <h2>Real skills. Real projects. Real career impact.</h2>
+        <span className="eyebrow">REAL STUDENT REVIEWS</span>
+        <h2>Real feedback. Real skills. Real mentorship.</h2>
         <p>
-          See how students from diverse backgrounds used our free career tracks and practical
-          assignments to build proof-of-work portfolios and accelerate their careers.
+          Read direct reviews from students learning inside EA Academy about our practical classes,
+          weekly live sessions, and hands-on mentorship.
         </p>
       </div>
 
