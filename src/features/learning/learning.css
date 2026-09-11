@@ -1249,20 +1249,22 @@
     color: #e2e8f0;
   }
   .learning-surface .progress-orbit {
-    width: 88px;
-    height: 88px;
-    padding: 5px;
-    margin-top: 35px;
+    width: 106px;
+    height: 106px;
+    padding: 6px;
+    margin-top: 30px;
   }
   .learning-surface .progress-orbit strong {
-    font-size: 25px;
+    font-size: 26px;
+    letter-spacing: -1px;
   }
   .learning-surface .progress-orbit strong small {
-    font-size: 13px;
+    font-size: 12px;
   }
   .learning-surface .progress-orbit span {
-    font-size: 9px;
-    letter-spacing: 0.5px;
+    font-size: 7.5px;
+    letter-spacing: 0.6px;
+    margin-top: 2px;
   }
   .learning-surface .hero-pill {
     font-size: 11px;
