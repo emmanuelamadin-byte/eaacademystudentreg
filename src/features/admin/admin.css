@@ -55,10 +55,10 @@
 .admin-workspace td select,
 .admin-workspace td input {
   padding: 12px 14px;
-  border: 1px solid #dce2e9;
+  border: 1.5px solid #94a3b8;
   border-radius: 8px;
   background: #fff;
-  color: #23354a;
+  color: #0f172a;
   max-width: 100%;
   font: inherit;
 }
