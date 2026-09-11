@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase's dynamic table mapping cannot be expressed through generated table literals. */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getSupabase } from "./supabase";
 import {
   clientSelectionFor,
@@ -26,7 +26,10 @@ export function useRecords<T>(
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
   const filterKey = JSON.stringify(filters);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+
   useEffect(() => {
     setData([]);
     setError(null);
@@ -85,8 +88,8 @@ export function useRecords<T>(
       cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, [name, filterKey, enabled]);
-  return { data, loading, error };
+  }, [name, filterKey, enabled, tick]);
+  return { data, loading, error, reload };
 }
 export function useRecord<T>(
   name: string,

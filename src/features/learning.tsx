@@ -1455,7 +1455,7 @@ function ClassPostCard({
             )}
             {canComplete && (
               <button
-                className="btn btn-secondary"
+                className={`btn ${done ? "btn-secondary completed-btn" : "btn-secondary"}`}
                 disabled={done || saving}
                 onClick={async () => {
                   setSaving(true);
@@ -1470,7 +1470,7 @@ function ClassPostCard({
                   }
                 }}
               >
-                <CheckCircle2 size={16} />
+                <CheckCircle2 size={16} className={done ? "text-emerald" : ""} />
                 {done ? "Completed" : saving ? "Saving…" : "Mark complete"}
               </button>
             )}
@@ -1547,6 +1547,7 @@ function LessonPlayer({ id }: { id?: string }) {
   const [saving, setSaving] = useState(false);
   const [offline, setOffline] = useState(false);
   const [queued, setQueued] = useState(false);
+  const [doneLocally, setDoneLocally] = useState(false);
   const progress = useRecords<Progress>(
     "progress",
     [["studentId", "==", user?.id || ""]],
@@ -1611,7 +1612,8 @@ function LessonPlayer({ id }: { id?: string }) {
     window.addEventListener("ea:queue-synced", update);
     return () => window.removeEventListener("ea:queue-synced", update);
   }, [user, id]);
-  const completed = progress.data.some((item) => item.lessonId === id);
+  const completed =
+    doneLocally || progress.data.some((item) => item.lessonId === id);
   const ordered = useMemo(
     () =>
       modules.data
@@ -1636,7 +1638,12 @@ function LessonPlayer({ id }: { id?: string }) {
           `progress:${id}`,
         );
         setQueued(true);
-      } else await api("progress.complete", { lessonId: id });
+        setDoneLocally(true);
+      } else {
+        await api("progress.complete", { lessonId: id });
+        setDoneLocally(true);
+        void progress.reload?.();
+      }
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -1674,7 +1681,7 @@ function LessonPlayer({ id }: { id?: string }) {
         title={lesson.title}
         description={`${lesson.duration || "Self-paced"} · Learn, practice, make progress.`}
       >
-        <span className="badge">
+        <span className={`badge ${completed ? "badge-success" : ""}`}>
           {completed
             ? "Completed"
             : queued
@@ -1751,20 +1758,6 @@ function LessonPlayer({ id }: { id?: string }) {
                   body="Your instructor can attach reading lists, toolkits, and supporting files to this lesson."
                 />
               )}
-              {lesson.videoUrl && (
-                <a
-                  className="btn btn-secondary"
-                  href={safeUrl(lesson.videoUrl)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Open video source <ArrowRight size={15} />
-                </a>
-              )}
-              <p className="muted">
-                For direct video files, use the video player’s download control
-                when available. Hosted video downloads depend on the provider.
-              </p>
             </div>
           )}
           {tab === "discussion" && <LessonDiscussion lesson={lesson} />}
@@ -1775,13 +1768,13 @@ function LessonPlayer({ id }: { id?: string }) {
         <p className="muted">Ready for your next step?</p>
         <div className="button-row">
           <button
-            className="btn btn-secondary"
+            className={`btn ${completed ? "btn-secondary completed-btn" : "btn-primary"}`}
             disabled={completed || queued || saving}
             onClick={mark}
           >
-            <CheckCircle2 size={17} />
+            <CheckCircle2 size={17} className={completed ? "text-emerald" : ""} />
             {completed
-              ? "Lesson completed"
+              ? "Completed"
               : queued
                 ? "Saved for sync"
                 : saving
