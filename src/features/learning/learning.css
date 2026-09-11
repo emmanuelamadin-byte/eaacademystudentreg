@@ -26,13 +26,13 @@
 .learning-surface .birthday-reminder strong,
 .learning-surface .birthday-greeting strong {
   color: #002f63;
-  font-size: 15px;
+  font-size: 16px;
 }
 .learning-surface .birthday-reminder p,
 .learning-surface .birthday-greeting p {
   margin: 4px 0 0;
-  color: #60758a;
-  font-size: 12px;
+  color: #334155;
+  font-size: 14px;
   line-height: 1.6;
 }
 .learning-surface .birthday-greeting {
@@ -66,13 +66,14 @@
   margin: 17px 0 12px;
 }
 .learning-surface .learning-hero p {
-  color: #c0cddd;
+  color: #e2e8f0;
+  font-size: 16px;
   max-width: 450px;
   line-height: 1.7;
   margin-bottom: 24px;
 }
 .learning-surface .hero-pill {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 1.6px;
   display: flex;
@@ -120,9 +121,9 @@
   letter-spacing: 0;
 }
 .learning-surface .progress-orbit span {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.4px;
-  color: #c0cddd;
+  color: #e2e8f0;
   margin-top: 4px;
 }
 .learning-surface .learning-stats {
@@ -182,17 +183,19 @@
   color: #ffffff;
 }
 .learning-surface .learning-stats p {
-  font-size: 12px;
+  font-size: 14px;
+  color: #334155;
   margin: 0 0 6px;
 }
 .learning-surface .learning-stats strong {
   font-size: 26px;
   line-height: 1.15;
+  color: #0f172a;
 }
 .learning-surface .learning-stats strong small {
-  font-size: 13px;
-  color: #9199a4;
-  font-weight: 400;
+  font-size: 14px;
+  color: #475569;
+  font-weight: 500;
 }
 .learning-surface .dashboard-columns {
   display: grid;
@@ -218,7 +221,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #002751;
 }
@@ -264,15 +267,17 @@
   line-height: 1.45;
 }
 .learning-surface .module-summary p {
-  font-size: 12px;
+  font-size: 14.5px;
+  color: #334155;
   line-height: 1.65;
   margin: 8px 0;
 }
 .learning-surface .module-meta {
   display: flex;
   gap: 18px;
-  color: #87909b;
-  font-size: 11px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
 }
 .learning-surface .module-meta span {
   display: flex;
@@ -285,7 +290,7 @@
   gap: 12px;
   padding: 15px 24px;
   border-top: 1px solid #edf0f4;
-  color: #27384a;
+  color: #0f172a;
   transition: background 0.15s;
 }
 .learning-surface .lesson-row:hover {
@@ -293,14 +298,15 @@
 }
 .learning-surface .lesson-row > span:nth-child(2) {
   flex: 1;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
 }
 .learning-surface .lesson-row small {
   display: block;
-  font-size: 8px;
-  color: #8a94a0;
-  letter-spacing: 1px;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 600;
+  letter-spacing: 0.5px;
   margin-bottom: 3px;
 }
 .learning-surface .lesson-status {
@@ -318,8 +324,9 @@
   color: #3c7650;
 }
 .learning-surface .lesson-duration {
-  font-size: 10px;
-  color: #8a94a0;
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
   white-space: nowrap;
 }
 .learning-surface .lesson-locked {
@@ -338,7 +345,8 @@
   padding: 23px;
 }
 .learning-surface .dashboard-aside .card > p {
-  font-size: 13px;
+  font-size: 14.5px;
+  color: #334155;
   line-height: 1.7;
 }
 .learning-surface .up-next {
@@ -347,15 +355,16 @@
   border-top: 1px solid #edf0f4;
 }
 .learning-surface .up-next .eyebrow {
-  font-size: 8px;
+  font-size: 11px;
 }
 .learning-surface .up-next strong {
   display: block;
-  font-size: 13px;
+  font-size: 15px;
   margin: 8px 0;
 }
 .learning-surface .up-next .muted {
-  font-size: 11px;
+  font-size: 13px;
+  color: #475569;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -366,15 +375,17 @@
   margin-top: 16px;
 }
 .learning-surface .news-item small {
-  font-size: 10px;
-  color: #969eaa;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
 }
 .learning-surface .news-item h4 {
   margin: 8px 0;
-  font-size: 13px;
+  font-size: 15px;
 }
 .learning-surface .news-item p {
-  font-size: 12px;
+  font-size: 14px;
+  color: #334155;
   line-height: 1.7;
 }
 .learning-surface .small-dot {
@@ -389,8 +400,9 @@
   background: #eaf0f6;
 }
 .learning-surface .premium-aside .eyebrow {
-  font-size: 9px;
-  color: #53718f;
+  font-size: 12px;
+  color: var(--navy);
+  font-weight: 700;
 }
 .learning-surface .premium-aside h3 {
   font-size: 23px;
@@ -399,9 +411,9 @@
   margin: 12px 0;
 }
 .learning-surface .premium-aside p {
-  font-size: 12px;
+  font-size: 14.5px;
   line-height: 1.7;
-  color: #697888;
+  color: #1e293b;
   margin-bottom: 18px;
 }
 .learning-surface .community-callout {
@@ -421,11 +433,12 @@
   flex: 1;
 }
 .learning-surface .community-callout h3 {
-  font-size: 15px;
+  font-size: 16px;
   margin: 0 0 6px;
 }
 .learning-surface .community-callout p {
-  font-size: 11px;
+  font-size: 14px;
+  color: #334155;
   line-height: 1.6;
   margin: 0;
 }
@@ -441,9 +454,10 @@
   background: none;
   padding: 16px 0;
   white-space: nowrap;
-  color: #778390;
+  color: #334155;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
   border-bottom: 2px solid transparent;
   display: flex;
   align-items: center;
@@ -455,11 +469,13 @@
   font-weight: 600;
 }
 .learning-surface .track-tabs button span {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.7px;
-  padding: 4px 6px;
-  background: #eaf0f7;
+  padding: 4px 8px;
+  background: #e2e8f0;
+  color: #0f172a;
   border-radius: 4px;
+  font-weight: 600;
 }
 .learning-surface .track-intro {
   display: flex;
@@ -475,13 +491,15 @@
 .learning-surface .track-intro p {
   max-width: 600px;
   line-height: 1.75;
+  font-size: 16px;
+  color: #334155;
 }
 .learning-surface .track-skills {
   display: grid;
   gap: 12px;
   flex: none;
-  font-size: 12px;
-  color: #5d7082;
+  font-size: 14px;
+  color: #1e293b;
 }
 .learning-surface .track-skills span {
   display: flex;
@@ -489,17 +507,19 @@
   gap: 7px;
 }
 .learning-surface .track-enrollment {
-  font-size: 12px;
+  font-size: 14px;
+  color: #1e293b;
   display: flex;
   align-items: center;
   gap: 6px;
   margin: 0 0 28px;
 }
 .learning-surface .back-link {
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
   display: inline-block;
   margin-bottom: 20px;
-  color: #5d7288;
+  color: var(--navy);
 }
 .learning-surface .video-container {
   background: #071a2e;
@@ -603,13 +623,17 @@
   gap: 7px;
   padding: 20px 0;
   cursor: pointer;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #334155;
 }
 .learning-surface .lesson-tab-content {
   padding: 30px;
 }
 .learning-surface .prose {
   line-height: 1.85;
-  font-size: 14px;
+  font-size: 16px;
+  color: #1e293b;
   overflow-wrap: anywhere;
 }
 .learning-surface .prose h1,
@@ -617,9 +641,12 @@
 .learning-surface .prose h3 {
   margin: 20px 0 12px;
   line-height: 1.4;
+  color: #0f172a;
 }
 .learning-surface .prose p {
   margin: 0 0 16px;
+  font-size: 16px;
+  color: #1e293b;
 }
 .learning-surface .prose ul,
 .learning-surface .prose ol {
@@ -628,6 +655,8 @@
 }
 .learning-surface .prose li {
   margin: 6px 0;
+  font-size: 16px;
+  color: #1e293b;
 }
 .learning-surface .prose ul {
   list-style: disc;
@@ -644,7 +673,7 @@
   border-radius: 8px;
   background: #f0f3f7;
   padding: 18px;
-  font-size: 12px;
+  font-size: 13.5px;
 }
 .learning-surface .prose code {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -653,7 +682,7 @@
 .learning-surface .prose blockquote {
   border-left: 3px solid #b4c4d5;
   padding-left: 20px;
-  color: #697888;
+  color: #334155;
 }
 .learning-surface .prose img {
   max-width: 100%;
@@ -704,10 +733,11 @@
   margin: 0 0 7px;
 }
 .learning-surface .learning-toolbar p {
-  font-size: 12px;
+  font-size: 14.5px;
   line-height: 1.7;
   max-width: 510px;
   margin: 0;
+  color: #334155;
 }
 .learning-surface .sandbox-grid {
   display: grid;
@@ -822,18 +852,21 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 14px;
-  font-size: 13px;
+  font-size: 15px;
+  color: #0f172a;
 }
 .learning-surface .discussion-entry small {
-  font-size: 10px;
-  color: #9199a4;
+  font-size: 12.5px;
+  color: #475569;
+  font-weight: 500;
 }
 .learning-surface .discussion-entry > a {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  color: #496d90;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
 }
 .learning-surface .assignment-layout {
   display: grid;
@@ -847,10 +880,12 @@
   margin: 16px 0;
 }
 .learning-surface .assignment-sidebar .prose {
-  font-size: 12px;
+  font-size: 14.5px;
+  color: #1e293b;
 }
 .learning-surface .assignment-sidebar > .muted {
-  font-size: 11px;
+  font-size: 13.5px;
+  color: #334155;
   line-height: 1.7;
 }
 .learning-surface .deadline {
@@ -865,15 +900,17 @@
   flex: none;
 }
 .learning-surface .deadline strong {
-  font-size: 12px;
+  font-size: 14.5px;
+  color: #0f172a;
 }
 .learning-surface .deadline p {
-  font-size: 11px;
+  font-size: 13.5px;
+  color: #334155;
   line-height: 1.7;
   margin: 6px 0 0;
 }
 .learning-surface .milestones h3 {
-  font-size: 14px;
+  font-size: 16px;
 }
 .learning-surface .milestones > div {
   display: flex;
@@ -885,18 +922,21 @@
   height: 24px;
   border-radius: 50%;
   background: #edf2f7;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 700;
   display: grid;
   place-items: center;
 }
 .learning-surface .milestones p {
   margin: 0;
-  font-size: 11px;
+  font-size: 14px;
+  color: #1e293b;
 }
 .learning-surface .milestones small {
   display: block;
   margin-top: 5px;
-  color: #8995a2;
+  font-size: 12px;
+  color: #475569;
 }
 .learning-surface .submission-editor h2 {
   font-size: 20px;
@@ -917,9 +957,10 @@
   background: none;
   border: 0;
   cursor: pointer;
-  color: #456a8e;
+  color: var(--navy);
   padding: 4px;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
 }
 .learning-surface .writeup-input {
   width: 100%;
@@ -928,9 +969,9 @@
   border: 1px solid #dce3eb;
   border-radius: 8px;
   padding: 16px;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.8;
-  color: #344c64;
+  color: #0f172a;
   background: #fff;
 }
 .learning-surface .writeup-preview {
@@ -941,8 +982,8 @@
   background: #fafbfd;
 }
 .learning-surface .draft-meta {
-  font-size: 10px;
-  color: #929ca6;
+  font-size: 12.5px;
+  color: #475569;
   margin: 9px 0 22px;
 }
 .learning-surface .upload-zone {
@@ -960,12 +1001,12 @@
   color: #65809a;
 }
 .learning-surface .upload-zone strong {
-  font-size: 12px;
-  color: #4c647b;
+  font-size: 14px;
+  color: #0f172a;
 }
 .learning-surface .upload-zone small {
-  font-size: 10px;
-  color: #8f9aa5;
+  font-size: 12px;
+  color: #475569;
 }
 .learning-surface .upload-zone input {
   position: absolute;
@@ -980,7 +1021,8 @@
   gap: 10px;
   padding: 13px 0;
   border-bottom: 1px solid #e9eef3;
-  font-size: 11px;
+  font-size: 13.5px;
+  color: #1e293b;
 }
 .learning-surface .attachment-row span {
   flex: 1;
@@ -1000,7 +1042,7 @@
   background: #edf5ef;
   padding: 20px;
   margin-bottom: 25px;
-  color: #355d42;
+  color: #14532d;
 }
 .learning-surface .graded-feedback > svg {
   flex: none;
@@ -1008,9 +1050,12 @@
 .learning-surface .graded-feedback h3 {
   font-size: 16px;
   margin: 0 0 12px;
+  color: #14532d;
 }
 .learning-surface .graded-feedback p {
-  font-size: 12px;
+  font-size: 14.5px;
+  color: #14532d;
+  margin: 0;
 }
 .learning-surface .learning-record {
   max-width: 900px;
@@ -1032,9 +1077,9 @@
   letter-spacing: 2px;
 }
 .learning-surface .record-brand p {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 2px;
-  color: #8b98a6;
+  color: #475569;
   margin: 7px 0 0;
 }
 .learning-surface .record-mark {
@@ -1046,7 +1091,7 @@
   font-weight: 600;
 }
 .learning-surface .learning-record > .eyebrow {
-  font-size: 10px;
+  font-size: 11px;
 }
 .learning-surface .learning-record > h2 {
   font-size: 34px;
@@ -1064,32 +1109,35 @@
 }
 .learning-surface .record-details small {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.3px;
-  color: #8996a3;
+  color: #475569;
   margin-bottom: 9px;
+  font-weight: 600;
 }
 .learning-surface .record-details strong {
-  font-size: 12px;
+  font-size: 15px;
+  color: #0f172a;
 }
 .learning-surface .learning-record > h3 {
   font-size: 17px;
   margin: 30px 0 16px;
 }
 .learning-surface .learning-record > .muted {
-  font-size: 13px;
+  font-size: 14.5px;
   line-height: 1.8;
+  color: #334155;
 }
 .learning-surface .record-footer {
   border-top: 1px solid #dce5ed;
   margin-top: 45px;
   padding-top: 22px;
-  font-size: 10px;
-  color: #8593a0;
+  font-size: 12.5px;
+  color: #475569;
   line-height: 1.8;
 }
 .learning-surface .record-footer a {
-  color: #496986;
+  color: #1d5b95;
   word-break: break-all;
 }
 .learning-surface .record-actions {
@@ -1101,9 +1149,10 @@
   justify-content: space-between;
 }
 .learning-surface .record-actions p {
-  font-size: 12px;
+  font-size: 14.5px;
   line-height: 1.75;
   max-width: 540px;
+  color: #1e293b;
 }
 .learning-surface .record-actions .btn {
   flex: none;
@@ -1190,7 +1239,8 @@
     font-size: 24px;
   }
   .learning-surface .learning-hero p {
-    font-size: 12px;
+    font-size: 14.5px;
+    color: #e2e8f0;
   }
   .learning-surface .progress-orbit {
     width: 88px;
@@ -1205,11 +1255,11 @@
     font-size: 13px;
   }
   .learning-surface .progress-orbit span {
-    font-size: 5px;
+    font-size: 9px;
     letter-spacing: 0.5px;
   }
   .learning-surface .hero-pill {
-    font-size: 8px;
+    font-size: 11px;
     letter-spacing: 1px;
   }
   .learning-surface .learning-stats {
@@ -1220,7 +1270,9 @@
     padding: 12px;
   }
   .learning-surface .learning-stats p {
-    font-size: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #334155;
     line-height: 1.5;
   }
   .learning-surface .learning-stats strong {
@@ -1244,7 +1296,7 @@
   .learning-surface .module-number {
     width: 33px;
     height: 33px;
-    font-size: 11px;
+    font-size: 13px;
   }
   .learning-surface .module-title {
     align-items: flex-start;
@@ -1252,23 +1304,25 @@
     gap: 7px;
   }
   .learning-surface .module-title h3 {
-    font-size: 14px;
+    font-size: 16px;
   }
   .learning-surface .lesson-row {
     padding: 14px 17px;
     gap: 8px;
   }
   .learning-surface .lesson-row > span:nth-child(2) {
-    font-size: 11px;
+    font-size: 14px;
+    font-weight: 600;
   }
   .learning-surface .lesson-duration {
-    font-size: 9px;
+    font-size: 12px;
+    color: #475569;
   }
   .learning-surface .track-tabs {
     gap: 20px;
   }
   .learning-surface .track-tabs button {
-    font-size: 12px;
+    font-size: 14px;
   }
   .learning-surface .track-tabs button span {
     display: none;
@@ -1288,7 +1342,7 @@
     padding: 0 20px;
   }
   .learning-surface .lesson-tabs button {
-    font-size: 11px;
+    font-size: 13.5px;
   }
   .learning-surface .lesson-footer,
   .learning-surface .learning-toolbar {
@@ -1300,10 +1354,11 @@
     justify-content: space-between;
   }
   .learning-surface .lesson-footer .btn {
-    font-size: 11px;
+    font-size: 13.5px;
   }
   .learning-surface .video-empty p {
-    font-size: 12px;
+    font-size: 14.5px;
+    color: #334155;
   }
   .learning-surface .submission-actions {
     flex-wrap: wrap;
@@ -1324,13 +1379,13 @@
     font-size: 28px;
   }
   .learning-surface .learning-record .table-wrap {
-    font-size: 11px;
+    font-size: 13px;
   }
   .learning-surface .section-heading h2 {
     font-size: 18px;
   }
   .learning-surface .section-heading a {
-    font-size: 10px;
+    font-size: 13px;
   }
 }
 @media print {
@@ -1392,7 +1447,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 600;
   color: #002751;
   text-decoration: none;
@@ -1469,7 +1524,7 @@
   position: absolute;
   top: 10px;
   left: 10px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1494,16 +1549,16 @@
 }
 
 .learning-surface .dashboard-shop-card-category {
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
 
 .learning-surface .dashboard-shop-card-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.35;
   margin: 0 0 6px;
@@ -1519,9 +1574,9 @@
 }
 
 .learning-surface .dashboard-shop-card-sub {
-  font-size: 12px;
-  color: #64748b;
-  line-height: 1.45;
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.5;
   margin: 0 0 14px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1606,14 +1661,14 @@
 }
 
 .learning-surface .dashboard-shop-empty-content h3 {
-  font-size: 16px;
+  font-size: 17px;
   margin: 0 0 4px;
   color: #0f172a;
 }
 
 .learning-surface .dashboard-shop-empty-content p {
-  font-size: 13px;
-  color: #64748b;
+  font-size: 14.5px;
+  color: #334155;
   margin: 0;
   line-height: 1.5;
   max-width: 580px;

@@ -58,7 +58,6 @@ import {
 } from "@/lib/types";
 import type { StreakSummary } from "@/lib/streaks";
 import { isBirthdayToday } from "@/lib/birthdays";
-import CodeSandbox from "./learning/sandbox";
 import Assignments from "./learning/assignments";
 import { queueAction, readQueue } from "./learning/offline";
 import "./learning/learning.css";
@@ -1705,7 +1704,6 @@ function LessonPlayer({ id }: { id?: string }) {
         >
           {[
             { id: "overview", label: "Overview", icon: BookOpen },
-            { id: "sandbox", label: "Code sandbox", icon: Code2 },
             { id: "resources", label: "Resources", icon: Download },
             { id: "discussion", label: "Discussion", icon: MessageCircle },
             { id: "tutor", label: "AI tutor", icon: MessageCircle },
@@ -1730,13 +1728,6 @@ function LessonPlayer({ id }: { id?: string }) {
                   "Your instructor has not added lesson notes yet."}
               </ReactMarkdown>
             </div>
-          )}
-          {tab === "sandbox" && (
-            <CodeSandbox
-              key={lesson.id}
-              initialCode={lesson.initialCode}
-              lessonId={lesson.id}
-            />
           )}
           {tab === "resources" && (
             <div>
