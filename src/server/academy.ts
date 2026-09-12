@@ -41,6 +41,7 @@ import { checkout, verifyPayment, manageSubscription } from "./payments";
 import {
   createBroadcast,
   listBroadcasts,
+  notifyOwnerOfNewStudent,
   processMessageQueue,
   saveCommunicationPreferences,
 } from "./communications";
@@ -272,7 +273,26 @@ async function ensureProfile(token: AuthToken, p: Payload) {
       { merge: true },
     );
   });
-  return actor(token);
+  const profile = await actor(token);
+  // Fire-and-forget owner notification — never blocks the student's login
+  if (input.enrolledClassId || rosterCanBeClaimed) {
+    const { TRACKS } = await import("@/lib/types");
+    const enrolledId =
+      (rosterCanBeClaimed && rosterData?.enrolledClassId) ||
+      input.enrolledClassId ||
+      "system-dev";
+    const trackName =
+      (TRACKS as { id: string; name: string }[]).find(
+        (t) => t.id === enrolledId,
+      )?.name || enrolledId;
+    notifyOwnerOfNewStudent({
+      ownerEmail: OWNER_EMAIL,
+      studentName: profile.name || token.name || "New student",
+      studentEmail: normalizedEmail || "",
+      trackName,
+    }).catch(() => {});
+  }
+  return profile;
 }
 export async function dispatch(
   token: AuthToken,
