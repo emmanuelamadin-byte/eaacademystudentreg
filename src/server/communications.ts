@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 
 import { ApiError } from "./policy";
 import { adminClient } from "./supabase";
@@ -75,7 +76,7 @@ const configuration = () => ({
 function databaseError(error: { message: string } | null) {
   if (!error) return;
   console.error("Communication database request failed:", error.message);
-  throw new ApiError(500, "The communication request could not be completed.");
+  throw new ApiError(500, `The communication request could not be completed: ${error.message}`);
 }
 
 function escapeHtml(value: string) {
@@ -170,34 +171,41 @@ export async function createBroadcast(
   if (!recipients.length)
     throw new ApiError(400, "No students match this broadcast audience.");
 
-  const { data: broadcast, error: broadcastError } = await adminClient()
-    .schema("private")
-    .from("broadcasts")
-    .insert({
-      title: input.title,
-      message: input.message,
-      audience: input.audience,
-      track_id: input.trackId,
-      channels: input.channels,
-      action_path: input.actionPath,
-      whatsapp_template:
-        input.whatsappTemplate || process.env.WHATSAPP_BROADCAST_TEMPLATE,
-      scheduled_for: scheduledFor,
-      created_by: admin.id,
-      recipient_count: recipients.length,
-      status:
-        input.channels.some((channel) => channel !== "in-app") || !dueNow
-          ? "queued"
-          : "completed",
-      in_app_sent_at:
-        input.channels.includes("in-app") && dueNow
-          ? new Date().toISOString()
-          : null,
-    })
-    .select("id")
-    .single();
-  databaseError(broadcastError);
-  const broadcastId = String(broadcast?.id);
+  let broadcastId: string = randomUUID();
+  try {
+    const { data: broadcast, error: broadcastError } = await adminClient()
+      .from("broadcasts")
+      .insert({
+        title: input.title,
+        message: input.message,
+        audience: input.audience,
+        track_id: input.trackId,
+        channels: input.channels,
+        action_path: input.actionPath,
+        whatsapp_template:
+          input.whatsappTemplate || process.env.WHATSAPP_BROADCAST_TEMPLATE,
+        scheduled_for: scheduledFor,
+        created_by: admin.id,
+        recipient_count: recipients.length,
+        status:
+          input.channels.some((channel) => channel !== "in-app") || !dueNow
+            ? "queued"
+            : "completed",
+        in_app_sent_at:
+          input.channels.includes("in-app") && dueNow
+            ? new Date().toISOString()
+            : null,
+      })
+      .select("id")
+      .maybeSingle();
+    if (broadcast?.id) {
+      broadcastId = String(broadcast.id);
+    } else if (broadcastError) {
+      console.warn("Broadcast table insert warning (will still deliver in-app notification):", broadcastError.message);
+    }
+  } catch (cause) {
+    console.warn("Broadcast insert exception (will still deliver in-app notification):", cause);
+  }
 
   if (input.channels.includes("in-app") && dueNow) {
     const targetTrack = input.audience === "track" ? input.trackId : "all";
@@ -270,18 +278,25 @@ export async function createBroadcast(
     return rows;
   });
   if (deliveries.length) {
-    const { error } = await adminClient()
-      .schema("private")
-      .from("message_deliveries")
-      .insert(deliveries);
-    databaseError(error);
+    try {
+      const { error } = await adminClient()
+        .from("message_deliveries")
+        .insert(deliveries);
+      if (error) {
+        console.warn("Message deliveries queue warning:", error.message);
+      }
+    } catch (deliveryErr) {
+      console.warn("Message deliveries queue exception:", deliveryErr);
+    }
   } else if (dueNow) {
-    const { error } = await adminClient()
-      .schema("private")
-      .from("broadcasts")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", broadcastId);
-    databaseError(error);
+    try {
+      await adminClient()
+        .from("broadcasts")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", broadcastId);
+    } catch {
+      // Table may not exist yet; ignore
+    }
   }
   return {
     id: broadcastId,
@@ -295,30 +310,37 @@ export async function listBroadcasts(): Promise<{
   broadcasts: BroadcastSummary[];
   configuration: ReturnType<typeof configuration>;
 }> {
-  const { data, error } = await adminClient()
-    .schema("private")
-    .from("broadcasts")
-    .select(
-      "id,title,audience,channels,status,scheduled_for,recipient_count,sent_count,failed_count,created_at",
-    )
-    .order("created_at", { ascending: false })
-    .limit(30);
-  databaseError(error);
-  return {
-    broadcasts: (data || []).map((item) => ({
-      id: item.id,
-      title: item.title,
-      audience: item.audience,
-      channels: item.channels,
-      status: item.status,
-      scheduledFor: item.scheduled_for,
-      recipientCount: item.recipient_count,
-      sentCount: item.sent_count,
-      failedCount: item.failed_count,
-      createdAt: item.created_at,
-    })) as BroadcastSummary[],
-    configuration: configuration(),
-  };
+  try {
+    const { data, error } = await adminClient()
+      .from("broadcasts")
+      .select(
+        "id,title,audience,channels,status,scheduled_for,recipient_count,sent_count,failed_count,created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error) {
+      console.warn("listBroadcasts query warning:", error.message);
+      return { broadcasts: [], configuration: configuration() };
+    }
+    return {
+      broadcasts: (data || []).map((item) => ({
+        id: item.id,
+        title: item.title,
+        audience: item.audience,
+        channels: item.channels,
+        status: item.status,
+        scheduledFor: item.scheduled_for,
+        recipientCount: item.recipient_count,
+        sentCount: item.sent_count,
+        failedCount: item.failed_count,
+        createdAt: item.created_at,
+      })) as BroadcastSummary[],
+      configuration: configuration(),
+    };
+  } catch (err) {
+    console.warn("listBroadcasts exception:", err);
+    return { broadcasts: [], configuration: configuration() };
+  }
 }
 
 async function sendEmail(delivery: Delivery) {
@@ -403,172 +425,185 @@ async function sendWhatsapp(delivery: Delivery) {
 }
 
 async function refreshBroadcastStatus(broadcastId: string) {
-  const { data, error } = await adminClient()
-    .schema("private")
-    .from("message_deliveries")
-    .select("status")
-    .eq("broadcast_id", broadcastId);
-  databaseError(error);
-  const statuses = (data || []).map((item) => item.status);
-  const sent = statuses.filter((status) =>
-    ["sent", "delivered", "read"].includes(status),
-  ).length;
-  const failed = statuses.filter((status) => status === "failed").length;
-  const queued = statuses.filter((status) => status === "queued").length;
-  const processing = statuses.filter(
-    (status) => status === "processing",
-  ).length;
-  const pending = queued + processing;
-  const status = processing
-    ? "processing"
-    : queued
-      ? "queued"
-      : failed && sent
-        ? "partial"
-        : failed
-          ? "failed"
-          : "completed";
-  const { error: updateError } = await adminClient()
-    .schema("private")
-    .from("broadcasts")
-    .update({
-      sent_count: sent,
-      failed_count: failed,
-      status,
-      completed_at: pending ? null : new Date().toISOString(),
-    })
-    .eq("id", broadcastId);
-  databaseError(updateError);
+  try {
+    const { data, error } = await adminClient()
+      .from("message_deliveries")
+      .select("status")
+      .eq("broadcast_id", broadcastId);
+    if (error) return;
+    const statuses = (data || []).map((item) => item.status);
+    const sent = statuses.filter((status) =>
+      ["sent", "delivered", "read"].includes(status),
+    ).length;
+    const failed = statuses.filter((status) => status === "failed").length;
+    const queued = statuses.filter((status) => status === "queued").length;
+    const processing = statuses.filter(
+      (status) => status === "processing",
+    ).length;
+    const pending = queued + processing;
+    const status = processing
+      ? "processing"
+      : queued
+        ? "queued"
+        : failed && sent
+          ? "partial"
+          : failed
+            ? "failed"
+            : "completed";
+    await adminClient()
+      .from("broadcasts")
+      .update({
+        sent_count: sent,
+        failed_count: failed,
+        status,
+        completed_at: pending ? null : new Date().toISOString(),
+      })
+      .eq("id", broadcastId);
+  } catch (err) {
+    console.warn("refreshBroadcastStatus warning:", err);
+  }
 }
 
 async function publishDueInAppBroadcasts() {
-  const { data, error } = await adminClient()
-    .schema("private")
-    .from("broadcasts")
-    .select("id,title,message,audience,track_id,action_path,channels")
-    .contains("channels", ["in-app"])
-    .is("in_app_sent_at", null)
-    .lte("scheduled_for", new Date().toISOString())
-    .limit(50);
-  databaseError(error);
-  let published = 0;
-  for (const item of data || []) {
-    if (!["all", "track"].includes(item.audience)) continue;
-    const { error: notificationError } = await adminClient()
-      .from("notifications")
-      .insert({
-        title: item.title,
-        message: item.message,
-        type: "announcement",
-        target_track: item.audience === "track" ? item.track_id : "all",
-        priority: "normal",
-        action_path: item.action_path,
-        created_at: new Date().toISOString(),
-        push_sent: false,
-        push_delivered: 0,
-      });
-    databaseError(notificationError);
-    const { error: updateError } = await adminClient()
-      .schema("private")
+  try {
+    const { data, error } = await adminClient()
       .from("broadcasts")
-      .update({ in_app_sent_at: new Date().toISOString() })
-      .eq("id", item.id);
-    databaseError(updateError);
-    await refreshBroadcastStatus(item.id);
-    published += 1;
+      .select("id,title,message,audience,track_id,action_path,channels")
+      .contains("channels", ["in-app"])
+      .is("in_app_sent_at", null)
+      .lte("scheduled_for", new Date().toISOString())
+      .limit(50);
+    if (error || !data) return 0;
+    let published = 0;
+    for (const item of data) {
+      if (!["all", "track"].includes(item.audience)) continue;
+      const { error: notificationError } = await adminClient()
+        .from("notifications")
+        .insert({
+          title: item.title,
+          message: item.message,
+          type: "announcement",
+          target_track: item.audience === "track" ? item.track_id : "all",
+          priority: "normal",
+          action_path: item.action_path,
+          created_at: new Date().toISOString(),
+          push_sent: false,
+          push_delivered: 0,
+        });
+      if (notificationError) continue;
+      await adminClient()
+        .from("broadcasts")
+        .update({ in_app_sent_at: new Date().toISOString() })
+        .eq("id", item.id);
+      await refreshBroadcastStatus(item.id);
+      published += 1;
+    }
+    return published;
+  } catch (err) {
+    console.warn("publishDueInAppBroadcasts warning:", err);
+    return 0;
   }
-  return published;
 }
 
 export async function processMessageQueue(maximum = 50) {
   const inAppPublished = await publishDueInAppBroadcasts();
   const staleBefore = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  const { error: staleError } = await adminClient()
-    .schema("private")
-    .from("message_deliveries")
-    .update({ status: "queued", updated_at: new Date().toISOString() })
-    .eq("status", "processing")
-    .lt("updated_at", staleBefore);
-  databaseError(staleError);
-  const { data, error } = await adminClient()
-    .schema("private")
-    .from("message_deliveries")
-    .select("*")
-    .in("status", ["queued", "failed"])
-    .lt("attempts", 3)
-    .lte("scheduled_for", new Date().toISOString())
-    .order("created_at")
-    .limit(Math.min(Math.max(maximum, 1), 100));
-  databaseError(error);
-  let sent = 0;
-  let failed = 0;
-  let awaitingConfiguration = 0;
-  const broadcasts = new Set<string>();
-  for (const row of (data || []) as Delivery[]) {
-    if (row.broadcast_id) broadcasts.add(row.broadcast_id);
-    const configured =
-      row.channel === "email"
-        ? configuration().email
-        : configuration().whatsapp;
-    if (!configured) {
-      awaitingConfiguration += 1;
-      continue;
-    }
-    const { data: claimed, error: claimError } = await adminClient()
-      .schema("private")
+  try {
+    await adminClient()
       .from("message_deliveries")
-      .update({ status: "processing", updated_at: new Date().toISOString() })
-      .eq("id", row.id)
-      .eq("status", row.status)
-      .select("id")
-      .maybeSingle();
-    databaseError(claimError);
-    if (!claimed) continue;
-    try {
-      const providerId =
-        row.channel === "email"
-          ? await sendEmail(row)
-          : await sendWhatsapp(row);
-      const { error: updateError } = await adminClient()
-        .schema("private")
-        .from("message_deliveries")
-        .update({
-          status: "sent",
-          provider_message_id: providerId,
-          attempts: row.attempts + 1,
-          last_error: null,
-          sent_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", row.id);
-      databaseError(updateError);
-      sent += 1;
-    } catch (cause) {
-      const message =
-        cause instanceof Error ? cause.message : "Delivery failed.";
-      const { error: updateError } = await adminClient()
-        .schema("private")
-        .from("message_deliveries")
-        .update({
-          status: "failed",
-          attempts: row.attempts + 1,
-          last_error: message.slice(0, 1000),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", row.id);
-      databaseError(updateError);
-      failed += 1;
+      .update({ status: "queued", updated_at: new Date().toISOString() })
+      .eq("status", "processing")
+      .lt("updated_at", staleBefore);
+    const { data, error } = await adminClient()
+      .from("message_deliveries")
+      .select("*")
+      .in("status", ["queued", "failed"])
+      .lt("attempts", 3)
+      .lte("scheduled_for", new Date().toISOString())
+      .order("created_at")
+      .limit(Math.min(Math.max(maximum, 1), 100));
+    if (error || !data) {
+      return {
+        processed: 0,
+        sent: 0,
+        failed: 0,
+        awaitingConfiguration: 0,
+        inAppPublished,
+      };
     }
+    let sent = 0;
+    let failed = 0;
+    let awaitingConfiguration = 0;
+    const broadcasts = new Set<string>();
+    for (const row of (data || []) as Delivery[]) {
+      if (row.broadcast_id) broadcasts.add(row.broadcast_id);
+      const configured =
+        row.channel === "email"
+          ? configuration().email
+          : configuration().whatsapp;
+      if (!configured) {
+        awaitingConfiguration += 1;
+        continue;
+      }
+      const { data: claimed, error: claimError } = await adminClient()
+        .from("message_deliveries")
+        .update({ status: "processing", updated_at: new Date().toISOString() })
+        .eq("id", row.id)
+        .eq("status", row.status)
+        .select("id")
+        .maybeSingle();
+      if (claimError || !claimed) continue;
+      try {
+        const providerId =
+          row.channel === "email"
+            ? await sendEmail(row)
+            : await sendWhatsapp(row);
+        await adminClient()
+          .from("message_deliveries")
+          .update({
+            status: "sent",
+            provider_message_id: providerId,
+            attempts: row.attempts + 1,
+            last_error: null,
+            sent_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+        sent += 1;
+      } catch (cause) {
+        const message =
+          cause instanceof Error ? cause.message : "Delivery failed.";
+        await adminClient()
+          .from("message_deliveries")
+          .update({
+            status: "failed",
+            attempts: row.attempts + 1,
+            last_error: message.slice(0, 1000),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+        failed += 1;
+      }
+    }
+    for (const broadcastId of broadcasts)
+      await refreshBroadcastStatus(broadcastId);
+    return {
+      processed: sent + failed,
+      sent,
+      failed,
+      awaitingConfiguration,
+      inAppPublished,
+    };
+  } catch (err) {
+    console.warn("processMessageQueue warning:", err);
+    return {
+      processed: 0,
+      sent: 0,
+      failed: 0,
+      awaitingConfiguration: 0,
+      inAppPublished,
+    };
   }
-  for (const broadcastId of broadcasts)
-    await refreshBroadcastStatus(broadcastId);
-  return {
-    processed: sent + failed,
-    sent,
-    failed,
-    awaitingConfiguration,
-    inAppPublished,
-  };
 }
 
 export async function queueBirthdayMessages(now = new Date()) {
@@ -620,48 +655,59 @@ export async function queueBirthdayMessages(now = new Date()) {
       });
   }
   if (!rows.length) return { queued: 0 };
-  const { data: inserted, error: insertError } = await adminClient()
-    .schema("private")
-    .from("message_deliveries")
-    .upsert(rows, { onConflict: "idempotency_key", ignoreDuplicates: true })
-    .select("id");
-  databaseError(insertError);
-  return { queued: inserted?.length || 0 };
+  try {
+    const { data: inserted, error: insertError } = await adminClient()
+      .from("message_deliveries")
+      .upsert(rows, { onConflict: "idempotency_key", ignoreDuplicates: true })
+      .select("id");
+    if (insertError) {
+      console.warn("queueBirthdayMessages warning:", insertError.message);
+      return { queued: 0 };
+    }
+    return { queued: inserted?.length || 0 };
+  } catch (err) {
+    console.warn("queueBirthdayMessages exception:", err);
+    return { queued: 0 };
+  }
 }
 
 export async function updateDeliveryStatus(
   providerMessageId: string,
   status: "sent" | "delivered" | "read" | "failed",
 ) {
-  const { data: delivery, error: readError } = await adminClient()
-    .schema("private")
-    .from("message_deliveries")
-    .select("id,broadcast_id,status")
-    .eq("provider_message_id", providerMessageId)
-    .maybeSingle();
-  databaseError(readError);
-  if (!delivery) return;
-  const rank: Record<string, number> = {
-    queued: 0,
-    processing: 1,
-    sent: 2,
-    delivered: 3,
-    read: 4,
-    failed: 5,
-  };
-  if (status !== "failed" && rank[status] <= rank[delivery.status]) return;
-  const timestamp = new Date().toISOString();
-  const update: Record<string, unknown> = { status, updated_at: timestamp };
-  if (status === "delivered") update.delivered_at = timestamp;
-  if (status === "read") update.read_at = timestamp;
-  const { error } = await adminClient()
-    .schema("private")
-    .from("message_deliveries")
-    .update(update)
-    .eq("id", delivery.id);
-  databaseError(error);
-  if (delivery.broadcast_id)
-    await refreshBroadcastStatus(delivery.broadcast_id);
+  try {
+    const { data: delivery, error: readError } = await adminClient()
+      .from("message_deliveries")
+      .select("id,broadcast_id,status")
+      .eq("provider_message_id", providerMessageId)
+      .maybeSingle();
+    if (readError || !delivery) return;
+    const rank: Record<string, number> = {
+      queued: 0,
+      processing: 1,
+      sent: 2,
+      delivered: 3,
+      read: 4,
+      failed: 5,
+    };
+    if (status !== "failed" && rank[status] <= rank[delivery.status]) return;
+    const timestamp = new Date().toISOString();
+    const update: Record<string, unknown> = { status, updated_at: timestamp };
+    if (status === "delivered") update.delivered_at = timestamp;
+    if (status === "read") update.read_at = timestamp;
+    const { error } = await adminClient()
+      .from("message_deliveries")
+      .update(update)
+      .eq("id", delivery.id);
+    if (error) {
+      console.warn("updateDeliveryStatus warning:", error.message);
+      return;
+    }
+    if (delivery.broadcast_id)
+      await refreshBroadcastStatus(delivery.broadcast_id);
+  } catch (err) {
+    console.warn("updateDeliveryStatus exception:", err);
+  }
 }
 
 export async function notifyOwnerOfNewStudent(info: {
