@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { AcademyUser } from "@/lib/types";
 import { limit, document } from "./supabase";
 import { ApiError, hasPremium } from "./policy";
-import { getLesson } from "./academy";
+import { getLesson, listClassroomLessons } from "./academy";
 import { id } from "./schemas";
 
 export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
@@ -81,6 +81,9 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
     try {
       const lesson = await getLesson(user, value.lessonId);
       context += `Lesson: ${lesson.title}\n${lesson.content.slice(0, 15000)}`;
+      if (lesson.videoUrl) {
+        context += `\nLesson Video URL: ${lesson.videoUrl}`;
+      }
     } catch {
       // Ignore if lesson lookup fails
     }
@@ -92,6 +95,29 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
       context += `\nAssignment: ${String(assignment.title || "Project")}\nBrief: ${String(assignment.brief || "")}`;
     } catch {
       // Ignore if assignment lookup fails
+    }
+  }
+
+  if (!context && user && value.mode === "mentor") {
+    try {
+      const publishedLessons = await listClassroomLessons(user);
+      const targetTrack = value.trackId || user.enrolledClassId;
+      const trackLessons = publishedLessons.filter(
+        (l) => !targetTrack || l.classId === targetTrack,
+      );
+      const videoLessons = trackLessons.filter(
+        (l) => Boolean(l.videoUrl && l.videoUrl.trim() !== ""),
+      );
+      const relevant = videoLessons.length > 0 ? videoLessons : trackLessons;
+      if (relevant.length > 0) {
+        const list = relevant
+          .slice(0, 10)
+          .map((l) => `- "${l.title}"${l.videoUrl ? ` (Video available: ${l.videoUrl})` : ""}`)
+          .join("\n");
+        context += `Uploaded Course Videos & Lessons on EA Academy for this track:\n${list}`;
+      }
+    } catch {
+      // Ignore fallback lesson context
     }
   }
 

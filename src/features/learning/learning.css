@@ -703,6 +703,62 @@
   border: 1px solid #dce3ea;
   padding: 8px;
 }
+
+/* AI Mentor chat bubbles - High contrast user bubble & text visibility fix */
+.learning-surface .ai-chat-bubble-user {
+  background: linear-gradient(135deg, #002751 0%, #003d7a 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 4px 14px rgba(0, 39, 81, 0.18) !important;
+}
+
+.learning-surface .ai-chat-bubble-user .prose,
+.learning-surface .ai-chat-bubble-user .prose p,
+.learning-surface .ai-chat-bubble-user .prose span,
+.learning-surface .ai-chat-bubble-user .prose li,
+.learning-surface .ai-chat-bubble-user .prose strong,
+.learning-surface .ai-chat-bubble-user .prose em,
+.learning-surface .ai-chat-bubble-user .prose h1,
+.learning-surface .ai-chat-bubble-user .prose h2,
+.learning-surface .ai-chat-bubble-user .prose h3,
+.learning-surface .ai-chat-bubble-user .prose h4 {
+  color: #ffffff !important;
+}
+
+.learning-surface .ai-chat-bubble-user .prose a {
+  color: #93c5fd !important;
+  text-decoration: underline;
+}
+
+.learning-surface .ai-chat-bubble-user .prose code {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #f8fafc !important;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+.learning-surface .ai-chat-bubble-user .prose pre {
+  background: rgba(0, 0, 0, 0.45) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.learning-surface .ai-chat-bubble-user .prose blockquote {
+  border-left-color: rgba(255, 255, 255, 0.4) !important;
+  color: #e2e8f0 !important;
+}
+
+.learning-surface .ai-chat-input-textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.learning-surface .ai-chat-input-textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
 .learning-surface .lesson-footer {
   display: flex;
   justify-content: space-between;

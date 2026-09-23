@@ -26,7 +26,17 @@ vi.mock("../src/server/academy", () => ({
     id: "lesson-1",
     title: "Intro Lesson",
     content: "Lesson content here",
+    videoUrl: "https://youtube.com/watch?v=demo",
   }),
+  listClassroomLessons: vi.fn().mockResolvedValue([
+    {
+      id: "lesson-1",
+      title: "Intro to System Engineering",
+      content: "Overview of system design",
+      videoUrl: "https://youtube.com/watch?v=demo",
+      classId: "system-dev",
+    },
+  ]),
 }));
 
 import { askAI } from "../src/server/ai";
@@ -54,6 +64,19 @@ describe("EA AI Mentor and learning assistant boundaries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.GEMINI_API_KEY = "test-gemini-key";
+  });
+
+  it("throws 503 when GEMINI_API_KEY is not configured", async () => {
+    delete process.env.GEMINI_API_KEY;
+    await expect(
+      askAI(premiumStudent, {
+        mode: "mentor",
+        prompt: "Help me learn React",
+      }),
+    ).rejects.toMatchObject({
+      status: 503,
+      message: "The AI learning assistant has not been configured yet.",
+    });
   });
 
   it("rejects AI Mentor requests for free tier students", async () => {

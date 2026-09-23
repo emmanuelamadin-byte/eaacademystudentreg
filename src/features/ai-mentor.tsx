@@ -16,12 +16,13 @@ import {
   CheckCircle2,
   AlertCircle,
   Compass,
+  Video,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
-import { isPremium, TRACKS } from "@/lib/types";
+import { isPremium, TRACKS, type Lesson } from "@/lib/types";
 
 type Message = {
   role: "user" | "model";
@@ -67,12 +68,138 @@ export function AIMentor() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [uploadedLessons, setUploadedLessons] = useState<Lesson[]>([]);
+  const [loadingLessons, setLoadingLessons] = useState(true);
+  const [selectedLessonId, setSelectedLessonId] = useState<string>("all");
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   const premium = isPremium(user);
   const trackId = user?.enrolledClassId || "system-dev";
   const track = TRACKS.find((t) => t.id === trackId);
-  const suggestions = PROMPT_SUGGESTIONS[trackId] || DEFAULT_SUGGESTIONS;
+
+  // Fetch uploaded video lessons from the academy
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    setLoadingLessons(true);
+    api<Lesson[]>("classroom.list")
+      .then((items) => {
+        if (active && Array.isArray(items)) {
+          setUploadedLessons(items);
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not load classroom lessons for AI:", err);
+      })
+      .finally(() => {
+        if (active) setLoadingLessons(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  // Lessons relevant to the student's track
+  const trackLessons = uploadedLessons.filter(
+    (l) => !trackId || l.classId === trackId || !l.classId,
+  );
+  // Lessons with actual video uploaded
+  const videoLessons = trackLessons.filter(
+    (l) => Boolean(l.videoUrl && l.videoUrl.trim() !== ""),
+  );
+  const availableLessons = videoLessons.length > 0 ? videoLessons : trackLessons;
+
+  type SuggestedPrompt = {
+    question: string;
+    lessonId?: string;
+    videoTitle?: string;
+  };
+
+  // Generate dynamic suggested questions based on uploaded videos
+  const dynamicSuggestions: SuggestedPrompt[] = (() => {
+    if (availableLessons.length === 0) {
+      return (PROMPT_SUGGESTIONS[trackId] || DEFAULT_SUGGESTIONS).map(
+        (question) => ({ question }),
+      );
+    }
+
+    if (selectedLessonId !== "all") {
+      const activeLesson = availableLessons.find(
+        (l) => l.id === selectedLessonId,
+      );
+      if (activeLesson) {
+        return [
+          {
+            question: `Can you explain the main concepts taught in "${activeLesson.title}"?`,
+            lessonId: activeLesson.id,
+            videoTitle: activeLesson.title,
+          },
+          {
+            question: `Walk me through the practical exercises and steps from "${activeLesson.title}".`,
+            lessonId: activeLesson.id,
+            videoTitle: activeLesson.title,
+          },
+          {
+            question: `What are the common pitfalls or mistakes to avoid in "${activeLesson.title}"?`,
+            lessonId: activeLesson.id,
+            videoTitle: activeLesson.title,
+          },
+          {
+            question: `Quiz me on what was covered in the "${activeLesson.title}" video lesson.`,
+            lessonId: activeLesson.id,
+            videoTitle: activeLesson.title,
+          },
+        ];
+      }
+    }
+
+    // "all" selected: spread across available uploaded video lessons
+    const templates = [
+      (title: string) => `Explain the core concepts and workflow from "${title}".`,
+      (title: string) => `Walk me through the practical exercises taught in "${title}".`,
+      (title: string) => `What are the key takeaways and best practices from "${title}"?`,
+      (title: string) => `Quiz me on what I should have learned from "${title}".`,
+    ];
+
+    const results: SuggestedPrompt[] = [];
+    const count = Math.min(availableLessons.length, 4);
+    for (let i = 0; i < count; i++) {
+      const lesson = availableLessons[i];
+      const template = templates[i % templates.length];
+      results.push({
+        question: template(lesson.title),
+        lessonId: lesson.id,
+        videoTitle: lesson.title,
+      });
+    }
+
+    if (results.length < 4 && availableLessons.length > 0) {
+      const lesson = availableLessons[0];
+      if (results.length < 2) {
+        results.push({
+          question: `Walk me through the practical exercises and steps from "${lesson.title}".`,
+          lessonId: lesson.id,
+          videoTitle: lesson.title,
+        });
+      }
+      if (results.length < 3) {
+        results.push({
+          question: `What are the common pitfalls or mistakes to avoid in "${lesson.title}"?`,
+          lessonId: lesson.id,
+          videoTitle: lesson.title,
+        });
+      }
+      if (results.length < 4) {
+        results.push({
+          question: `Quiz me on what was covered in the "${lesson.title}" video lesson.`,
+          lessonId: lesson.id,
+          videoTitle: lesson.title,
+        });
+      }
+    }
+
+    return results;
+  })();
 
   // Load chat history from localStorage
   useEffect(() => {
@@ -106,7 +233,7 @@ export function AIMentor() {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, busy]);
 
-  const handleSend = async (customPrompt?: string) => {
+  const handleSend = async (customPrompt?: string, targetLessonId?: string) => {
     const promptToSend = (customPrompt || input).trim();
     if (!promptToSend || busy || !user) return;
 
@@ -139,11 +266,16 @@ export function AIMentor() {
         text: m.text,
       }));
 
+      const lessonIdToPass =
+        targetLessonId ||
+        (selectedLessonId !== "all" ? selectedLessonId : undefined);
+
       const response = await api<{ text: string }>("ai.ask", {
         mode: "mentor",
         prompt: promptToSend,
         code: attachedCode || undefined,
         trackId,
+        lessonId: lessonIdToPass,
         history,
       });
 
@@ -457,8 +589,9 @@ export function AIMentor() {
                 alignItems: "center",
                 textAlign: "center",
                 margin: "auto",
-                maxWidth: "600px",
+                maxWidth: "680px",
                 padding: "2rem 1rem",
+                width: "100%",
               }}
             >
               <div
@@ -466,7 +599,8 @@ export function AIMentor() {
                   width: "56px",
                   height: "56px",
                   borderRadius: "16px",
-                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                  background:
+                    "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
                   color: "#d97706",
                   display: "flex",
                   alignItems: "center",
@@ -484,9 +618,105 @@ export function AIMentor() {
                 className="muted"
                 style={{ fontSize: "0.95rem", marginBottom: "1.5rem" }}
               >
-                Choose a suggested topic below or type your question about
-                lessons, code snippets, project ideas, or assignments.
+                {availableLessons.length > 0
+                  ? "Choose a question about your uploaded course videos below, or ask anything you need help with."
+                  : "Choose a suggested topic below or type your question about lessons, code snippets, project ideas, or assignments."}
               </p>
+
+              {availableLessons.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    marginBottom: "1.25rem",
+                    width: "100%",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "var(--color-muted, #64748b)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <Video size={13} style={{ color: "#0284c7" }} /> Uploaded
+                    Videos:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLessonId("all")}
+                    style={{
+                      padding: "4px 12px",
+                      borderRadius: "9999px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      background:
+                        selectedLessonId === "all" ? "#002751" : "#f1f5f9",
+                      color:
+                        selectedLessonId === "all" ? "#ffffff" : "#475569",
+                      border:
+                        "1px solid " +
+                        (selectedLessonId === "all" ? "#002751" : "#e2e8f0"),
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    All Videos ({availableLessons.length})
+                  </button>
+                  {availableLessons.slice(0, 5).map((lesson) => (
+                    <button
+                      key={lesson.id}
+                      type="button"
+                      onClick={() => setSelectedLessonId(lesson.id)}
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: "9999px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        background:
+                          selectedLessonId === lesson.id
+                            ? "#002751"
+                            : "#f1f5f9",
+                        color:
+                          selectedLessonId === lesson.id
+                            ? "#ffffff"
+                            : "#475569",
+                        border:
+                          "1px solid " +
+                          (selectedLessonId === lesson.id
+                            ? "#002751"
+                            : "#e2e8f0"),
+                        maxWidth: "220px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        transition: "all 0.15s ease",
+                      }}
+                      title={lesson.title}
+                    >
+                      <Video size={12} />
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {lesson.title}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div
                 style={{
@@ -496,37 +726,76 @@ export function AIMentor() {
                   width: "100%",
                 }}
               >
-                {suggestions.map((suggestion, idx) => (
+                {dynamicSuggestions.map((suggestion, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => handleSend(suggestion)}
+                    onClick={() =>
+                      handleSend(suggestion.question, suggestion.lessonId)
+                    }
                     style={{
                       textAlign: "left",
-                      padding: "0.85rem 1.25rem",
-                      borderRadius: "10px",
+                      padding: "0.95rem 1.25rem",
+                      borderRadius: "12px",
                       background: "var(--surface-sunken, #f8fafc)",
                       border: "1px solid var(--border-subtle, #e2e8f0)",
-                      fontSize: "0.9rem",
+                      fontSize: "0.92rem",
                       color: "inherit",
                       cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
+                      gap: "1rem",
                       transition: "all 0.15s ease",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = "var(--primary, #0f172a)";
+                      e.currentTarget.style.borderColor = "#002751";
                       e.currentTarget.style.transform = "translateY(-1px)";
+                      e.currentTarget.style.boxShadow =
+                        "0 4px 12px rgba(0, 39, 81, 0.08)";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.borderColor =
                         "var(--border-subtle, #e2e8f0)";
                       e.currentTarget.style.transform = "none";
+                      e.currentTarget.style.boxShadow = "none";
                     }}
                   >
-                    <span>{suggestion}</span>
-                    <ArrowRight size={15} style={{ opacity: 0.6 }} />
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.3rem",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      {suggestion.videoTitle && (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.35rem",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            color: "#0284c7",
+                            background: "rgba(2, 132, 199, 0.08)",
+                            padding: "2px 8px",
+                            borderRadius: "6px",
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          <Video size={12} />
+                          <span>Lesson: {suggestion.videoTitle}</span>
+                        </span>
+                      )}
+                      <span style={{ color: "#0f172a", fontWeight: 500 }}>
+                        {suggestion.question}
+                      </span>
+                    </div>
+                    <ArrowRight
+                      size={16}
+                      style={{ opacity: 0.7, flexShrink: 0, color: "#002751" }}
+                    />
                   </button>
                 ))}
               </div>
@@ -565,17 +834,22 @@ export function AIMentor() {
                   )}
 
                   <div
+                    className={
+                      isUser ? "ai-chat-bubble-user" : "ai-chat-bubble-assistant"
+                    }
                     style={{
                       borderRadius: "14px",
                       padding: "1rem 1.25rem",
                       background: isUser
-                        ? "var(--primary, #0f172a)"
+                        ? "linear-gradient(135deg, #002751 0%, #003d7a 100%)"
                         : "var(--surface-sunken, #f8fafc)",
-                      color: isUser ? "#fff" : "inherit",
+                      color: isUser ? "#ffffff" : "inherit",
                       border: isUser
-                        ? "none"
+                        ? "1px solid rgba(255, 255, 255, 0.15)"
                         : "1px solid var(--border-subtle, #e2e8f0)",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                      boxShadow: isUser
+                        ? "0 4px 14px rgba(0, 39, 81, 0.18)"
+                        : "0 2px 6px rgba(0,0,0,0.04)",
                       position: "relative",
                       wordBreak: "break-word",
                     }}
@@ -592,9 +866,11 @@ export function AIMentor() {
                       <span
                         style={{
                           fontSize: "12px",
-                          fontWeight: 600,
-                          opacity: isUser ? 0.8 : 0.6,
+                          fontWeight: 700,
+                          color: isUser ? "#ffffff" : "inherit",
+                          opacity: isUser ? 0.95 : 0.65,
                           textTransform: "uppercase",
+                          letterSpacing: "0.04em",
                         }}
                       >
                         {isUser ? "You" : "EA AI Mentor"}
@@ -632,9 +908,9 @@ export function AIMentor() {
                           marginBottom: "0.75rem",
                           padding: "0.75rem",
                           background: isUser
-                            ? "rgba(255,255,255,0.1)"
+                            ? "rgba(255,255,255,0.15)"
                             : "#1e293b",
-                          color: isUser ? "#e2e8f0" : "#f8fafc",
+                          color: isUser ? "#f8fafc" : "#f8fafc",
                           borderRadius: "8px",
                           fontSize: "13px",
                           fontFamily: "monospace",
@@ -647,14 +923,61 @@ export function AIMentor() {
                     )}
 
                     <div
-                      className="prose"
+                      className={`prose ${isUser ? "ai-user-prose" : "ai-assistant-prose"}`}
                       style={{
-                        color: isUser ? "#fff" : "inherit",
+                        color: isUser ? "#ffffff" : "inherit",
                         fontSize: "0.95rem",
                         lineHeight: 1.6,
                       }}
                     >
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={
+                          isUser
+                            ? {
+                                p: ({ children }) => (
+                                  <p
+                                    style={{
+                                      color: "#ffffff",
+                                      margin: "0 0 8px",
+                                      fontSize: "0.95rem",
+                                    }}
+                                  >
+                                    {children}
+                                  </p>
+                                ),
+                                li: ({ children }) => (
+                                  <li style={{ color: "#ffffff" }}>
+                                    {children}
+                                  </li>
+                                ),
+                                strong: ({ children }) => (
+                                  <strong
+                                    style={{
+                                      color: "#ffffff",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {children}
+                                  </strong>
+                                ),
+                                code: ({ children }) => (
+                                  <code
+                                    style={{
+                                      color: "#f8fafc",
+                                      backgroundColor:
+                                        "rgba(255, 255, 255, 0.2)",
+                                      padding: "2px 6px",
+                                      borderRadius: "4px",
+                                    }}
+                                  >
+                                    {children}
+                                  </code>
+                                ),
+                              }
+                            : undefined
+                        }
+                      >
                         {item.text}
                       </ReactMarkdown>
                     </div>
@@ -717,18 +1040,39 @@ export function AIMentor() {
         {error && (
           <div
             style={{
-              padding: "0.75rem 1.75rem",
+              padding: "0.85rem 1.75rem",
               background: "#fee2e2",
               color: "#991b1b",
               fontSize: "0.9rem",
               display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
+              alignItems: "flex-start",
+              gap: "0.6rem",
               borderTop: "1px solid #fecaca",
             }}
           >
-            <AlertCircle size={16} />
-            <span>{error}</span>
+            <AlertCircle
+              size={18}
+              style={{ flexShrink: 0, marginTop: "2px" }}
+            />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>{error}</div>
+              {error.includes("not been configured yet") && (
+                <div
+                  style={{
+                    fontSize: "12px",
+                    marginTop: "6px",
+                    color: "#7f1d1d",
+                    lineHeight: 1.5,
+                    background: "rgba(255, 255, 255, 0.7)",
+                    padding: "6px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid #fca5a5",
+                  }}
+                >
+                  💡 <strong>Missing API Key:</strong> The AI assistant requires a Gemini API key. Add <code>GEMINI_API_KEY=your_key_here</code> to your <code>.env.local</code> file (or your hosting dashboard) to activate Gemini 2.5 Flash.
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -765,6 +1109,7 @@ export function AIMentor() {
                   padding: "0.75rem",
                   border: "1px solid var(--border-subtle, #e2e8f0)",
                   background: "var(--surface-sunken, #f8fafc)",
+                  color: "#0f172a",
                 }}
               />
             </div>
@@ -788,15 +1133,22 @@ export function AIMentor() {
                     void handleSend();
                   }
                 }}
-                placeholder="Ask your mentor a question, ask for code help, or press Shift+Enter for new line..."
+                placeholder={
+                  selectedLessonId !== "all"
+                    ? `Ask a question about "${availableLessons.find((l) => l.id === selectedLessonId)?.title || "this video"}"...`
+                    : "Ask your mentor a question about your lessons and videos, or press Shift+Enter for new line..."
+                }
+                className="ai-chat-input-textarea"
                 style={{
                   width: "100%",
                   borderRadius: "10px",
                   padding: "0.75rem 1rem",
-                  border: "1px solid var(--border-subtle, #e2e8f0)",
+                  border: "1px solid var(--border-subtle, #cbd5e1)",
                   resize: "none",
                   fontSize: "0.95rem",
                   lineHeight: 1.5,
+                  backgroundColor: "#ffffff",
+                  color: "#0f172a",
                 }}
               />
               <button
