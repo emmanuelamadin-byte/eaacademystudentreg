@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { AcademyUser } from "@/lib/types";
 import { db, limit } from "./supabase";
 import { ApiError, extendPremiumUntil, premiumAmountKobo } from "./policy";
+import { sendDonationThankYouEmail } from "./communications";
 
 type PaystackTransaction = {
   reference: string;
@@ -280,6 +281,14 @@ async function applyPayment(
       "The payment does not match the monthly subscription plan.",
     );
   const ownerRef = store.collection("users").doc(intent.studentId);
+  let newlyFulfilled = false;
+  let donationReceipt: {
+    donorEmail: string;
+    donorName: string;
+    amount: number;
+    reference: string;
+  } | null = null;
+
   await store.runTransaction(async (tx) => {
     const [existing, owner] = await Promise.all([
       tx.get(paymentRef),
@@ -287,6 +296,7 @@ async function applyPayment(
     ]);
     if (existing.exists) return;
     if (!owner.exists) throw new ApiError(404, "Payment account not found.");
+    newlyFulfilled = true;
     const paidAt = new Date(transaction.paid_at).toISOString();
     tx.create(paymentRef, {
       id: transaction.reference,
@@ -352,9 +362,31 @@ async function applyPayment(
         amount: transaction.amount / 100,
         createdAt: paidAt,
       });
+      if (intent!.kind === "donation") {
+        const email = intent!.email || transaction.customer?.email;
+        if (email) {
+          const donorName =
+            (intent!.donorName && intent!.donorName !== "Anonymous")
+              ? intent!.donorName
+              : (owner.data()?.name || "Supporter");
+          donationReceipt = {
+            donorEmail: email,
+            donorName,
+            amount: transaction.amount / 100,
+            reference: transaction.reference,
+          };
+        }
+      }
     }
     if (initial.exists) tx.update(intentRef, { status: "success" });
   });
+
+  if (newlyFulfilled && donationReceipt) {
+    void sendDonationThankYouEmail(donationReceipt).catch((err) => {
+      console.error("Failed to send donation thank-you email:", err);
+    });
+  }
+
   return {
     status: "success",
     reference: transaction.reference,

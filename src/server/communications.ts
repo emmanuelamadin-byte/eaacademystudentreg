@@ -740,3 +740,125 @@ export async function notifyOwnerOfNewStudent(info: {
     body: JSON.stringify({ from, to: [ownerEmail], subject, text, html }),
   });
 }
+
+export async function sendDonationThankYouEmail(info: {
+  donorEmail: string;
+  donorName?: string | null;
+  amount: number;
+  reference: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) return { sent: false, reason: "missing_credentials" };
+
+  const { donorEmail, donorName, amount, reference } = info;
+  if (!donorEmail) return { sent: false, reason: "missing_email" };
+
+  const name = donorName?.trim() || "Supporter";
+  const safeDonorName = escapeHtml(name);
+  const safeReference = escapeHtml(reference);
+  const formattedAmount = `₦${Math.round(amount).toLocaleString("en-NG")}`;
+  const dateStr = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const subject = `💙 Thank you for supporting EA Academy scholars!`;
+  const text = `Dear ${name},
+
+Thank you so much for your generous contribution of ${formattedAmount} to the EA Academy Scholarship Fund.
+
+Your support directly helps ambitious learners acquire practical AI and digital skills, opening the door to life-changing career opportunities.
+
+Contribution Receipt Summary:
+- Amount: ${formattedAmount}
+- Reference: ${reference}
+- Date: ${dateStr}
+- Purpose: EA Academy Student Scholarships
+
+Together, we are bridging the opportunity divide and raising the next generation of digital leaders.
+
+With heartfelt appreciation,
+Emmanuel Amadin & The EA Academy Team
+https://ea-academy.org`;
+
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px 24px;background-color:#ffffff;color:#1e293b;border-radius:12px;border:1px solid #e2e8f0">
+  <div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #f1f5f9">
+    <div style="display:inline-block;padding:6px 14px;background-color:#eff6ff;border-radius:9999px;font-size:12px;font-weight:600;color:#0284c7;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px">
+      💙 EA Academy Scholarship Fund
+    </div>
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#002751;letter-spacing:-0.02em">
+      Thank You for Your Generosity!
+    </h1>
+  </div>
+
+  <div style="padding:24px 0;line-height:1.6;font-size:15px;color:#334155">
+    <p style="margin-top:0">Dear <strong>${safeDonorName}</strong>,</p>
+    <p>
+      On behalf of every aspiring student at EA Academy, <strong>thank you so much</strong> for your generous contribution of <strong>${formattedAmount}</strong> to our Scholarship Fund.
+    </p>
+    <p>
+      Your support directly breaks down financial barriers for talented, driven learners — giving them access to world-class, practical training in AI tools, software engineering, and digital skills.
+    </p>
+
+    <div style="margin:24px 0;padding:18px 20px;background-color:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">
+        Contribution Receipt Summary
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Amount:</td>
+          <td style="padding:6px 0;text-align:right;font-weight:700;color:#002751;font-size:16px">${formattedAmount}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Reference Code:</td>
+          <td style="padding:6px 0;text-align:right;font-family:monospace;color:#334155">${safeReference}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Date:</td>
+          <td style="padding:6px 0;text-align:right;color:#334155">${dateStr}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Purpose:</td>
+          <td style="padding:6px 0;text-align:right;color:#334155">EA Academy Student Scholarships</td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="margin-bottom:0">
+      Together, we are bridging the opportunity divide and raising the next generation of digital leaders.
+    </p>
+  </div>
+
+  <div style="border-top:1px solid #f1f5f9;padding-top:20px;font-size:13px;color:#64748b;line-height:1.5">
+    <p style="margin:0 0 4px;font-weight:600;color:#002751">With heartfelt appreciation,</p>
+    <p style="margin:0 0 16px;color:#334155"><strong>Emmanuel Amadin</strong> & The EA Academy Team</p>
+    <p style="margin:0;font-size:12px;color:#94a3b8">
+      EA Academy — Equipping African talent for global opportunities.<br/>
+      <a href="https://ea-academy.org" style="color:#0284c7;text-decoration:none">ea-academy.org</a>
+    </p>
+  </div>
+</div>`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from, to: [donorEmail], subject, text, html }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Resend error sending donation thank-you:", errText);
+      return { sent: false, reason: errText };
+    }
+    return { sent: true };
+  } catch (err) {
+    console.error("Exception sending donation thank-you email:", err);
+    return { sent: false, reason: String(err) };
+  }
+}
+

@@ -43,6 +43,7 @@ vi.mock("../src/server/supabase", () => {
   return { db: () => store, limit: async () => {} };
 });
 import { validSignature, verifyPayment, webhook } from "../src/server/payments";
+import { sendDonationThankYouEmail } from "../src/server/communications";
 const user: AcademyUser = {
   id: "student",
   name: "Student",
@@ -198,4 +199,82 @@ describe("payment verification and ledger integrity", () => {
       "Premium",
     );
   });
+  it("sends a branded thank-you email to donors with donation details", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "EA Academy <onboarding@resend.dev>");
+    const fetchMock = vi.fn(async () =>
+      Response.json({ id: "resend_123" }, { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await sendDonationThankYouEmail({
+      donorEmail: "donor@example.com",
+      donorName: "Ada Lovelace",
+      amount: 5000,
+      reference: "ea_donation_123",
+    });
+
+    expect(result.sent).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.resend.com/emails",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer re_test_key",
+        }),
+      }),
+    );
+    const callArgs = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(callArgs[1]?.body));
+    expect(body.to).toEqual(["donor@example.com"]);
+    expect(body.subject).toContain(
+      "Thank you for supporting EA Academy scholars!",
+    );
+    expect(body.text).toContain("₦5,000");
+    expect(body.text).toContain("ea_donation_123");
+    expect(body.html).toContain("Ada Lovelace");
+    expect(body.html).toContain("₦5,000");
+  });
+  it("sends thank-you email when a donation is fulfilled and does not duplicate on retry", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "EA Academy <onboarding@resend.dev>");
+    const sentEmails: Array<{ to: string[]; subject: string; text: string }> =
+      [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const urlStr = String(url);
+        if (urlStr.includes("api.resend.com")) {
+          const body = JSON.parse(String(init?.body));
+          sentEmails.push(body);
+          return Response.json({ id: "resend_123" });
+        }
+        return Response.json({ status: true, data: payment });
+      }),
+    );
+
+    state.documents.set("billingIntents/ea_payment", {
+      studentId: user.id,
+      email: user.email,
+      kind: "donation",
+      amount: 300000,
+      currency: "NGN",
+      donorName: "Generous Donor",
+      anonymous: false,
+    });
+
+    await verifyPayment(user, "ea_payment");
+    // Give any unawaited background task a microtick to resolve
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(sentEmails).toHaveLength(1);
+    expect(sentEmails[0].to).toEqual([user.email]);
+    expect(sentEmails[0].text).toContain("₦3,000");
+
+    // Retry verification (should be idempotent and not send email again)
+    await verifyPayment(user, "ea_payment");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(sentEmails).toHaveLength(1);
+  });
 });
+
