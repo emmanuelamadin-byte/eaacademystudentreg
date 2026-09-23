@@ -60,6 +60,7 @@ const specs: Record<string, CollectionSpec> = {
   shopPurchases: { table: "shop_purchases", primary: ["id"] },
   shopCourseProgress: { table: "shop_course_progress", primary: ["id"] },
   shopCertificates: { table: "shop_certificates", primary: ["id"] },
+  videoAds: { table: "video_ads", primary: ["id"] },
 };
 
 const fields: Record<string, Record<string, string>> = {
@@ -314,6 +315,18 @@ const fields: Record<string, Record<string, string>> = {
     verificationCode: "verification_code",
     createdAt: "created_at",
   },
+  videoAds: {
+    mediaType: "media_type",
+    mediaUrl: "media_url",
+    ctaText: "cta_text",
+    destinationUrl: "destination_url",
+    targetTracks: "target_tracks",
+    skipDurationSeconds: "skip_duration_seconds",
+    impressionsCount: "impressions_count",
+    clicksCount: "clicks_count",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
 };
 
 export function collectionSpec(name: string, id?: string): CollectionSpec {
@@ -388,6 +401,14 @@ export function rowFromDatabase(name: string, source: Row): Row {
   }
   if (name === "shopPurchases") {
     if (result.amount !== undefined) result.amount = Number(result.amount);
+  }
+  if (name === "videoAds") {
+    if (result.skipDurationSeconds !== undefined)
+      result.skipDurationSeconds = Number(result.skipDurationSeconds);
+    if (result.impressionsCount !== undefined)
+      result.impressionsCount = Number(result.impressionsCount);
+    if (result.clicksCount !== undefined)
+      result.clicksCount = Number(result.clicksCount);
   }
   return result;
 }

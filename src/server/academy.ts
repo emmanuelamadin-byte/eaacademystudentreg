@@ -1647,12 +1647,25 @@ export const HOUSE_AD: VideoAd = {
 
 async function listAdminAds(user: AcademyUser) {
   requireAdmin(user);
-  const snapshot = await db().collection("videoAds").get();
-  const ads = snapshot.docs.map((doc) => ({
-    ...(doc.data() as VideoAd),
-    id: doc.id,
-  }));
-  return { ads };
+  try {
+    const snapshot = await db().collection("videoAds").get();
+    const ads = snapshot.docs.map((doc) => ({
+      ...(doc.data() as VideoAd),
+      id: doc.id,
+    }));
+    return { ads, tableMissing: false };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (
+      msg.includes("video_ads") ||
+      msg.includes("schema cache") ||
+      msg.includes("does not exist") ||
+      msg.includes("PGRST205")
+    ) {
+      return { ads: [], tableMissing: true };
+    }
+    throw err;
+  }
 }
 
 async function saveAdminAd(user: AcademyUser, rawAd: unknown) {
@@ -1660,39 +1673,69 @@ async function saveAdminAd(user: AcademyUser, rawAd: unknown) {
   const input = s.videoAdSchema.parse(rawAd);
   const id = input.id || `ad_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
   const ref = db().collection("videoAds").doc(id);
-  const existing = await ref.get();
 
-  const record: VideoAd = {
-    id,
-    title: input.title,
-    subtitle: input.subtitle || "",
-    mediaType: input.mediaType,
-    mediaUrl: input.mediaUrl,
-    ctaText: input.ctaText,
-    destinationUrl: input.destinationUrl,
-    active: input.active,
-    priority: input.priority,
-    targetTracks: input.targetTracks || [],
-    skipDurationSeconds: input.skipDurationSeconds,
-    impressionsCount: existing.exists
-      ? (existing.data()?.impressionsCount as number) || 0
-      : 0,
-    clicksCount: existing.exists
-      ? (existing.data()?.clicksCount as number) || 0
-      : 0,
-    createdAt: existing.exists
-      ? (existing.data()?.createdAt as string) || now()
-      : now(),
-    updatedAt: now(),
-  };
+  try {
+    const existing = await ref.get();
 
-  await ref.set(clean(record), { merge: true });
-  return { success: true, ad: record };
+    const record: VideoAd = {
+      id,
+      title: input.title,
+      subtitle: input.subtitle || "",
+      mediaType: input.mediaType,
+      mediaUrl: input.mediaUrl,
+      ctaText: input.ctaText,
+      destinationUrl: input.destinationUrl,
+      active: input.active,
+      priority: input.priority,
+      targetTracks: input.targetTracks || [],
+      skipDurationSeconds: input.skipDurationSeconds,
+      impressionsCount: existing.exists
+        ? (existing.data()?.impressionsCount as number) || 0
+        : 0,
+      clicksCount: existing.exists
+        ? (existing.data()?.clicksCount as number) || 0
+        : 0,
+      createdAt: existing.exists
+        ? (existing.data()?.createdAt as string) || now()
+        : now(),
+      updatedAt: now(),
+    };
+
+    await ref.set(clean(record), { merge: true });
+    return { success: true, ad: record };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (
+      msg.includes("video_ads") ||
+      msg.includes("schema cache") ||
+      msg.includes("does not exist") ||
+      msg.includes("PGRST205")
+    ) {
+      throw new ApiError(
+        400,
+        "The 'video_ads' table has not been created in Supabase yet. Please run the SQL migration in your Supabase SQL Editor.",
+      );
+    }
+    throw err;
+  }
 }
 
 async function deleteAdminAd(user: AcademyUser, id: string) {
   requireAdmin(user);
-  await db().collection("videoAds").doc(id).delete();
+  try {
+    await db().collection("videoAds").doc(id).delete();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (
+      msg.includes("video_ads") ||
+      msg.includes("schema cache") ||
+      msg.includes("does not exist") ||
+      msg.includes("PGRST205")
+    ) {
+      return { success: true };
+    }
+    throw err;
+  }
   return { success: true };
 }
 
@@ -1715,56 +1758,62 @@ async function serveLessonAd(user: AcademyUser, p: Payload) {
 
   // 3. User is Free: find eligible active ads
   const input = s.adServeSchema.parse(p);
-  const snapshot = await db()
-    .collection("videoAds")
-    .where("active", "==", true)
-    .get();
 
-  let eligibleAds = snapshot.docs.map((doc) => ({
-    ...(doc.data() as VideoAd),
-    id: doc.id,
-  }));
+  try {
+    const snapshot = await db()
+      .collection("videoAds")
+      .where("active", "==", true)
+      .get();
 
-  // Filter by track if requested
-  if (input.trackId) {
-    eligibleAds = eligibleAds.filter(
-      (ad) =>
-        !ad.targetTracks ||
-        ad.targetTracks.length === 0 ||
-        ad.targetTracks.includes(input.trackId!),
-    );
-  }
+    let eligibleAds = snapshot.docs.map((doc) => ({
+      ...(doc.data() as VideoAd),
+      id: doc.id,
+    }));
 
-  if (eligibleAds.length === 0) {
+    // Filter by track if requested
+    if (input.trackId) {
+      eligibleAds = eligibleAds.filter(
+        (ad) =>
+          !ad.targetTracks ||
+          ad.targetTracks.length === 0 ||
+          ad.targetTracks.includes(input.trackId!),
+      );
+    }
+
+    if (eligibleAds.length === 0) {
+      return { hasAd: true, ad: HOUSE_AD };
+    }
+
+    // Weighted selection based on priority
+    // high = 3, normal = 2, low = 1
+    const weights: Record<string, number> = { high: 3, normal: 2, low: 1 };
+    const weightedPool: VideoAd[] = [];
+    for (const ad of eligibleAds) {
+      const weight = weights[ad.priority] || 2;
+      for (let i = 0; i < weight; i++) {
+        weightedPool.push(ad);
+      }
+    }
+
+    const selectedAd =
+      weightedPool[Math.floor(Math.random() * weightedPool.length)] || eligibleAds[0];
+
+    // Increment impressions count
+    try {
+      const currentImpressions = (selectedAd.impressionsCount as number) || 0;
+      await db()
+        .collection("videoAds")
+        .doc(selectedAd.id)
+        .update({ impressionsCount: currentImpressions + 1 });
+    } catch {
+      // Ignore impression increment error in edge cases
+    }
+
+    return { hasAd: true, ad: selectedAd };
+  } catch {
+    // If table doesn't exist yet, gracefully return House Ad
     return { hasAd: true, ad: HOUSE_AD };
   }
-
-  // Weighted selection based on priority
-  // high = 3, normal = 2, low = 1
-  const weights: Record<string, number> = { high: 3, normal: 2, low: 1 };
-  const weightedPool: VideoAd[] = [];
-  for (const ad of eligibleAds) {
-    const weight = weights[ad.priority] || 2;
-    for (let i = 0; i < weight; i++) {
-      weightedPool.push(ad);
-    }
-  }
-
-  const selectedAd =
-    weightedPool[Math.floor(Math.random() * weightedPool.length)] || eligibleAds[0];
-
-  // Increment impressions count
-  try {
-    const currentImpressions = (selectedAd.impressionsCount as number) || 0;
-    await db()
-      .collection("videoAds")
-      .doc(selectedAd.id)
-      .update({ impressionsCount: currentImpressions + 1 });
-  } catch {
-    // Ignore impression increment error in edge cases
-  }
-
-  return { hasAd: true, ad: selectedAd };
 }
 
 async function recordAdClick(user: AcademyUser, id: string) {

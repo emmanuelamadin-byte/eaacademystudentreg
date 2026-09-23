@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   BarChart3,
   Check,
+  Copy,
   ExternalLink,
   Eye,
   MousePointerClick,
@@ -39,6 +40,47 @@ const DEFAULT_AD_FORM: Partial<VideoAd> = {
   skipDurationSeconds: 5,
 };
 
+const MIGRATION_SQL = `-- Run this in your Supabase SQL Editor:
+CREATE TABLE IF NOT EXISTS public.video_ads (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  subtitle text NOT NULL DEFAULT '',
+  media_type text NOT NULL CHECK (media_type IN ('video', 'banner')),
+  media_url text NOT NULL,
+  cta_text text NOT NULL DEFAULT 'Learn More',
+  destination_url text NOT NULL DEFAULT '/app/membership',
+  active boolean NOT NULL DEFAULT true,
+  priority text NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high')),
+  target_tracks text[] NOT NULL DEFAULT '{}'::text[],
+  skip_duration_seconds integer NOT NULL DEFAULT 5,
+  impressions_count integer NOT NULL DEFAULT 0,
+  clicks_count integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.video_ads ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY video_ads_public_read ON public.video_ads
+  FOR SELECT TO anon, authenticated
+  USING (active = true OR (SELECT private.is_admin()));
+
+CREATE POLICY video_ads_admin_insert ON public.video_ads
+  FOR INSERT TO authenticated
+  WITH CHECK ((SELECT private.is_admin()));
+
+CREATE POLICY video_ads_admin_update ON public.video_ads
+  FOR UPDATE TO authenticated
+  USING ((SELECT private.is_admin()))
+  WITH CHECK ((SELECT private.is_admin()));
+
+CREATE POLICY video_ads_admin_delete ON public.video_ads
+  FOR DELETE TO authenticated
+  USING ((SELECT private.is_admin()));
+
+GRANT SELECT ON TABLE public.video_ads TO anon, authenticated;
+GRANT ALL ON TABLE public.video_ads TO service_role;`;
+
 export default function AdStudio() {
   const { user } = useAcademy();
   const [ads, setAds] = useState<VideoAd[]>([]);
@@ -47,7 +89,8 @@ export default function AdStudio() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Modal states
+  const [tableMissing, setTableMissing] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
   const [editingAd, setEditingAd] = useState<Partial<VideoAd> | null>(null);
   const [previewAd, setPreviewAd] = useState<VideoAd | null>(null);
 
@@ -55,8 +98,12 @@ export default function AdStudio() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{ ads: VideoAd[] }>("ad.admin.list", {});
+      const res = await api<{ ads: VideoAd[]; tableMissing?: boolean }>(
+        "ad.admin.list",
+        {},
+      );
       setAds(res.ads || []);
+      setTableMissing(Boolean(res.tableMissing));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load ads");
     } finally {
@@ -198,7 +245,104 @@ export default function AdStudio() {
       </div>
 
       {/* Alerts */}
-      {error && (
+      {tableMissing && (
+        <div
+          style={{
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            borderRadius: "12px",
+            padding: "20px 24px",
+            marginBottom: "24px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "12px",
+              marginBottom: "12px",
+            }}
+          >
+            <div>
+              <h3
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 800,
+                  color: "#1e40af",
+                  margin: "0 0 4px",
+                }}
+              >
+                Database Table Setup Required for Custom Ads
+              </h3>
+              <p style={{ fontSize: "13px", color: "#3b82f6", margin: 0 }}>
+                To save and manage your own custom sponsor campaigns, run this quick SQL script in your Supabase SQL Editor.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(MIGRATION_SQL);
+                  setCopiedSql(true);
+                  setTimeout(() => setCopiedSql(false), 2500);
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: copiedSql ? "#16a34a" : "#1d4ed8",
+                  color: "#ffffff",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {copiedSql ? <Check size={14} /> : <Copy size={14} />}
+                {copiedSql ? "Copied SQL!" : "Copy SQL Script"}
+              </button>
+              <a
+                href="https://supabase.com/dashboard/project/cyzpgofxanjfxmdqvned/sql/new"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: "#ffffff",
+                  border: "1px solid #93c5fd",
+                  color: "#1d4ed8",
+                  padding: "8px 14px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                }}
+              >
+                Open Supabase SQL Editor <ExternalLink size={13} />
+              </a>
+            </div>
+          </div>
+          <div
+            style={{
+              fontSize: "12px",
+              color: "#1e3a8a",
+              background: "rgba(255, 255, 255, 0.7)",
+              padding: "10px 14px",
+              borderRadius: "8px",
+              border: "1px solid rgba(191, 219, 254, 0.6)",
+            }}
+          >
+            💡 Note: In the meantime, your free learners automatically see the default <strong>EA Academy Premium House Ad</strong>, so video playback is working smoothly.
+          </div>
+        </div>
+      )}
+
+      {error && !tableMissing && (
         <div
           style={{
             background: "#fef2f2",
