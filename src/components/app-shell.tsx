@@ -27,6 +27,7 @@ import {
   Video,
   ShoppingBag,
   Store,
+  Sparkles,
 } from "lucide-react";
 import { useAcademy } from "./academy-provider";
 import { Brand, Loading, SetupNotice } from "./ui";
@@ -43,6 +44,7 @@ const studentLinks = [
   { href: "/app/classes", label: "Classroom", icon: Video },
   { href: "/app/tracks", label: "My learning", icon: BookOpen },
   { href: "/app/assignments", label: "Assignments", icon: ClipboardList },
+  { href: "/app/ai", label: "AI Mentor", icon: Sparkles, pro: true },
   { href: "/app/transcript", label: "Learning record", icon: GraduationCap },
 ];
 const communityLinks = [
@@ -197,8 +199,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
   const allNotifications = [...personalNotifications, ...notifications];
   const unread = allNotifications.filter((n) => n.createdAt > seen).length;
-  function nav(items: typeof studentLinks) {
-    return items.map(({ href, label, icon: Icon }) => (
+  function nav(
+    items: {
+      href: string;
+      label: string;
+      icon: any;
+      pro?: boolean;
+    }[],
+  ) {
+    return items.map(({ href, label, icon: Icon, pro }) => (
       <Link
         key={href}
         href={href}
@@ -211,7 +220,23 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Icon size={19} />
         <span>{label}</span>
-        {pathname === href && <span className="active-dot" />}
+        {pro && (
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: "10px",
+              fontWeight: 700,
+              padding: "1px 6px",
+              borderRadius: "4px",
+              background: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
+              color: "#fff",
+              letterSpacing: "0.05em",
+            }}
+          >
+            PRO
+          </span>
+        )}
+        {pathname === href && !pro && <span className="active-dot" />}
       </Link>
     ));
   }

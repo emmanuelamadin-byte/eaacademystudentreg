@@ -12,6 +12,7 @@ import {
   Trash2,
   Lock,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -68,6 +69,8 @@ export default function Assignments({ id }: { id?: string }) {
   const [uploading, setUploading] = useState(false);
   const [queued, setQueued] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [aiReview, setAiReview] = useState("");
+  const [aiReviewing, setAiReviewing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60000);
@@ -198,6 +201,38 @@ export default function Assignments({ id }: { id?: string }) {
       setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (error) {
       setFeedback(message(error));
+    }
+  };
+  const requestAiReview = async () => {
+    if (!user || !assignment) return;
+    if (!isPremium(user)) {
+      setFeedback(
+        "AI pre-submission reviews are exclusively for Premium members.",
+      );
+      return;
+    }
+    if (!draft.writeUp.trim() && !draft.repoUrl) {
+      setFeedback(
+        "Add your project write-up or repository URL before requesting an AI review.",
+      );
+      return;
+    }
+    setAiReviewing(true);
+    setAiReview("");
+    setFeedback("");
+    try {
+      const result = await api<{ text: string }>("ai.ask", {
+        mode: "review",
+        assignmentId: assignment.id,
+        trackId: assignment.classId,
+        code: draft.repoUrl ? `Repository: ${draft.repoUrl}\nLive: ${draft.liveUrl || "N/A"}` : undefined,
+        prompt: `Please review my assignment submission draft:\n\n${draft.writeUp}\n\nProvide constructive feedback, identify potential gaps/improvements, and give an advisory score out of 100 before I submit to my instructor.`,
+      });
+      setAiReview(result.text);
+    } catch (error) {
+      setFeedback(message(error));
+    } finally {
+      setAiReviewing(false);
     }
   };
   const save = async (status: "draft" | "submitted") => {
@@ -445,14 +480,83 @@ export default function Assignments({ id }: { id?: string }) {
                 <label htmlFor="assignment-writeup">
                   <strong>Project write-up</strong>
                 </label>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => setPreview(!preview)}
-                >
-                  {preview ? "Edit Markdown" : "Preview"}
-                </button>
+                <div style={{ display: "flex", gap: "0.85rem", alignItems: "center" }}>
+                  {isPremium(user) && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={aiReviewing || (!draft.writeUp.trim() && !draft.repoUrl)}
+                      onClick={requestAiReview}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        color: "#d97706",
+                        fontWeight: 600,
+                      }}
+                      title="Request instant AI feedback on your draft before submitting"
+                    >
+                      <Sparkles size={15} className={aiReviewing ? "spin" : ""} />
+                      {aiReviewing ? "Analyzing draft…" : "AI Pre-Review"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setPreview(!preview)}
+                  >
+                    {preview ? "Edit Markdown" : "Preview"}
+                  </button>
+                </div>
               </div>
+              {aiReview && (
+                <div
+                  style={{
+                    margin: "0.75rem 0 1.25rem 0",
+                    padding: "1.25rem",
+                    borderRadius: "12px",
+                    background: "rgba(217, 119, 6, 0.06)",
+                    border: "1px solid rgba(217, 119, 6, 0.25)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <Sparkles size={18} style={{ color: "#d97706" }} />
+                      <strong style={{ color: "#92400e" }}>EA AI Advisory Review</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setAiReview("")}
+                      style={{ fontSize: "12px" }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  <div className="prose" style={{ fontSize: "0.95rem" }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {aiReview}
+                    </ReactMarkdown>
+                  </div>
+                  <small
+                    style={{
+                      display: "block",
+                      marginTop: "0.75rem",
+                      color: "#b45309",
+                      opacity: 0.8,
+                    }}
+                  >
+                    Note: This evaluation is advisory. Final grading will be conducted by your assigned track instructor.
+                  </small>
+                </div>
+              )}
               {preview ? (
                 <div className="writeup-preview prose">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>

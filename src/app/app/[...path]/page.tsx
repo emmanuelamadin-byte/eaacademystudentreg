@@ -30,6 +30,10 @@ const CoursePlayer = dynamic(
   () => import("@/features/course-player").then((m) => m.CoursePlayer),
   { loading: Loading },
 );
+const AIMentor = dynamic(
+  () => import("@/features/ai-mentor").then((m) => m.AIMentor),
+  { loading: Loading },
+);
 export default function Page({
   params,
 }: {
@@ -79,6 +83,7 @@ export default function Page({
     );
   if (["community", "showcase", "sessions"].includes(section))
     return <Community section={section} id={id} />;
+  if (section === "ai") return <AIMentor />;
   if (section === "shop-studio") {
     if (user?.role !== "Admin") {
       return (
