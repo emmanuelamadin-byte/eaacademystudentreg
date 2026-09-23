@@ -21,7 +21,7 @@ import {
   Lock,
   Layers,
   Award,
-  Sparkles,
+  Crown,
 } from "lucide-react";
 import { PublicHeader, PublicFooter } from "@/components/public-site";
 import { useAcademy } from "@/components/academy-provider";
@@ -303,7 +303,7 @@ function ShopProductCard({ item }: { item: ShopItem }) {
                 gap: "0.25rem",
               }}
             >
-              <Sparkles size={11} />
+              <Crown size={11} />
               Included in Premium
             </span>
           )}
@@ -769,7 +769,7 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                           marginBottom: "0.25rem",
                         }}
                       >
-                        <Sparkles size={16} />
+                        <Crown size={16} />
                         <span>Included with your Premium</span>
                       </div>
                       <p
@@ -892,7 +892,7 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                             marginBottom: "0.3rem",
                           }}
                         >
-                          <Sparkles size={15} />
+                          <Crown size={15} />
                           <span>Or Unlock with Premium</span>
                         </div>
                         <p

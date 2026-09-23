@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
-  Sparkles,
   Send,
   RotateCcw,
   Bot,
@@ -360,7 +359,7 @@ export function AIMentor() {
                 color: "#fff",
               }}
             >
-              <Sparkles size={26} />
+              <Bot size={26} />
             </div>
             <div>
               <span
@@ -609,7 +608,7 @@ export function AIMentor() {
                   boxShadow: "0 4px 12px rgba(217, 119, 6, 0.15)",
                 }}
               >
-                <Sparkles size={28} />
+                <Bot size={28} />
               </div>
               <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>
                 How can I assist your learning today?
@@ -1028,7 +1027,7 @@ export function AIMentor() {
                   justifyContent: "center",
                 }}
               >
-                <Sparkles size={18} className="spin" />
+                <Bot size={18} className="spin" />
               </div>
               <span>EA AI Mentor is analyzing and preparing your response…</span>
             </div>

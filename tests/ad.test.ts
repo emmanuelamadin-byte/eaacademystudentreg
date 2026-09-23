@@ -74,6 +74,7 @@ vi.mock("../src/server/supabase", async () => {
     limit: async () => {},
   };
 });
+import { dispatch } from "../src/server/academy";
 
 describe("Video Ad Engine", () => {
   const token = {
@@ -136,7 +137,6 @@ describe("Video Ad Engine", () => {
 
   describe("Ad Server Actions & Policy Boundaries", () => {
     it("rejects non-admin from creating or saving an ad", async () => {
-      const { dispatch } = await import("../src/server/academy");
       state.actor = studentUser;
 
       await expect(
@@ -152,7 +152,6 @@ describe("Video Ad Engine", () => {
     });
 
     it("allows admin to create, list, and delete ads", async () => {
-      const { dispatch } = await import("../src/server/academy");
       state.actor = adminUser;
 
       // 1. Create ad
@@ -195,7 +194,6 @@ describe("Video Ad Engine", () => {
     });
 
     it("exempts staff and active premium members from seeing ads", async () => {
-      const { dispatch } = await import("../src/server/academy");
 
       // Staff (Admin)
       state.actor = adminUser;
@@ -217,7 +215,6 @@ describe("Video Ad Engine", () => {
     });
 
     it("exempts students who purchased the standalone course", async () => {
-      const { dispatch } = await import("../src/server/academy");
       state.actor = studentUser; // Free student
 
       // Mark course as purchased
@@ -234,7 +231,6 @@ describe("Video Ad Engine", () => {
     });
 
     it("serves house fallback ad to free students when no custom ads exist", async () => {
-      const { dispatch } = await import("../src/server/academy");
       state.actor = studentUser;
 
       const res = (await dispatch(token, "ad.serve", {
@@ -249,7 +245,6 @@ describe("Video Ad Engine", () => {
     });
 
     it("serves active targeted custom ad and tracks impressions and clicks", async () => {
-      const { dispatch } = await import("../src/server/academy");
       state.actor = studentUser;
 
       // Add custom active ad in DB

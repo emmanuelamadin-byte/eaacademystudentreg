@@ -15,7 +15,8 @@ import {
   Radio,
   RotateCcw,
   SkipForward,
-  Sparkles,
+  Crown,
+  Zap,
   Trash2,
   Tv,
   Volume2,
@@ -524,7 +525,7 @@ export default function AdStudio() {
               color: "#38bdf8",
             }}
           >
-            <Sparkles size={22} />
+            <Crown size={22} />
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: "15px", color: "#f8fafc" }}>
@@ -1636,7 +1637,7 @@ function PreviewSimulatorModal({
                     borderRadius: "20px",
                   }}
                 >
-                  <Sparkles size={13} />
+                  <Zap size={13} />
                   Go Ad-Free with Premium
                 </div>
               </div>

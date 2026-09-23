@@ -27,7 +27,7 @@ import {
   Video,
   ShoppingBag,
   Store,
-  Sparkles,
+  Bot,
   Tv,
 } from "lucide-react";
 import { useAcademy } from "./academy-provider";
@@ -45,7 +45,7 @@ const studentLinks = [
   { href: "/app/classes", label: "Classroom", icon: Video },
   { href: "/app/tracks", label: "My learning", icon: BookOpen },
   { href: "/app/assignments", label: "Assignments", icon: ClipboardList },
-  { href: "/app/ai", label: "AI Mentor", icon: Sparkles, pro: true },
+  { href: "/app/ai", label: "AI Mentor", icon: Bot, pro: true },
   { href: "/app/transcript", label: "Learning record", icon: GraduationCap },
 ];
 const communityLinks = [

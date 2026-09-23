@@ -12,7 +12,7 @@ import {
   Trash2,
   Lock,
   ArrowRight,
-  Sparkles,
+  Bot,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -545,7 +545,7 @@ export default function Assignments({ id }: { id?: string }) {
                       }}
                       title="Request instant AI feedback on your draft before submitting"
                     >
-                      <Sparkles size={15} className={aiReviewing ? "spin" : ""} />
+                      <Bot size={15} className={aiReviewing ? "spin" : ""} />
                       {aiReviewing ? "Analyzing draft…" : "AI Pre-Review"}
                     </button>
                   )}
@@ -577,7 +577,7 @@ export default function Assignments({ id }: { id?: string }) {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <Sparkles size={18} style={{ color: "#d97706" }} />
+                      <Bot size={18} style={{ color: "#d97706" }} />
                       <strong style={{ color: "#92400e" }}>EA AI Advisory Review</strong>
                     </div>
                     <button

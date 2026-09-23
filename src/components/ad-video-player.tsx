@@ -6,7 +6,7 @@ import {
   ExternalLink,
   Play,
   SkipForward,
-  Sparkles,
+  Zap,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -304,7 +304,7 @@ export function AdVideoPlayer({
                 backdropFilter: "blur(4px)",
               }}
             >
-              <Sparkles size={13} />
+              <Zap size={13} />
               Go Ad-Free with Premium
             </Link>
           </div>
