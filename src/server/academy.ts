@@ -741,14 +741,10 @@ export async function dispatch(
       if (assignment.published !== true)
         throw new ApiError(403, "This assignment is not open for submission.");
       const premium = hasPremium(user);
-      if (
-        !premium &&
-        (assignment.classId !== user.enrolledClassId ||
-          assignment.starter !== true)
-      )
+      if (!premium)
         throw new ApiError(
           403,
-          "Free includes starter assignments in your primary track. Premium unlocks every assignment.",
+          "Assignment submission and instructor reviews are exclusively for Premium students. Please upgrade to Premium.",
         );
       if (
         value.status === "submitted" &&

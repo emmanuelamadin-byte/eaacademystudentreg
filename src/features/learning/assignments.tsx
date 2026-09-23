@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type DragEvent } from "react";
+import Link from "next/link";
 import {
   Clock,
   FileText,
@@ -9,6 +10,8 @@ import {
   CheckCircle2,
   Download,
   Trash2,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -132,6 +135,12 @@ export default function Assignments({ id }: { id?: string }) {
     }));
   const upload = async (files: FileList | null) => {
     if (!files || !authUser) return;
+    if (!user || !isPremium(user)) {
+      setFeedback(
+        "Attachment uploads and assignment submissions are exclusively for Premium members.",
+      );
+      return;
+    }
     if (!navigator.onLine) {
       setFeedback(
         "Connect to upload attachments. Your written draft can still be saved offline.",
@@ -193,6 +202,12 @@ export default function Assignments({ id }: { id?: string }) {
   };
   const save = async (status: "draft" | "submitted") => {
     if (!user || !assignment) return;
+    if (!isPremium(user)) {
+      setFeedback(
+        "Assignment submission is exclusively for Premium students. Please upgrade to Premium to submit your work.",
+      );
+      return;
+    }
     setFeedback("");
     setBusy(true);
     try {
@@ -342,7 +357,7 @@ export default function Assignments({ id }: { id?: string }) {
             <p className="muted">
               {isPremium(user)
                 ? "Premium includes two instructor-reviewed submissions each month, rated on a 0–100 scale."
-                : "This is a self-guided starter assignment. Instructor reviews are included with Premium."}
+                : "Assignment submission and personalized instructor reviews are exclusively available to Premium students."}
             </p>
           </aside>
           <section className="card submission-editor">
@@ -354,6 +369,22 @@ export default function Assignments({ id }: { id?: string }) {
                   : submission?.status.replace("-", " ") || "draft"}
               </span>
             </div>
+            {!isPremium(user) && (
+              <div className="community-callout" style={{ margin: "1rem 0" }}>
+                <Lock size={20} style={{ color: "#d97706", flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: "block", marginBottom: "2px" }}>
+                    Premium Exclusive
+                  </strong>
+                  <p className="muted" style={{ margin: 0, fontSize: "14px" }}>
+                    Submitting assignments and receiving instructor reviews require an active Premium membership.
+                  </p>
+                </div>
+                <Link href="/app/billing" className="btn btn-primary btn-small">
+                  Upgrade <ArrowRight size={14} />
+                </Link>
+              </div>
+            )}
             {feedback && (
               <p className="alert" role="status">
                 {feedback}
@@ -459,7 +490,9 @@ export default function Assignments({ id }: { id?: string }) {
                 <strong>
                   {uploading
                     ? "Uploading attachments…"
-                    : "Drop files here or browse"}
+                    : !isPremium(user)
+                      ? "Attachments require Premium"
+                      : "Drop files here or browse"}
                 </strong>
                 <small>
                   PDF, JPG, PNG, WebP, DOC, or DOCX · up to 5 MB each
@@ -468,7 +501,7 @@ export default function Assignments({ id }: { id?: string }) {
                   type="file"
                   multiple
                   accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
-                  disabled={uploading}
+                  disabled={uploading || !isPremium(user)}
                   onChange={(event: ChangeEvent<HTMLInputElement>) => {
                     void upload(event.target.files);
                     event.target.value = "";
@@ -505,29 +538,36 @@ export default function Assignments({ id }: { id?: string }) {
                   </button>
                 </div>
               ))}
-              <div className="submission-actions">
-                <button
-                  className="btn btn-secondary"
-                  disabled={uploading}
-                  onClick={() => save("draft")}
-                >
-                  Save to account
-                </button>
-                <button
-                  className="btn btn-primary"
-                  disabled={uploading || !draft.writeUp.trim()}
-                  onClick={() => save("submitted")}
-                >
-                  <Send size={16} />
-                  {busy
-                    ? "Saving…"
-                    : submission?.status === "submitted"
-                      ? "Update submission"
-                      : isPremium(user)
-                        ? "Submit for review"
-                        : "Submit practice"}
-                </button>
-              </div>
+              {!isPremium(user) ? (
+                <div className="submission-actions">
+                  <Link href="/app/billing" className="btn btn-primary">
+                    <Lock size={16} />
+                    Upgrade to Premium to Submit
+                  </Link>
+                </div>
+              ) : (
+                <div className="submission-actions">
+                  <button
+                    className="btn btn-secondary"
+                    disabled={uploading}
+                    onClick={() => save("draft")}
+                  >
+                    Save to account
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={uploading || !draft.writeUp.trim()}
+                    onClick={() => save("submitted")}
+                  >
+                    <Send size={16} />
+                    {busy
+                      ? "Saving…"
+                      : submission?.status === "submitted"
+                        ? "Update submission"
+                        : "Submit for review"}
+                  </button>
+                </div>
+              )}
             </fieldset>
             {["graded", "under-review"].includes(submission?.status || "") && (
               <p className="muted">

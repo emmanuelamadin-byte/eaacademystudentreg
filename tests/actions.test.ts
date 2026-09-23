@@ -519,6 +519,7 @@ describe("server action boundaries", () => {
     ).rejects.toThrow();
   });
   it("derives submission ownership and track from authenticated records", async () => {
+    state.actor = { ...student, premiumGranted: true };
     const result = await dispatch(token, "submission.save", {
       submission: {
         assignmentId: "task",
@@ -539,21 +540,22 @@ describe("server action boundaries", () => {
     });
     expect(saved).not.toHaveProperty("grade");
     expect(result).toMatchObject({
-      reviewEligible: false,
-      reviewsRemaining: 0,
+      reviewEligible: true,
+      reviewsRemaining: 1,
     });
   });
-  it("allows only starter practice for Free and reserves two Premium reviews per month", async () => {
-    state.documents.set("assignments/premium-task", {
+  it("rejects submissions for Free tier and reserves two Premium reviews per month", async () => {
+    state.actor = student;
+    state.documents.set("assignments/starter-task", {
       published: true,
       classId: "system-dev",
-      starter: false,
+      starter: true,
     });
     await expect(
       dispatch(token, "submission.save", {
         submission: {
-          assignmentId: "premium-task",
-          writeUp: "Free attempt",
+          assignmentId: "starter-task",
+          writeUp: "Free attempt on starter",
           status: "submitted",
         },
       }),
@@ -628,6 +630,7 @@ describe("server action boundaries", () => {
     ).rejects.toMatchObject({ status: 429 });
   });
   it("rejects attachments belonging to another learner", async () => {
+    state.actor = { ...student, premiumGranted: true };
     await expect(
       dispatch(token, "submission.save", {
         submission: {
@@ -641,6 +644,7 @@ describe("server action boundaries", () => {
     expect(state.documents.has("submissions/student_task")).toBe(false);
   });
   it("preserves graded submissions when a stale offline draft is retried", async () => {
+    state.actor = { ...student, premiumGranted: true };
     state.documents.set("submissions/student_task", {
       studentId: "student",
       assignmentId: "task",
