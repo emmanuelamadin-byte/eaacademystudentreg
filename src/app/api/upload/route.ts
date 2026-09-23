@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       Number(request.headers.get("content-length") || 0) >
       MAX_FILE_BYTES + 100000
     )
-      throw new ApiError(413, "Files must be 5 MB or smaller.");
+      throw new ApiError(413, "Files must be 2 MB or smaller.");
     const bytes = await readLimitedBody(request, MAX_FILE_BYTES + 100000);
     const form = await new Response(new Uint8Array(bytes), {
         headers: { "Content-Type": request.headers.get("content-type") || "" },
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     if (!(file instanceof File) || !file.size)
       throw new ApiError(400, "Choose a valid file.");
     if (file.size > MAX_FILE_BYTES)
-      throw new ApiError(400, "Choose a file up to 5 MB.");
+      throw new ApiError(400, "Choose a file up to 2 MB.");
     const extension = path.extname(file.name).toLowerCase(),
       contentType = ALLOWED_UPLOAD_TYPES[extension];
     if (!contentType)

@@ -21,7 +21,7 @@ Fill `.env.local` using `.env.example`. Never commit credentials. Use your hosti
 1. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and the server-only `SUPABASE_SECRET_KEY` in `.env.local`.
 2. Enable Google under Authentication → Providers and add localhost plus the production domain to the redirect allow list. Google is the academy's only sign-in method.
 3. Keep Row Level Security enabled on every exposed table. Client reads are scoped by RLS; privileged mutations run through authenticated server endpoints.
-4. Use the private `assignment-attachments` Storage bucket. It allows PDF, JPG, PNG, WebP, DOC, and DOCX files up to 5 MB.
+4. Use the private `assignment-attachments` Storage bucket. It allows PDF, JPG, PNG, WebP, DOC, and DOCX files up to 2 MB.
 
 Students cannot modify roles, tracks, membership, or grades. Lesson content is delivered through an authorization-checked API; reference solutions are available only to assigned instructors and the owner. Uploaded submissions use private object paths and authenticated downloads.
 
@@ -93,7 +93,7 @@ Before launch, verify real sign-up, owner/instructor/student access, publishing,
 
 Deploy as a Node.js Next.js application on a host supporting Next.js 16 and your chosen request size. Use Node.js 22 or newer. Run `npm ci`, `npm run build`, and `npm run start`. The start script binds locally; set the hostname to `0.0.0.0` when your hosting platform requires it. On managed Next.js hosting, use the platform’s native build/start integration.
 
-The upload API permits 5 MB per file. Some serverless hosts impose a smaller request limit; use a host that permits this size, or lower the application limit to match before launch. No hosting deployment or external configuration is performed automatically.
+The upload API permits 2 MB per file. Some serverless hosts impose a smaller request limit; use a host that permits this size, or lower the application limit to match before launch. No hosting deployment or external configuration is performed automatically.
 
 Server secrets are mandatory for the associated service. Public environment values are embedded at build time, so rebuild after changing them. Database migrations and RLS policies are managed in Supabase separately from deploying the Next.js app.
 

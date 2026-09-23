@@ -162,7 +162,7 @@ export default function Assignments({ id }: { id?: string }) {
       ".jpeg",
       ".webp",
     ];
-    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    const MAX_FILE_SIZE = 2 * 1024 * 1024;
     const MAX_ATTACHMENTS = 5;
 
     if (draft.attachments.length >= MAX_ATTACHMENTS) {
@@ -189,7 +189,7 @@ export default function Assignments({ id }: { id?: string }) {
       }
       if (file.size > MAX_FILE_SIZE) {
         setFeedback(
-          `"${file.name}" exceeds the 5 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`,
+          `"${file.name}" exceeds the 2 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`,
         );
         return;
       }
@@ -651,7 +651,7 @@ export default function Assignments({ id }: { id?: string }) {
                         : "Drop files here or browse"}
                 </strong>
                 <small>
-                  PDF, JPG, PNG, WebP, DOC, or DOCX · up to 5 MB each (max 5 files · {draft.attachments.length}/5)
+                  PDF, JPG, PNG, WebP, DOC, or DOCX · up to 2 MB each (max 5 files · {draft.attachments.length}/5)
                 </small>
                 <input
                   type="file"

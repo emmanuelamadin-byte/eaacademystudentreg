@@ -1,9 +1,9 @@
 import path from "node:path";
 import { ApiError } from "@/server/policy";
 
-export const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+export const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB
 export const MAX_ATTACHMENTS_PER_SUBMISSION = 5;
-export const MAX_TOTAL_SUBMISSION_BYTES = 15 * 1024 * 1024; // 15 MB
+export const MAX_TOTAL_SUBMISSION_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export const ALLOWED_UPLOAD_TYPES: Record<string, string> = {
   ".pdf": "application/pdf",

@@ -13,8 +13,8 @@ import { ApiError } from "../src/server/policy";
 
 describe("upload security and anti-malware verification", () => {
   describe("file extension and limit constants", () => {
-    it("enforces 5MB max file size and max 5 attachments", () => {
-      expect(MAX_FILE_BYTES).toBe(5 * 1024 * 1024);
+    it("enforces 2MB max file size and max 5 attachments", () => {
+      expect(MAX_FILE_BYTES).toBe(2 * 1024 * 1024);
       expect(MAX_ATTACHMENTS_PER_SUBMISSION).toBe(5);
     });
 
