@@ -248,3 +248,45 @@ export const shopProgressUpdateSchema = z.object({
   lessonId: id,
   completed: z.boolean().default(true),
 });
+
+export const destinationUrlSchema = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine(
+    (s) =>
+      s.startsWith("/") ||
+      (/^https:\/\//i.test(s) && !s.includes("localhost") && !s.includes("127.0.0.1")),
+    "Enter a valid internal path (starting with /) or a public HTTPS URL.",
+  );
+
+export const mediaUrlSchema = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine(
+    (s) =>
+      s.startsWith("/") ||
+      (/^https:\/\//i.test(s) && !s.includes("localhost") && !s.includes("127.0.0.1")),
+    "Enter a valid media URL (HTTPS or uploaded file).",
+  );
+
+export const videoAdSchema = z.object({
+  id: optionalId,
+  title: z.string().trim().min(2).max(120),
+  subtitle: z.string().trim().max(300).optional().default(""),
+  mediaType: z.enum(["video", "banner"]).default("banner"),
+  mediaUrl: mediaUrlSchema,
+  ctaText: z.string().trim().min(1).max(50).default("Learn More"),
+  destinationUrl: destinationUrlSchema.default("/app/membership"),
+  active: z.boolean().default(true),
+  priority: z.enum(["low", "normal", "high"]).default("normal"),
+  targetTracks: z.array(z.string().trim().max(50)).max(20).default([]),
+  skipDurationSeconds: z.number().int().min(0).max(60).default(5),
+});
+
+export const adServeSchema = z.object({
+  trackId: z.string().trim().max(50).optional(),
+  courseId: z.string().trim().max(100).optional(),
+});
+

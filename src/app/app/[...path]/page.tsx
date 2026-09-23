@@ -34,6 +34,9 @@ const AIMentor = dynamic(
   () => import("@/features/ai-mentor").then((m) => m.AIMentor),
   { loading: Loading },
 );
+const AdStudio = dynamic(() => import("@/features/ad-studio"), {
+  loading: Loading,
+});
 export default function Page({
   params,
 }: {
@@ -100,6 +103,23 @@ export default function Page({
       );
     }
     return <ShopStudio />;
+  }
+  if (section === "ads") {
+    if (user?.role !== "Admin") {
+      return (
+        <EmptyState
+          title="This area is for academy administrators"
+          action={
+            <Link href="/app/dashboard" className="btn btn-primary">
+              Your workspace
+            </Link>
+          }
+        >
+          Manage video ads, sponsorships, and learner promotions.
+        </EmptyState>
+      );
+    }
+    return <AdStudio />;
   }
   if (section === "shop") redirect("/shop");
   if (section === "library")

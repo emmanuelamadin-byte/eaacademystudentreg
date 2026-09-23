@@ -37,6 +37,7 @@ import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
 import { useRecords } from "@/lib/hooks";
 import { extractVideoUrl, getVideoEmbed } from "@/lib/video";
+import { AdVideoPlayer } from "@/components/ad-video-player";
 import {
   getCertificateTitle,
   getLinkedInCertUrl,
@@ -1481,7 +1482,15 @@ function ClassPostCard({
   );
 }
 
-function LessonVideo({ url, title }: { url: string; title: string }) {
+function LessonVideo({
+  url,
+  title,
+  trackId,
+}: {
+  url: string;
+  title: string;
+  trackId?: string;
+}) {
   if (!url) {
     return (
       <div className="video-empty">
@@ -1493,48 +1502,13 @@ function LessonVideo({ url, title }: { url: string; title: string }) {
     );
   }
 
-  const { embedUrl, isDirectVideo } = getVideoEmbed(url);
-
-  if (isDirectVideo) {
-    return (
-      <video
-        className="lesson-video"
-        controls
-        preload="metadata"
-        src={safeUrl(embedUrl || url)}
-      >
-        Your browser cannot play this video.{" "}
-        <a href={safeUrl(embedUrl || url)}>Open the video</a>.
-      </video>
-    );
-  }
-
-  if (embedUrl) {
-    return (
-      <iframe
-        className="lesson-video"
-        src={embedUrl}
-        title={title}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
-      />
-    );
-  }
-
   return (
-    <div className="video-empty">
-      <Play size={40} />
-      <p>Unable to embed this video player directly.</p>
-      <a
-        className="btn btn-secondary"
-        href={safeUrl(url)}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Open video link in new tab <ExternalLink size={14} />
-      </a>
-    </div>
+    <AdVideoPlayer
+      videoUrl={url}
+      title={title}
+      trackId={trackId}
+      className="lesson-video"
+    />
   );
 }
 
@@ -1701,7 +1675,11 @@ function LessonPlayer({ id }: { id?: string }) {
         </p>
       )}
       <div className="video-container">
-        <LessonVideo url={lesson.videoUrl} title={lesson.title} />
+        <LessonVideo
+          url={lesson.videoUrl}
+          title={lesson.title}
+          trackId={lesson.classId}
+        />
       </div>
       <div className="lesson-workspace card">
         <div

@@ -28,6 +28,7 @@ import {
   ShoppingBag,
   Store,
   Sparkles,
+  Tv,
 } from "lucide-react";
 import { useAcademy } from "./academy-provider";
 import { Brand, Loading, SetupNotice } from "./ui";
@@ -56,6 +57,7 @@ const communityLinks = [
 const adminLinks = [
   { href: "/app/admin", label: "Command center", icon: Shield },
   { href: "/app/shop-studio", label: "Shop studio", icon: Store },
+  { href: "/app/ads", label: "Ad manager", icon: Tv },
   { href: "/app/users", label: "People", icon: Users },
   { href: "/app/courses", label: "Track editor", icon: BookOpen },
   { href: "/app/submissions", label: "Review submissions", icon: FileCheck },

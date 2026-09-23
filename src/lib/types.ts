@@ -308,6 +308,28 @@ export interface ShopCertificate {
   issuedAt: string;
   verificationCode: string;
 }
+
+export type VideoAdMediaType = "video" | "banner";
+export type VideoAdPriority = "low" | "normal" | "high";
+
+export interface VideoAd {
+  id: string;
+  title: string;
+  subtitle?: string;
+  mediaType: VideoAdMediaType;
+  mediaUrl: string;
+  ctaText: string;
+  destinationUrl: string;
+  active: boolean;
+  priority: VideoAdPriority;
+  targetTracks?: string[];
+  skipDurationSeconds: number;
+  impressionsCount?: number;
+  clicksCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const TRACKS = [
   {
     id: "system-dev" as const,

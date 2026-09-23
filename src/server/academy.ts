@@ -9,6 +9,7 @@ import type {
   ShopPurchase,
   ShopCourseProgress,
   ShopCertificate,
+  VideoAd,
 } from "@/lib/types";
 import { calculateStreak } from "@/lib/streaks";
 import {
@@ -1245,6 +1246,16 @@ export async function dispatch(
       return updateShopProgress(user, p);
     case "shop.certificate.get":
       return getShopCertificate(user, parsedId(p));
+    case "ad.admin.list":
+      return listAdminAds(user);
+    case "ad.admin.save":
+      return saveAdminAd(user, p.ad);
+    case "ad.admin.delete":
+      return deleteAdminAd(user, parsedId(p));
+    case "ad.serve":
+      return serveLessonAd(user, p);
+    case "ad.click":
+      return recordAdClick(user, parsedId(p));
     default:
       throw new ApiError(400, "Unknown academy action.");
   }
@@ -1614,3 +1625,162 @@ async function getShopCertificate(user: AcademyUser, id: string) {
   }
   return cert;
 }
+
+export const HOUSE_AD: VideoAd = {
+  id: "house-premium",
+  title: "Unlock 1-on-1 Mentorship & Ad-Free Learning",
+  subtitle:
+    "Join EA Academy Premium for ₦3,000/mo. Get unlimited instructor reviews, certificates, and zero interruptions.",
+  mediaType: "banner",
+  mediaUrl:
+    "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=80",
+  ctaText: "Upgrade to Premium",
+  destinationUrl: "/app/membership",
+  active: true,
+  priority: "normal",
+  skipDurationSeconds: 5,
+  impressionsCount: 0,
+  clicksCount: 0,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+};
+
+async function listAdminAds(user: AcademyUser) {
+  requireAdmin(user);
+  const snapshot = await db().collection("videoAds").get();
+  const ads = snapshot.docs.map((doc) => ({
+    ...(doc.data() as VideoAd),
+    id: doc.id,
+  }));
+  return { ads };
+}
+
+async function saveAdminAd(user: AcademyUser, rawAd: unknown) {
+  requireAdmin(user);
+  const input = s.videoAdSchema.parse(rawAd);
+  const id = input.id || `ad_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  const ref = db().collection("videoAds").doc(id);
+  const existing = await ref.get();
+
+  const record: VideoAd = {
+    id,
+    title: input.title,
+    subtitle: input.subtitle || "",
+    mediaType: input.mediaType,
+    mediaUrl: input.mediaUrl,
+    ctaText: input.ctaText,
+    destinationUrl: input.destinationUrl,
+    active: input.active,
+    priority: input.priority,
+    targetTracks: input.targetTracks || [],
+    skipDurationSeconds: input.skipDurationSeconds,
+    impressionsCount: existing.exists
+      ? (existing.data()?.impressionsCount as number) || 0
+      : 0,
+    clicksCount: existing.exists
+      ? (existing.data()?.clicksCount as number) || 0
+      : 0,
+    createdAt: existing.exists
+      ? (existing.data()?.createdAt as string) || now()
+      : now(),
+    updatedAt: now(),
+  };
+
+  await ref.set(clean(record), { merge: true });
+  return { success: true, ad: record };
+}
+
+async function deleteAdminAd(user: AcademyUser, id: string) {
+  requireAdmin(user);
+  await db().collection("videoAds").doc(id).delete();
+  return { success: true };
+}
+
+async function serveLessonAd(user: AcademyUser, p: Payload) {
+  // 1. Staff and active Premium members never see ads
+  if (user.role === "Admin" || user.role === "Instructor" || hasPremium(user)) {
+    return { hasAd: false };
+  }
+
+  // 2. Check if student owns the course individually
+  if (p.courseId && typeof p.courseId === "string") {
+    const purchase = await db()
+      .collection("shopPurchases")
+      .doc(`${user.id}_${p.courseId}`)
+      .get();
+    if (purchase.exists) {
+      return { hasAd: false };
+    }
+  }
+
+  // 3. User is Free: find eligible active ads
+  const input = s.adServeSchema.parse(p);
+  const snapshot = await db()
+    .collection("videoAds")
+    .where("active", "==", true)
+    .get();
+
+  let eligibleAds = snapshot.docs.map((doc) => ({
+    ...(doc.data() as VideoAd),
+    id: doc.id,
+  }));
+
+  // Filter by track if requested
+  if (input.trackId) {
+    eligibleAds = eligibleAds.filter(
+      (ad) =>
+        !ad.targetTracks ||
+        ad.targetTracks.length === 0 ||
+        ad.targetTracks.includes(input.trackId!),
+    );
+  }
+
+  if (eligibleAds.length === 0) {
+    return { hasAd: true, ad: HOUSE_AD };
+  }
+
+  // Weighted selection based on priority
+  // high = 3, normal = 2, low = 1
+  const weights: Record<string, number> = { high: 3, normal: 2, low: 1 };
+  const weightedPool: VideoAd[] = [];
+  for (const ad of eligibleAds) {
+    const weight = weights[ad.priority] || 2;
+    for (let i = 0; i < weight; i++) {
+      weightedPool.push(ad);
+    }
+  }
+
+  const selectedAd =
+    weightedPool[Math.floor(Math.random() * weightedPool.length)] || eligibleAds[0];
+
+  // Increment impressions count
+  try {
+    const currentImpressions = (selectedAd.impressionsCount as number) || 0;
+    await db()
+      .collection("videoAds")
+      .doc(selectedAd.id)
+      .update({ impressionsCount: currentImpressions + 1 });
+  } catch {
+    // Ignore impression increment error in edge cases
+  }
+
+  return { hasAd: true, ad: selectedAd };
+}
+
+async function recordAdClick(user: AcademyUser, id: string) {
+  if (id === "house-premium") {
+    return { success: true };
+  }
+  try {
+    const docRef = db().collection("videoAds").doc(id);
+    const snap = await docRef.get();
+    if (snap.exists) {
+      const currentClicks = (snap.data()?.clicksCount as number) || 0;
+      await docRef.update({ clicksCount: currentClicks + 1 });
+    }
+  } catch {
+    // Ignore click increment error
+  }
+  return { success: true };
+}
+

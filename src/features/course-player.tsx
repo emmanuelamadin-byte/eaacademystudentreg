@@ -25,6 +25,7 @@ import {
 import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
 import { getVideoEmbed } from "@/lib/video";
+import { AdVideoPlayer } from "@/components/ad-video-player";
 import type {
   ShopItem,
   ShopCourseLesson,
@@ -259,23 +260,14 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
         <main className="classroom-stage">
           {/* Responsive Video Container */}
           <div className="classroom-video-frame">
-            {videoEmbed?.embedUrl ? (
-              videoEmbed.isDirectVideo ? (
-                <video
-                  src={videoEmbed.embedUrl}
-                  controls
-                  className="classroom-player-element"
-                  poster={course.thumbnailUrl}
-                />
-              ) : (
-                <iframe
-                  src={videoEmbed.embedUrl}
-                  title={currentLesson?.title || "Lesson Video"}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  className="classroom-player-element"
-                />
-              )
+            {currentLesson?.videoUrl ? (
+              <AdVideoPlayer
+                videoUrl={currentLesson.videoUrl}
+                title={currentLesson.title || "Lesson Video"}
+                poster={course.thumbnailUrl}
+                courseId={course.id}
+                className="classroom-player-element"
+              />
             ) : (
               <div className="classroom-no-video">
                 <PlayCircle size={48} />
