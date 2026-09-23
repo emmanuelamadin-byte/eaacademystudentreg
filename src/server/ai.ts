@@ -122,11 +122,51 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
   }
 
   const client = new GoogleGenAI({ apiKey: key });
+  const requestedModel = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+
+  async function generateWithFallback(params: {
+    contents: unknown;
+    config?: Record<string, unknown>;
+  }) {
+    const candidates = [
+      requestedModel,
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+    ].filter((m, i, arr) => arr.indexOf(m) === i);
+
+    let lastErr: unknown = null;
+    for (const model of candidates) {
+      try {
+        const res = await client.models.generateContent({
+          model,
+          contents: params.contents as any,
+          config: params.config as any,
+        });
+        if (res && res.text) return res;
+      } catch (err: unknown) {
+        lastErr = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[AI] Model "${model}" failed: ${msg}`);
+
+        const isModelUnavailable =
+          msg.includes("404") ||
+          msg.includes("not found") ||
+          msg.includes("is not supported") ||
+          msg.includes("PERMISSION_DENIED");
+
+        if (isModelUnavailable && model !== candidates[candidates.length - 1]) {
+          console.warn("[AI] Falling back to next available Gemini model...");
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastErr;
+  }
 
   try {
     if (value.mode === "tests") {
-      const response = await client.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      const response = await generateWithFallback({
         contents: `Lesson context:\n${context}\nJavaScript to test:\n${value.code || ""}\nRequest:\n${value.prompt}`,
         config: {
           systemInstruction:
@@ -189,8 +229,7 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
       contents = `${context ? `${context}\n\n` : ""}${userPrompt}`;
     }
 
-    const response = await client.models.generateContent({
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    const response = await generateWithFallback({
       contents,
       config: {
         systemInstruction,
@@ -204,8 +243,37 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
         "The assistant returned no answer. Try rephrasing your request.",
       );
     return { text: response.text };
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
+    console.error("Gemini AI API Error:", error);
+    const errMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errMessage.includes("API key not valid") ||
+      errMessage.includes("API_KEY_INVALID")
+    ) {
+      throw new ApiError(
+        503,
+        "The configured Google Gemini API key is invalid. Please verify your GEMINI_API_KEY in Vercel settings.",
+      );
+    }
+    if (
+      errMessage.includes("RESOURCE_EXHAUSTED") ||
+      errMessage.includes("quota")
+    ) {
+      throw new ApiError(
+        429,
+        "Google Gemini quota or rate limit reached. Please try again in a few moments.",
+      );
+    }
+    if (
+      errMessage.includes("location is not supported") ||
+      errMessage.includes("User location is not supported")
+    ) {
+      throw new ApiError(
+        503,
+        "Google AI is not supported in the server's region.",
+      );
+    }
     throw new ApiError(
       502,
       "The learning assistant is temporarily unavailable. Please try again.",
