@@ -753,6 +753,11 @@ export async function dispatch(
         !value.attachments.length
       )
         throw new ApiError(400, "Add your work before submitting.");
+      if (value.attachments.length > 5)
+        throw new ApiError(
+          400,
+          "A maximum of 5 attachments is allowed per submission.",
+        );
       const attachments = value.attachments.map((path) =>
         path.startsWith("/api/upload?path=")
           ? decodeURIComponent(path.slice("/api/upload?path=".length))
@@ -806,10 +811,14 @@ export async function dispatch(
             `Premium includes ${MONTHLY_REVIEW_LIMIT} instructor reviews each month. Your allowance resets next month.`,
           );
       }
+      const sanitizedWriteUp = value.writeUp
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+        .trim();
       await ref.set(
         clean({
           ...value,
           id,
+          writeUp: sanitizedWriteUp,
           attachments,
           studentId: user.id,
           studentName: user.name,

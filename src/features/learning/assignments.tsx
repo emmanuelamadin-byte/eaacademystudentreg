@@ -150,10 +150,59 @@ export default function Assignments({ id }: { id?: string }) {
       );
       return;
     }
+    const fileList = Array.from(files);
+    if (!fileList.length) return;
+
+    const ALLOWED_EXTENSIONS = [
+      ".pdf",
+      ".docx",
+      ".doc",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".webp",
+    ];
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    const MAX_ATTACHMENTS = 5;
+
+    if (draft.attachments.length >= MAX_ATTACHMENTS) {
+      setFeedback(
+        `You have already reached the maximum of ${MAX_ATTACHMENTS} attachments for this assignment.`,
+      );
+      return;
+    }
+
+    if (draft.attachments.length + fileList.length > MAX_ATTACHMENTS) {
+      setFeedback(
+        `You can upload at most ${MAX_ATTACHMENTS} attachments per assignment. You currently have ${draft.attachments.length}, so you can only add ${MAX_ATTACHMENTS - draft.attachments.length} more.`,
+      );
+      return;
+    }
+
+    for (const file of fileList) {
+      const ext = ("." + file.name.split(".").pop()).toLowerCase();
+      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        setFeedback(
+          `"${file.name}" is not an allowed file type. Allowed formats: PDF, Word (DOC, DOCX), or Image (PNG, JPG, WebP).`,
+        );
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setFeedback(
+          `"${file.name}" exceeds the 5 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`,
+        );
+        return;
+      }
+      if (file.size < 16) {
+        setFeedback(`"${file.name}" appears to be empty or corrupted.`);
+        return;
+      }
+    }
+
     setUploading(true);
     setFeedback("");
     try {
-      for (const file of Array.from(files)) {
+      for (const file of fileList) {
         const body = new FormData();
         body.append("file", file);
         const response = await fetch("/api/upload", {
@@ -567,13 +616,14 @@ export default function Assignments({ id }: { id?: string }) {
                 <textarea
                   id="assignment-writeup"
                   className="writeup-input"
+                  maxLength={10000}
                   value={draft.writeUp}
                   onChange={(event) => edit({ writeUp: event.target.value })}
                   placeholder="Explain your approach, what you built, and what you learned. Markdown supports headings, lists, links, and code blocks."
                 />
               )}
               <p className="draft-meta">
-                {draft.writeUp.length.toLocaleString()} characters ·{" "}
+                {draft.writeUp.length.toLocaleString()} / 10,000 characters ·{" "}
                 {draft.savedAt
                   ? `Saved on this device at ${new Date(draft.savedAt).toLocaleTimeString()} · ${draft.revision || 0} edits`
                   : "Your draft saves automatically on this device"}
@@ -596,16 +646,18 @@ export default function Assignments({ id }: { id?: string }) {
                     ? "Uploading attachments…"
                     : !isPremium(user)
                       ? "Attachments require Premium"
-                      : "Drop files here or browse"}
+                      : draft.attachments.length >= 5
+                        ? "Maximum 5 attachments reached"
+                        : "Drop files here or browse"}
                 </strong>
                 <small>
-                  PDF, JPG, PNG, WebP, DOC, or DOCX · up to 5 MB each
+                  PDF, JPG, PNG, WebP, DOC, or DOCX · up to 5 MB each (max 5 files · {draft.attachments.length}/5)
                 </small>
                 <input
                   type="file"
                   multiple
                   accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
-                  disabled={uploading || !isPremium(user)}
+                  disabled={uploading || !isPremium(user) || draft.attachments.length >= 5}
                   onChange={(event: ChangeEvent<HTMLInputElement>) => {
                     void upload(event.target.files);
                     event.target.value = "";

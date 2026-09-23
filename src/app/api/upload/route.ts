@@ -10,78 +10,53 @@ import {
 } from "@/server/supabase";
 import { ApiError, managesTrack } from "@/server/policy";
 import { readLimitedBody } from "@/server/request-body";
-export const runtime = "nodejs";
-const MAX_BYTES = 5 * 1024 * 1024;
-const TYPES: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".doc": "application/msword",
-  ".docx":
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-};
+import {
+  ALLOWED_UPLOAD_TYPES,
+  MAX_FILE_BYTES,
+  hasExpectedSignature,
+  inspectFileContent,
+  sanitizeFilename,
+} from "@/server/upload-security";
 
-function hasExpectedSignature(extension: string, data: Buffer) {
-  const hex = data.subarray(0, 12).toString("hex");
-  switch (extension) {
-    case ".pdf":
-      return data.subarray(0, 5).toString() === "%PDF-";
-    case ".png":
-      return hex.startsWith("89504e470d0a1a0a");
-    case ".jpg":
-    case ".jpeg":
-      return hex.startsWith("ffd8ff");
-    case ".webp":
-      return (
-        data.subarray(0, 4).toString() === "RIFF" &&
-        data.subarray(8, 12).toString() === "WEBP"
-      );
-    case ".doc":
-      return hex.startsWith("d0cf11e0a1b11ae1");
-    case ".docx":
-      return (
-        ["504b0304", "504b0506", "504b0708"].some((value) =>
-          hex.startsWith(value),
-        ) &&
-        data.includes(Buffer.from("[Content_Types].xml")) &&
-        data.includes(Buffer.from("word/document.xml"))
-      );
-    default:
-      return false;
-  }
-}
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const user = await actor(await identity(request));
     await limit(user.id, "upload", 10);
-    if (Number(request.headers.get("content-length") || 0) > MAX_BYTES + 100000)
+    if (
+      Number(request.headers.get("content-length") || 0) >
+      MAX_FILE_BYTES + 100000
+    )
       throw new ApiError(413, "Files must be 5 MB or smaller.");
-    const bytes = await readLimitedBody(request, MAX_BYTES + 100000);
+    const bytes = await readLimitedBody(request, MAX_FILE_BYTES + 100000);
     const form = await new Response(new Uint8Array(bytes), {
         headers: { "Content-Type": request.headers.get("content-type") || "" },
       }).formData(),
       file = form.get("file");
-    if (!(file instanceof File) || !file.size || file.size > MAX_BYTES)
+    if (!(file instanceof File) || !file.size)
+      throw new ApiError(400, "Choose a valid file.");
+    if (file.size > MAX_FILE_BYTES)
       throw new ApiError(400, "Choose a file up to 5 MB.");
     const extension = path.extname(file.name).toLowerCase(),
-      contentType = TYPES[extension];
+      contentType = ALLOWED_UPLOAD_TYPES[extension];
     if (!contentType)
       throw new ApiError(
         400,
         "Use a PDF, JPG, PNG, WebP, DOC, or DOCX file.",
       );
-    const name =
-      file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(-140) ||
-      `attachment${extension}`;
-    const objectPath = `uploads/${user.id}/${randomUUID()}-${name}`;
+    const safeFilename = sanitizeFilename(file.name, extension);
+    const objectPath = `uploads/${user.id}/${randomUUID()}-${safeFilename}`;
     const data = Buffer.from(await file.arrayBuffer());
     if (!hasExpectedSignature(extension, data))
       throw new ApiError(
         400,
         "The file contents do not match the selected file type.",
       );
+
+    // Deep anti-malware, script, executable, and polyglot inspection
+    inspectFileContent(extension, data);
+
     const { error: uploadError } = await storageBucket().upload(
       objectPath,
       data,
@@ -91,13 +66,14 @@ export async function POST(request: Request) {
         upsert: false,
       },
     );
-    if (uploadError) throw new ApiError(500, "The attachment could not be stored.");
+    if (uploadError)
+      throw new ApiError(500, "The attachment could not be stored.");
     return Response.json(
       {
         data: {
           url: `/api/upload?path=${encodeURIComponent(objectPath)}`,
           path: objectPath,
-          name,
+          name: safeFilename,
         },
       },
       { headers: { "Cache-Control": "no-store" } },
@@ -133,12 +109,23 @@ export async function GET(request: Request) {
     const { data, error: downloadError } = await storageBucket().download(objectPath);
     if (downloadError || !data)
       throw new ApiError(404, "Attachment not found.");
+
+    const rawFilename = objectPath.split("/").pop() || "attachment";
+    const downloadName =
+      rawFilename.replace(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/,
+        "",
+      ) || rawFilename;
+
     return new Response(new Uint8Array(await data.arrayBuffer()), {
       headers: {
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${objectPath.split("/").pop()}"`,
-        "Cache-Control": "private, no-store",
+        "Content-Disposition": `attachment; filename="${downloadName}"`,
+        "Cache-Control": "private, no-store, max-age=0",
         "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy":
+          "sandbox; default-src 'none'; frame-ancestors 'none';",
+        "X-Frame-Options": "DENY",
       },
     });
   } catch (error) {

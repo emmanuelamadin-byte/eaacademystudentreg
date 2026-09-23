@@ -14,7 +14,29 @@ export const url = z
   .string()
   .url()
   .max(2000)
-  .refine((s) => /^https:\/\//i.test(s), "Use an HTTPS URL.");
+  .refine((s) => /^https:\/\//i.test(s), "Use an HTTPS URL.")
+  .refine((s) => {
+    try {
+      const parsed = new URL(s);
+      const host = parsed.hostname.toLowerCase();
+      if (
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host === "0.0.0.0" ||
+        host.startsWith("192.168.") ||
+        host.startsWith("10.") ||
+        host.startsWith("172.16.") ||
+        host.startsWith("169.254.") ||
+        host.endsWith(".local") ||
+        host.endsWith(".internal")
+      ) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }, "Enter a public web URL.");
 export const optionalUrl = z.union([url, z.literal("")]).optional();
 export const videoUrlInput = z.preprocess(
   (val) => (typeof val === "string" ? extractVideoUrl(val) : val),
@@ -114,8 +136,8 @@ export const submissionSchema = z.object({
   assignmentId: id,
   repoUrl: optionalUrl,
   liveUrl: optionalUrl,
-  writeUp: z.string().max(50000),
-  attachments: z.array(z.string().max(2000)).max(10).default([]),
+  writeUp: z.string().max(10000),
+  attachments: z.array(z.string().max(500)).max(5).default([]),
   status: z.enum(["draft", "submitted"]),
 });
 export const sessionSchema = z
