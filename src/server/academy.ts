@@ -1341,6 +1341,8 @@ async function saveShopItem(user: AcademyUser, item: unknown) {
   const record = clean({
     ...value,
     id: ref.id,
+    includedInPremium:
+      value.type === "course" ? Boolean(value.includedInPremium) : false,
     salesCount:
       typeof existing?.salesCount === "number" ? existing.salesCount : 0,
     createdAt: existing?.createdAt || now(),
@@ -1424,7 +1426,67 @@ async function getStudentLibrary(user: AcademyUser) {
       };
     });
 
-  return { courses, digitalProducts };
+  let includedEntries: typeof courses = [];
+  if (hasPremium(user)) {
+    const includedSnap = await db()
+      .collection("shopItems")
+      .where("type", "==", "course")
+      .where("includedInPremium", "==", true)
+      .where("published", "==", true)
+      .get();
+    const includedItems = includedSnap.docs
+      .map((d) => ({ ...d.data(), id: d.id }) as ShopItem)
+      .filter((it) => !courseIds.includes(it.id));
+
+    includedEntries = await Promise.all(
+      includedItems.map(async (item) => {
+        const progSnap = await db()
+          .collection("shopCourseProgress")
+          .doc(`${user.id}_${item.id}`)
+          .get();
+        const prog = progSnap.exists
+          ? (progSnap.data() as ShopCourseProgress)
+          : null;
+        let totalLessons = 0;
+        if (Array.isArray(item.curriculum)) {
+          totalLessons = item.curriculum.reduce(
+            (sum, mod) => sum + (mod.lessons?.length || 0),
+            0,
+          );
+        }
+        const completedCount = prog?.completedLessonIds?.length || 0;
+        const percent =
+          totalLessons > 0
+            ? Math.min(100, Math.round((completedCount / totalLessons) * 100))
+            : 0;
+
+        const syntheticPurchase: ShopPurchase = {
+          id: `premium_${item.id}`,
+          studentId: user.id,
+          studentEmail: user.email,
+          studentName: user.name,
+          itemId: item.id,
+          itemSlug: item.slug,
+          itemTitle: item.title,
+          itemType: "course",
+          amount: 0,
+          paymentReference: "PREMIUM_BENEFIT",
+          purchasedAt: user.premiumUntil || new Date().toISOString(),
+        };
+
+        return {
+          purchase: syntheticPurchase,
+          item,
+          progress: prog,
+          totalLessons,
+          completedCount,
+          percent,
+        };
+      }),
+    );
+  }
+
+  return { courses: [...courses, ...includedEntries], digitalProducts };
 }
 
 async function getShopCourse(user: AcademyUser, courseId: string) {
@@ -1435,7 +1497,10 @@ async function getShopCourse(user: AcademyUser, courseId: string) {
     throw new ApiError(400, "This item is not a course.");
 
   const isStaff = user.role === "Admin" || user.role === "Instructor";
-  if (!isStaff) {
+  const isIncludedWithPremium =
+    courseData.includedInPremium === true && hasPremium(user);
+
+  if (!isStaff && !isIncludedWithPremium) {
     const purchase = await db()
       .collection("shopPurchases")
       .doc(`${user.id}_${courseId}`)
@@ -1454,7 +1519,7 @@ async function getShopCourse(user: AcademyUser, courseId: string) {
     .get();
 
   return {
-    course: { ...courseData, id: courseDoc.id },
+    course: { ...courseData, id: courseDoc.id || courseId },
     progress: progressDoc.exists
       ? (progressDoc.data() as ShopCourseProgress)
       : null,
@@ -1463,8 +1528,18 @@ async function getShopCourse(user: AcademyUser, courseId: string) {
 
 async function updateShopProgress(user: AcademyUser, p: Payload) {
   const input = s.shopProgressUpdateSchema.parse(p);
+  const courseDoc = await db()
+    .collection("shopItems")
+    .doc(input.courseId)
+    .get();
+  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
+  const course = courseDoc.data() as ShopItem;
+
   const isStaff = user.role === "Admin" || user.role === "Instructor";
-  if (!isStaff) {
+  const isIncludedWithPremium =
+    course.includedInPremium === true && hasPremium(user);
+
+  if (!isStaff && !isIncludedWithPremium) {
     const purchase = await db()
       .collection("shopPurchases")
       .doc(`${user.id}_${input.courseId}`)
@@ -1473,13 +1548,6 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
       throw new ApiError(403, "You have not purchased this course.");
     }
   }
-
-  const courseDoc = await db()
-    .collection("shopItems")
-    .doc(input.courseId)
-    .get();
-  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
-  const course = courseDoc.data() as ShopItem;
 
   const allLessons: string[] = [];
   (course.curriculum || []).forEach((mod) => {

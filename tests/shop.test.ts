@@ -110,6 +110,13 @@ describe("Shop & Course Builder Schemas", () => {
     expect(parsed.title).toBe("AI & Prompt Engineering Masterclass");
     expect(parsed.curriculum.length).toBe(1);
     expect(parsed.curriculum[0].lessons[0].isFreePreview).toBe(true);
+    expect(parsed.includedInPremium).toBe(false);
+
+    const premiumCourse = shopItemSchema.parse({
+      ...validCourse,
+      includedInPremium: true,
+    });
+    expect(premiumCourse.includedInPremium).toBe(true);
   });
 
   it("validates a digital product with deliverables and file format", () => {

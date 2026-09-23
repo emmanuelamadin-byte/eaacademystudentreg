@@ -264,6 +264,7 @@ export interface ShopItem {
   level?: "All Levels" | "Beginner" | "Intermediate" | "Advanced";
   totalDuration?: string;
   certificateEnabled?: boolean;
+  includedInPremium?: boolean;
   curriculum?: ShopCourseModule[];
   // Digital Product specific
   fileUrl?: string;

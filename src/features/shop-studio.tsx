@@ -69,6 +69,7 @@ const DEFAULT_COURSE: Omit<ShopItem, "id" | "createdAt" | "updatedAt"> = {
   level: "All Levels",
   totalDuration: "8 hours",
   certificateEnabled: true,
+  includedInPremium: false,
   curriculum: [
     {
       id: "module-1",
@@ -606,21 +607,42 @@ export function ShopStudio() {
                 </div>
 
                 {isCourse && (
-                  <div className="form-checkbox-row">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={activeItem.certificateEnabled !== false}
-                        onChange={(e) =>
-                          setActiveItem({
-                            ...activeItem,
-                            certificateEnabled: e.target.checked,
-                          })
-                        }
-                      />
-                      <span>Enable Verified Certificate of Completion</span>
-                    </label>
-                  </div>
+                  <>
+                    <div className="form-checkbox-row">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={activeItem.includedInPremium === true}
+                          onChange={(e) =>
+                            setActiveItem({
+                              ...activeItem,
+                              includedInPremium: e.target.checked,
+                            })
+                          }
+                        />
+                        <span style={{ fontWeight: 600 }}>Included in Premium Membership</span>
+                      </label>
+                      <small className="form-help" style={{ marginLeft: "1.75rem", display: "block" }}>
+                        Active Premium members (₦3,000/mo) unlock this course with no extra charge. Non-members pay the standard price.
+                      </small>
+                    </div>
+
+                    <div className="form-checkbox-row">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={activeItem.certificateEnabled !== false}
+                          onChange={(e) =>
+                            setActiveItem({
+                              ...activeItem,
+                              certificateEnabled: e.target.checked,
+                            })
+                          }
+                        />
+                        <span>Enable Verified Certificate of Completion</span>
+                      </label>
+                    </div>
+                  </>
                 )}
               </section>
 

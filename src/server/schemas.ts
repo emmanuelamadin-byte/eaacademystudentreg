@@ -233,6 +233,7 @@ export const shopItemSchema = z.object({
   level: z.enum(["All Levels", "Beginner", "Intermediate", "Advanced"]).default("All Levels"),
   totalDuration: z.string().trim().max(50).optional().nullable(),
   certificateEnabled: z.boolean().default(true),
+  includedInPremium: z.boolean().default(false),
   curriculum: z.array(shopCourseModuleSchema).max(50).default([]),
   // Digital Product specific fields
   fileUrl: optionalUrl.default(""),

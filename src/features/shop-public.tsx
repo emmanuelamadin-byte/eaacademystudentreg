@@ -21,13 +21,14 @@ import {
   Lock,
   Layers,
   Award,
+  Sparkles,
 } from "lucide-react";
 import { PublicHeader, PublicFooter } from "@/components/public-site";
 import { useAcademy } from "@/components/academy-provider";
 import { useRecords } from "@/lib/hooks";
 import { api } from "@/lib/api";
 import { getVideoEmbed } from "@/lib/video";
-import type { ShopItem, ShopCourseLesson } from "@/lib/types";
+import { type ShopItem, type ShopCourseLesson, isPremium } from "@/lib/types";
 
 export function ShopCatalogPage() {
   const { data: items, loading, error } = useRecords<ShopItem>("shopItems", [
@@ -290,6 +291,22 @@ function ShopProductCard({ item }: { item: ShopItem }) {
           <span className={`shop-card-type-badge ${isCourse ? "course" : "product"}`}>
             {isCourse ? "Course" : "Digital Asset"}
           </span>
+          {isCourse && item.includedInPremium && (
+            <span
+              className="shop-card-custom-badge"
+              style={{
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                color: "#ffffff",
+                fontWeight: 600,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
+              <Sparkles size={11} />
+              Included in Premium
+            </span>
+          )}
           {item.badge && <span className="shop-card-custom-badge">{item.badge}</span>}
           {discountPercent && (
             <span className="shop-card-discount-badge">{discountPercent}% OFF</span>
@@ -405,6 +422,9 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
   }, [item.id]);
 
   const isCourse = item.type === "course";
+  const isPremiumUser = user ? isPremium(user) : false;
+  const isIncludedForPremium = isCourse && item.includedInPremium === true;
+  const hasFreePremiumAccess = isPremiumUser && isIncludedForPremium;
   const discountPercent =
     item.compareAtPrice && item.compareAtPrice > item.price
       ? Math.round(((item.compareAtPrice - item.price) / item.compareAtPrice) * 100)
@@ -726,52 +746,191 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
               ) : null}
 
               <div className="shop-purchase-inner">
-                <div className="shop-price-wrap">
-                  <div className="shop-price-main">
-                    <span className="shop-price-big">
-                      ₦{item.price.toLocaleString("en-NG")}
-                    </span>
-                    {item.compareAtPrice && item.compareAtPrice > item.price && (
-                      <span className="shop-price-strike">
-                        ₦{item.compareAtPrice.toLocaleString("en-NG")}
+                {hasFreePremiumAccess ? (
+                  <>
+                    <div
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)",
+                        border: "1px solid rgba(16, 185, 129, 0.3)",
+                        padding: "0.85rem 1rem",
+                        borderRadius: "12px",
+                        marginBottom: "1rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          color: "#059669",
+                          fontWeight: 700,
+                          fontSize: "0.95rem",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
+                        <Sparkles size={16} />
+                        <span>Included with your Premium</span>
+                      </div>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "0.85rem",
+                          color: "#065f46",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        Your active membership covers this full course and its verified completion certificate at no extra cost.
+                      </p>
+                    </div>
+
+                    <div
+                      className="shop-price-wrap"
+                      style={{ marginBottom: "1rem" }}
+                    >
+                      <div className="shop-price-main">
+                        <span
+                          className="shop-price-big"
+                          style={{ color: "#059669" }}
+                        >
+                          FREE
+                        </span>
+                        <span className="shop-price-strike">
+                          ₦{item.price.toLocaleString("en-NG")}
+                        </span>
+                      </div>
+                      <span
+                        className="shop-discount-pill"
+                        style={{ background: "#10b981", color: "#ffffff" }}
+                      >
+                        100% OFF
                       </span>
+                    </div>
+
+                    <Link
+                      href={`/app/learn-course/${item.id}`}
+                      className="btn btn-primary shop-buy-btn"
+                      style={{
+                        textDecoration: "none",
+                        justifyContent: "center",
+                        background:
+                          "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                        marginBottom: "0.75rem",
+                      }}
+                    >
+                      <PlayCircle size={18} />
+                      Go to Course Classroom
+                      <ArrowRight size={16} />
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <div className="shop-price-wrap">
+                      <div className="shop-price-main">
+                        <span className="shop-price-big">
+                          ₦{item.price.toLocaleString("en-NG")}
+                        </span>
+                        {item.compareAtPrice &&
+                          item.compareAtPrice > item.price && (
+                            <span className="shop-price-strike">
+                              ₦{item.compareAtPrice.toLocaleString("en-NG")}
+                            </span>
+                          )}
+                      </div>
+                      {discountPercent && (
+                        <span className="shop-discount-pill">
+                          Save {discountPercent}%
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="shop-purchase-note">
+                      One-time purchase • Lifetime access to all course materials & updates.
+                    </p>
+
+                    {checkoutError && (
+                      <div className="shop-checkout-error">
+                        <p>{checkoutError}</p>
+                      </div>
                     )}
-                  </div>
-                  {discountPercent && (
-                    <span className="shop-discount-pill">
-                      Save {discountPercent}%
-                    </span>
-                  )}
-                </div>
 
-                <p className="shop-purchase-note">
-                  One-time purchase • Lifetime access to all course materials & updates.
-                </p>
+                    <button
+                      type="button"
+                      className="btn btn-primary shop-buy-btn"
+                      onClick={handleBuyNow}
+                      disabled={buying}
+                    >
+                      {buying
+                        ? "Connecting to Paystack…"
+                        : user
+                        ? `Buy now for ₦${item.price.toLocaleString("en-NG")}`
+                        : "Enroll & Buy Now"}
+                      <ArrowRight size={16} />
+                    </button>
 
-                {checkoutError && (
-                  <div className="shop-checkout-error">
-                    <p>{checkoutError}</p>
-                  </div>
-                )}
+                    {isIncludedForPremium && (
+                      <div
+                        style={{
+                          marginTop: "1rem",
+                          padding: "0.9rem",
+                          background:
+                            "linear-gradient(135deg, rgba(217, 119, 6, 0.08) 0%, rgba(245, 158, 11, 0.04) 100%)",
+                          borderRadius: "12px",
+                          border: "1px solid rgba(217, 119, 6, 0.25)",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "0.4rem",
+                            color: "#b45309",
+                            fontWeight: 700,
+                            fontSize: "0.88rem",
+                            marginBottom: "0.3rem",
+                          }}
+                        >
+                          <Sparkles size={15} />
+                          <span>Or Unlock with Premium</span>
+                        </div>
+                        <p
+                          style={{
+                            fontSize: "0.8rem",
+                            color: "#64748b",
+                            margin: "0 0 0.75rem 0",
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          Get this course, mentor code reviews, AI assistant & full academy tracks for <strong>₦3,000/mo</strong>.
+                        </p>
+                        <Link
+                          href={
+                            user
+                              ? "/app/billing"
+                              : `/signup?redirect=${encodeURIComponent(
+                                  `/shop/${item.slug}`,
+                                )}`
+                          }
+                          className="btn btn-secondary btn-small"
+                          style={{
+                            width: "100%",
+                            justifyContent: "center",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Upgrade to Premium (₦3,000/mo)
+                        </Link>
+                      </div>
+                    )}
 
-                <button
-                  type="button"
-                  className="btn btn-primary shop-buy-btn"
-                  onClick={handleBuyNow}
-                  disabled={buying}
-                >
-                  {buying
-                    ? "Connecting to Paystack…"
-                    : user
-                    ? `Buy now for ₦${item.price.toLocaleString("en-NG")}`
-                    : "Enroll & Buy Now"}
-                  <ArrowRight size={16} />
-                </button>
-
-                {!user && (
-                  <p className="shop-account-tip">
-                    Purchases are linked to your free student workspace for permanent access & certificates.
-                  </p>
+                    {!user && (
+                      <p className="shop-account-tip">
+                        Purchases are linked to your free student workspace for permanent access & certificates.
+                      </p>
+                    )}
+                  </>
                 )}
 
                 <div className="shop-guarantees-list">

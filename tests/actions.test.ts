@@ -19,6 +19,7 @@ vi.mock("../src/server/supabase", async () => {
     path,
     id: path.split("/").pop(),
     get: async () => ({
+      id: path.split("/").pop(),
       exists: state.documents.has(path),
       data: () => state.documents.get(path),
     }),
@@ -699,5 +700,97 @@ describe("server action boundaries", () => {
     );
     expect(lesson).not.toHaveProperty("solutionCode");
     expect(lesson.free).toBe(false);
+  });
+  it("allows premium members to access courses included in premium without individual purchase", async () => {
+    state.documents.set("shopItems/premium-course", {
+      id: "premium-course",
+      slug: "premier-video-editing",
+      type: "course",
+      title: "Premier Video Editing Masterclass",
+      subtitle: "Learn video editing",
+      description: "Complete guide",
+      price: 20000,
+      category: "Creative Media",
+      tags: ["Video"],
+      thumbnailUrl: "https://example.com/thumb.jpg",
+      whatYouWillLearn: ["Editing"],
+      published: true,
+      includedInPremium: true,
+      curriculum: [
+        {
+          id: "mod-1",
+          title: "Module 1",
+          description: "Intro",
+          order: 1,
+          lessons: [
+            {
+              id: "les-1",
+              title: "Lesson 1",
+              duration: "10:00",
+              videoUrl: "https://vimeo.com/123",
+              content: "Content",
+              resources: [],
+              isFreePreview: false,
+              order: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    state.documents.set("shopItems/exclusive-course", {
+      id: "exclusive-course",
+      slug: "exclusive-masterclass",
+      type: "course",
+      title: "Exclusive Masterclass",
+      subtitle: "Standalone only",
+      description: "Not in premium",
+      price: 50000,
+      category: "Creative Media",
+      tags: ["Video"],
+      thumbnailUrl: "https://example.com/thumb.jpg",
+      whatYouWillLearn: ["Editing"],
+      published: true,
+      includedInPremium: false,
+      curriculum: [],
+    });
+
+    // 1. Free student is denied access to both courses without purchase
+    state.actor = { ...student, premiumGranted: false, membershipPlan: "Free" };
+    await expect(
+      dispatch(token, "shop.course.get", { courseId: "premium-course" }),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      dispatch(token, "shop.course.get", { courseId: "exclusive-course" }),
+    ).rejects.toMatchObject({ status: 403 });
+
+    // 2. Active Premium student is granted access to the included course
+    state.actor = { ...student, premiumGranted: true, membershipPlan: "Premium" };
+    const res = (await dispatch(token, "shop.course.get", {
+      courseId: "premium-course",
+    })) as { course: { id: string; title: string } };
+    expect(res.course.id).toBe("premium-course");
+    expect(res.course.title).toBe("Premier Video Editing Masterclass");
+
+    // 3. Active Premium student is still denied access to non-included courses unless purchased
+    await expect(
+      dispatch(token, "shop.course.get", { courseId: "exclusive-course" }),
+    ).rejects.toMatchObject({ status: 403 });
+
+    // 4. Premium student can update lesson progress on the included course
+    const progressRes = (await dispatch(token, "shop.course.progress", {
+      courseId: "premium-course",
+      lessonId: "les-1",
+      completed: true,
+    })) as { progress: { completedLessonIds: string[] } };
+    expect(progressRes.progress.completedLessonIds).toContain("les-1");
+
+    // 5. Premium student sees the included course in their student library
+    const libraryRes = (await dispatch(token, "shop.library", {})) as {
+      courses: Array<{ item?: { id: string }; progress?: unknown }>;
+    };
+    expect(
+      libraryRes.courses.some((c) => c.item?.id === "premium-course"),
+    ).toBe(true);
   });
 });
