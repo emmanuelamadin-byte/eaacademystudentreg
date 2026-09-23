@@ -20,6 +20,7 @@ export function hasPremium(user: AcademyUser, now = Date.now()) {
   return (
     user.role !== "Student" ||
     user.premiumGranted === true ||
+    (!!user.premiumUntil && Date.parse(user.premiumUntil) > now) ||
     (user.membershipPlan === "Premium" &&
       !!user.premiumUntil &&
       Date.parse(user.premiumUntil) > now)

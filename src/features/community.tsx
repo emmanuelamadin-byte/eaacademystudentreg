@@ -108,9 +108,19 @@ function Discussions({
   user: AcademyUser;
   initialId?: string;
 }) {
-  const records = useRecords<Discussion>("discussions");
+  const premium = isPremium(user);
+  const [track, setTrack] = useState<CareerPathClassId | "all">(
+    premium ? "all" : user.enrolledClassId,
+  );
+  // Free tier students are strictly filtered to their enrolled career path
+  const filters: [string, "==" | "in" | "array-contains", unknown][] = !premium
+    ? [["classId", "==", user.enrolledClassId]]
+    : track === "all"
+      ? []
+      : [["classId", "==", track]];
+
+  const records = useRecords<Discussion>("discussions", filters);
   const [query, setQuery] = useState("");
-  const [track, setTrack] = useState<CareerPathClassId | "all">("all");
   const [compose, setCompose] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(initialId ?? null);
   const [title, setTitle] = useState("");
@@ -118,18 +128,26 @@ function Discussions({
   const [postTrack, setPostTrack] = useState(user.enrolledClassId);
   const action = useAction();
   const items = records.data
-    .filter(
-      (item) =>
-        (track === "all" || item.classId === track) &&
+    .filter((item) => {
+      const matchesTrack = premium
+        ? track === "all" || item.classId === track
+        : item.classId === user.enrolledClassId;
+      return (
+        matchesTrack &&
         `${item.title} ${item.body} ${item.authorName}`
           .toLowerCase()
-          .includes(query.toLowerCase()),
-    )
+          .includes(query.toLowerCase())
+      );
+    })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   async function submit(event: FormEvent) {
     event.preventDefault();
     await action.run(async () => {
-      await api("discussion.create", { title, body, classId: postTrack });
+      await api("discussion.create", {
+        title,
+        body,
+        classId: premium ? postTrack : user.enrolledClassId,
+      });
       setTitle("");
       setBody("");
       setCompose(false);
@@ -144,7 +162,24 @@ function Discussions({
           aria-label="Search discussions"
           placeholder="Search topics, questions, or people…"
         />
-        <TrackSelect all value={track} onChange={setTrack} />
+        {premium ? (
+          <TrackSelect all value={track} onChange={setTrack} />
+        ) : (
+          <div
+            style={{
+              padding: "7px 14px",
+              background: "#f1f5f9",
+              border: "1px solid #cbd5e1",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 600,
+              color: "#002751",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Track: {trackName(user.enrolledClassId)}
+          </div>
+        )}
         <button
           className="btn btn-primary"
           onClick={() => setCompose(!compose)}
@@ -163,13 +198,28 @@ function Discussions({
         <section className="card">
           <h2>Start a conversation</h2>
           <form className="workspace-form" onSubmit={submit}>
-            <label>
-              Track
-              <TrackSelect
-                value={postTrack}
-                onChange={(value) => setPostTrack(value as CareerPathClassId)}
-              />
-            </label>
+            {premium ? (
+              <label>
+                Track
+                <TrackSelect
+                  value={postTrack}
+                  onChange={(value) => setPostTrack(value as CareerPathClassId)}
+                />
+              </label>
+            ) : (
+              <p
+                style={{
+                  margin: "0 0 16px",
+                  fontSize: "14px",
+                  color: "#334155",
+                }}
+              >
+                Posting to your track:{" "}
+                <strong style={{ color: "#002751" }}>
+                  {trackName(user.enrolledClassId)}
+                </strong>
+              </p>
+            )}
             <label>
               Title
               <input

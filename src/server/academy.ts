@@ -160,25 +160,28 @@ async function ensureProfile(token: AuthToken, p: Payload) {
       ? await claimStudentRoster(normalizedEmail, token.uid)
       : undefined;
   const rosterCanBeClaimed = Boolean(rosterData);
+  let isNewUser = false;
   await db().runTransaction(async (tx) => {
     const previous = await tx.get(ref);
+    const prevData = previous.data();
     const role = initialRole(token.email, token.email_verified);
     const complete =
       previous.exists &&
-      (previous.data()?.role === "Admin" || previous.data()?.enrolledClassId);
-    if (complete && !rosterCanBeClaimed) {
+      (prevData?.role === "Admin" || prevData?.enrolledClassId);
+    if (complete) {
       const updates: Record<string, unknown> = { lastActiveAt: now() };
       // Enrollment is deliberately immutable, including when ensure is retried.
-      if (role === "Admin" && previous.data()?.role !== "Admin")
+      if (role === "Admin" && prevData?.role !== "Admin")
         Object.assign(updates, { role: "Admin", email: token.email });
       if (
         role === "Admin" &&
-        !s.track.safeParse(previous.data()?.enrolledClassId).success
+        !s.track.safeParse(prevData?.enrolledClassId).success
       )
         updates.enrolledClassId = "system-dev";
       tx.update(ref, updates);
       return;
     }
+    isNewUser = !previous.exists;
     if (token.provider !== "google")
       throw new ApiError(403, "Use Google to create an EA Academy account.");
     const settings = await tx.get(db().collection("settings").doc("public"));
@@ -225,6 +228,16 @@ async function ensureProfile(token: AuthToken, p: Payload) {
       rosterCanBeClaimed && typeof rosterData?.enrolledAt === "string"
         ? rosterData.enrolledAt
         : now();
+
+    const hasActivePremium =
+      (prevData?.premiumUntil && Date.parse(prevData.premiumUntil) > Date.now()) ||
+      prevData?.membershipPlan === "Premium" ||
+      prevData?.premiumGranted === true;
+
+    const membershipPlan = hasActivePremium
+      ? "Premium"
+      : prevData?.membershipPlan || "Free";
+
     tx.set(
       ref,
       {
@@ -240,7 +253,7 @@ async function ensureProfile(token: AuthToken, p: Payload) {
           (rosterCanBeClaimed && rosterData?.enrolledClassId) ||
           input.enrolledClassId ||
           "system-dev",
-        membershipPlan: "Free",
+        membershipPlan,
         enrolledAt,
         lastActiveAt: now(),
         ...((rosterCanBeClaimed && rosterData?.countryCode) || input.countryCode
@@ -274,8 +287,8 @@ async function ensureProfile(token: AuthToken, p: Payload) {
     );
   });
   const profile = await actor(token);
-  // Fire-and-forget owner notification — never blocks the student's login
-  if (input.enrolledClassId || rosterCanBeClaimed) {
+  // Fire-and-forget owner notification — only for genuinely new students
+  if (isNewUser && (input.enrolledClassId || rosterCanBeClaimed)) {
     const { TRACKS } = await import("@/lib/types");
     const enrolledId =
       (rosterCanBeClaimed && rosterData?.enrolledClassId) ||
@@ -874,6 +887,16 @@ export async function dispatch(
           lessonId: s.id.optional(),
         })
         .parse(p);
+      if (
+        user.role === "Student" &&
+        !hasPremium(user) &&
+        value.classId !== user.enrolledClassId
+      ) {
+        throw new ApiError(
+          403,
+          "Free students can only post discussions in their enrolled career path.",
+        );
+      }
       if (value.lessonId) {
         const lesson = await getLesson(user, value.lessonId);
         if (lesson.classId !== value.classId)
@@ -897,6 +920,20 @@ export async function dispatch(
       ]);
       if (!discussion.exists && !project.exists)
         throw new ApiError(404, "This discussion or project no longer exists.");
+      if (discussion.exists) {
+        const discData = discussion.data() as { classId?: string } | undefined;
+        if (
+          user.role === "Student" &&
+          !hasPremium(user) &&
+          discData?.classId &&
+          discData.classId !== user.enrolledClassId
+        ) {
+          throw new ApiError(
+            403,
+            "Free students can only comment on discussions in their enrolled career path.",
+          );
+        }
+      }
       const ref = db().collection("comments").doc();
       await ref.set({
         body: value.body,
