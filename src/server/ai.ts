@@ -11,8 +11,8 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
   const value = z
     .object({
       mode: z.enum(["tutor", "review", "curriculum", "tests", "mentor"]),
-      prompt: z.string().trim().min(1).max(12000),
-      code: z.string().max(30000).optional(),
+      prompt: z.string().trim().min(1).max(2500),
+      code: z.string().max(5000).optional(),
       lessonId: id.optional(),
       assignmentId: id.optional(),
       trackId: z.string().max(100).optional(),
@@ -20,10 +20,10 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
         .array(
           z.object({
             role: z.enum(["user", "model"]),
-            text: z.string().max(8000),
+            text: z.string().max(4000),
           }),
         )
-        .max(20)
+        .max(10)
         .optional(),
     })
     .parse(p);
@@ -34,14 +34,40 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
       "Curriculum drafting is available to academy staff.",
     );
 
-  if (["mentor", "review", "tests"].includes(value.mode) && !hasPremium(user))
+  if (user.role === "Student" && !hasPremium(user))
     throw new ApiError(
       403,
-      "EA AI Mentor is exclusively available to Premium members. Please upgrade to unlock.",
+      "The AI learning assistant is exclusively available to Premium members. Please upgrade to unlock.",
     );
 
-  await limit(user.id, "ai-minute", 5);
-  await limit(user.id, "ai-day", hasPremium(user) ? 80 : 10, 86400);
+  // Layer 1: Platform-wide safety cap (prevents unexpected billing overages)
+  const platformCap = Number(process.env.AI_PLATFORM_DAILY_CAP || 300);
+  await limit(
+    "platform-global",
+    "ai-platform-daily",
+    platformCap,
+    86400,
+    "The daily platform AI quota has been reached for today to prevent overage. Please try again tomorrow.",
+  );
+
+  // Layer 2: Anti-abuse burst limit (max 2 requests per minute per user)
+  await limit(
+    user.id,
+    "ai-minute",
+    2,
+    60,
+    "You are asking questions too quickly. Please pause for a moment before trying again.",
+  );
+
+  // Layer 3: Per-student daily quota (strictly 15 requests per day)
+  const userDailyLimit = Number(process.env.AI_DAILY_LIMIT_PER_USER || 15);
+  await limit(
+    user.id,
+    "ai-day",
+    userDailyLimit,
+    86400,
+    `You have reached your daily limit of ${userDailyLimit} AI requests. Your allowance resets tomorrow.`,
+  );
 
   const key = process.env.GEMINI_API_KEY;
   if (!key)
@@ -142,7 +168,7 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
       contents,
       config: {
         systemInstruction,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 1000,
       },
     });
 

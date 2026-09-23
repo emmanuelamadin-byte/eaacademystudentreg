@@ -158,4 +158,48 @@ describe("EA AI Mentor and learning assistant boundaries", () => {
     const callArgs = mockGenerateContent.mock.calls[0][0];
     expect(callArgs.config.systemInstruction).toContain("Test Assignment");
   });
+
+  it("enforces strict rate limits: platform daily cap and 15 requests per student", async () => {
+    const { limit } = await import("../src/server/supabase");
+    mockGenerateContent.mockResolvedValueOnce({ text: "Hello" });
+
+    await askAI(premiumStudent, {
+      mode: "mentor",
+      prompt: "Quick question",
+    });
+
+    expect(limit).toHaveBeenCalledWith(
+      "platform-global",
+      "ai-platform-daily",
+      300,
+      86400,
+      expect.stringContaining("platform AI quota"),
+    );
+
+    expect(limit).toHaveBeenCalledWith(
+      premiumStudent.id,
+      "ai-day",
+      15,
+      86400,
+      expect.stringContaining("15"),
+    );
+
+    expect(limit).toHaveBeenCalledWith(
+      premiumStudent.id,
+      "ai-minute",
+      2,
+      60,
+      expect.any(String),
+    );
+  });
+
+  it("rejects oversized prompt inputs to prevent high token usage", async () => {
+    const hugePrompt = "a".repeat(3000);
+    await expect(
+      askAI(premiumStudent, {
+        mode: "mentor",
+        prompt: hugePrompt,
+      }),
+    ).rejects.toThrow();
+  });
 });

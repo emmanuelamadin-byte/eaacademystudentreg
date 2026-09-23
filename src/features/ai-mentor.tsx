@@ -848,7 +848,7 @@ export function AIMentor() {
             }}
           >
             <span>AI suggestions are advisory. Human instructors grade official assignments.</span>
-            <span>Premium member · Up to 80 daily requests</span>
+            <span>Premium member · Up to 15 daily requests</span>
           </div>
         </div>
       </div>

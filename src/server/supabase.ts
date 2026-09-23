@@ -331,6 +331,7 @@ export async function limit(
   name: string,
   maximum: number,
   seconds = 60,
+  errorMessage = "Please wait a moment before trying again.",
 ) {
   try {
     const { data, error } = await adminClient().rpc("consume_rate_limit", {
@@ -344,7 +345,7 @@ export async function limit(
       return;
     }
     if (data !== true)
-      throw new ApiError(429, "Please wait a moment before trying again.");
+      throw new ApiError(429, errorMessage);
   } catch (err) {
     if (err instanceof ApiError && err.status === 429) throw err;
     console.warn("Rate limit check transient exception, failing open:", err);

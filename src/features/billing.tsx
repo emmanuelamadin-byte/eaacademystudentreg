@@ -83,7 +83,6 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
                 "Community discussions & showcases",
                 "Progress tracking",
                 "Saved lessons and offline drafts",
-                "AI tutor — up to 10 requests daily",
               ].map((x) => (
                 <li key={x}>
                   <Check size={17} />
@@ -113,8 +112,8 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
               {[
                 "Everything in Free",
                 "Full access to all three career tracks",
-                "AI tutor — up to 80 requests daily",
-                "AI code reviews and test generation",
+                "EA AI Mentor & Tutor — up to 15 requests daily",
+                "AI code reviews and pre-submission checks",
                 "Two instructor assignment reviews monthly",
                 "Live group mentor sessions and recordings",
                 "One portfolio critique monthly",
