@@ -37,14 +37,28 @@ export const url = z
       return false;
     }
   }, "Enter a public web URL.");
+export const mediaUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine(
+    (s) =>
+      s.startsWith("/") ||
+      (/^https?:\/\//i.test(s) && !s.includes("localhost") && !s.includes("127.0.0.1")),
+    "Enter a valid URL (HTTPS or uploaded file).",
+  );
+export const optionalMediaUrl = z.preprocess(
+  (val) => (typeof val === "string" ? val.trim() : ""),
+  z.union([mediaUrl, z.literal("")]).default(""),
+);
 export const optionalUrl = z.union([url, z.literal("")]).optional();
 export const videoUrlInput = z.preprocess(
   (val) => (typeof val === "string" ? extractVideoUrl(val) : val),
-  url,
+  mediaUrl,
 );
 export const optionalVideoUrlInput = z.preprocess(
-  (val) => (typeof val === "string" ? extractVideoUrl(val) : val),
-  optionalUrl,
+  (val) => (typeof val === "string" ? extractVideoUrl(val) : ""),
+  optionalMediaUrl,
 );
 export const date = z
   .string()
@@ -185,9 +199,21 @@ export const shopItemSlug = z
   .max(120)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens (e.g. ai-masterclass).");
 
+const stringList = (maxItems: number) =>
+  z.preprocess(
+    (val) =>
+      Array.isArray(val)
+        ? val
+            .map((s) => (typeof s === "string" ? s.trim() : ""))
+            .filter(Boolean)
+        : [],
+    z.array(short).max(maxItems).default([]),
+  );
+
 export const shopCourseLessonResourceSchema = z.object({
+  id: optionalId,
   title: short,
-  url,
+  url: mediaUrl,
   size: z.string().trim().max(40).optional(),
 });
 
@@ -215,18 +241,26 @@ export const shopItemSchema = z.object({
   slug: shopItemSlug,
   type: z.enum(["course", "digital_product"]),
   title: short,
-  subtitle: z.string().trim().min(1).max(300),
-  description: z.string().trim().min(1).max(50000),
+  subtitle: z.string().trim().max(300).default(""),
+  description: z.string().trim().max(50000).default(""),
   price: z.number().int().min(100).max(10000000),
-  compareAtPrice: z.number().int().min(100).max(10000000).optional().nullable(),
+  compareAtPrice: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      const num = Number(val);
+      if (!Number.isFinite(num) || num <= 0) return null;
+      return num;
+    },
+    z.number().int().min(100).max(10000000).nullable().optional(),
+  ),
   category: short,
-  tags: z.array(z.string().trim().max(40)).max(20).default([]),
+  tags: stringList(20),
   badge: z.string().trim().max(40).optional().nullable(),
-  thumbnailUrl: url,
+  thumbnailUrl: optionalMediaUrl,
   previewVideoUrl: optionalVideoUrlInput.default(""),
-  whatYouWillLearn: z.array(short).max(30).default([]),
-  requirements: z.array(short).max(20).default([]),
-  targetAudience: z.array(short).max(20).default([]),
+  whatYouWillLearn: stringList(30),
+  requirements: stringList(20),
+  targetAudience: stringList(20),
   published: z.boolean().default(false),
   featured: z.boolean().default(false),
   // Course specific fields
@@ -236,11 +270,11 @@ export const shopItemSchema = z.object({
   includedInPremium: z.boolean().default(false),
   curriculum: z.array(shopCourseModuleSchema).max(50).default([]),
   // Digital Product specific fields
-  fileUrl: optionalUrl.default(""),
+  fileUrl: optionalMediaUrl,
   fileSize: z.string().trim().max(40).optional().nullable(),
   fileFormat: z.string().trim().max(50).optional().nullable(),
   version: z.string().trim().max(30).optional().nullable(),
-  includes: z.array(short).max(30).default([]),
+  includes: stringList(30),
 });
 
 export const shopProgressUpdateSchema = z.object({

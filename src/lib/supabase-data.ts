@@ -278,6 +278,7 @@ const fields: Record<string, Record<string, string>> = {
     salesCount: "sales_count",
     totalDuration: "total_duration",
     certificateEnabled: "certificate_enabled",
+    includedInPremium: "included_in_premium",
     fileUrl: "file_url",
     fileSize: "file_size",
     fileFormat: "file_format",

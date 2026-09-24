@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS public.shop_items (
   level text DEFAULT 'All Levels',
   total_duration text DEFAULT '',
   certificate_enabled boolean NOT NULL DEFAULT true,
+  included_in_premium boolean NOT NULL DEFAULT false,
   curriculum jsonb NOT NULL DEFAULT '[]'::jsonb,
   file_url text DEFAULT '',
   file_size text DEFAULT '',
@@ -61,6 +62,7 @@ CREATE INDEX IF NOT EXISTS shop_items_slug_idx ON public.shop_items(slug);
 CREATE INDEX IF NOT EXISTS shop_items_published_idx ON public.shop_items(published);
 CREATE INDEX IF NOT EXISTS shop_items_type_idx ON public.shop_items(type);
 CREATE INDEX IF NOT EXISTS shop_items_category_idx ON public.shop_items(category);
+CREATE INDEX IF NOT EXISTS shop_items_included_in_premium_idx ON public.shop_items(included_in_premium);
 
 -- 4. Create shop_purchases table
 CREATE TABLE IF NOT EXISTS public.shop_purchases (

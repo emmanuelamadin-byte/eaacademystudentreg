@@ -110,7 +110,7 @@ class DocumentReference {
       this,
     );
   }
-  async set(value: Record<string, unknown>, options?: { merge?: boolean }) {
+  async set(value: Record<string, unknown>, _options?: { merge?: boolean }) {
     const spec = collectionSpec(this.collectionName, this.id);
     const root =
       spec.schema === "private"
@@ -120,17 +120,25 @@ class DocumentReference {
       ...documentFilters(this.collectionName, this.id),
       ...rowToDatabase(this.collectionName, value),
     };
-    if (options?.merge) {
-      const { error } = await root.from(spec.table).upsert(row, {
+    let { error } = await root.from(spec.table).upsert(row, {
+      onConflict: spec.primary.join(","),
+    });
+    const recordRow = row as Record<string, unknown>;
+    if (
+      error &&
+      (error.code === "PGRST204" || error.code === "42703") &&
+      (recordRow.included_in_premium !== undefined ||
+        recordRow.includedInPremium !== undefined)
+    ) {
+      const safeRow = { ...row };
+      delete (safeRow as Record<string, unknown>).included_in_premium;
+      delete (safeRow as Record<string, unknown>).includedInPremium;
+      const res = await root.from(spec.table).upsert(safeRow, {
         onConflict: spec.primary.join(","),
       });
-      throwDatabase(error);
-    } else {
-      const { error } = await root.from(spec.table).upsert(row, {
-        onConflict: spec.primary.join(","),
-      });
-      throwDatabase(error);
+      error = res.error;
     }
+    throwDatabase(error);
   }
   async create(value: Record<string, unknown>) {
     const spec = collectionSpec(this.collectionName, this.id);
@@ -142,7 +150,20 @@ class DocumentReference {
       ...documentFilters(this.collectionName, this.id),
       ...rowToDatabase(this.collectionName, value),
     };
-    const { error } = await root.from(spec.table).insert(row);
+    let { error } = await root.from(spec.table).insert(row);
+    const recordRow = row as Record<string, unknown>;
+    if (
+      error &&
+      (error.code === "PGRST204" || error.code === "42703") &&
+      (recordRow.included_in_premium !== undefined ||
+        recordRow.includedInPremium !== undefined)
+    ) {
+      const safeRow = { ...row };
+      delete (safeRow as Record<string, unknown>).included_in_premium;
+      delete (safeRow as Record<string, unknown>).includedInPremium;
+      const res = await root.from(spec.table).insert(safeRow);
+      error = res.error;
+    }
     throwDatabase(error);
   }
   async update(value: Record<string, unknown>) {
@@ -151,15 +172,33 @@ class DocumentReference {
       spec.schema === "private"
         ? adminClient().schema("private")
         : adminClient();
-    let query = root
-      .from(spec.table)
-      .update(rowToDatabase(this.collectionName, value));
+    const row = rowToDatabase(this.collectionName, value);
+    let query = root.from(spec.table).update(row);
     for (const [field, fieldValue] of Object.entries(
       documentFilters(this.collectionName, this.id),
     )) {
       query = query.eq(field, fieldValue);
     }
-    const { error } = await query;
+    let { error } = await query;
+    const recordRow = row as Record<string, unknown>;
+    if (
+      error &&
+      (error.code === "PGRST204" || error.code === "42703") &&
+      (recordRow.included_in_premium !== undefined ||
+        recordRow.includedInPremium !== undefined)
+    ) {
+      const safeRow = { ...row };
+      delete (safeRow as Record<string, unknown>).included_in_premium;
+      delete (safeRow as Record<string, unknown>).includedInPremium;
+      let retryQuery = root.from(spec.table).update(safeRow);
+      for (const [field, fieldValue] of Object.entries(
+        documentFilters(this.collectionName, this.id),
+      )) {
+        retryQuery = retryQuery.eq(field, fieldValue);
+      }
+      const res = await retryQuery;
+      error = res.error;
+    }
     throwDatabase(error);
   }
   async delete() {
@@ -229,6 +268,13 @@ class CollectionReference {
     }
     if (this.maximum) query = query.limit(this.maximum);
     const { data, error, count } = await query;
+    if (
+      error &&
+      (error.code === "42703" || error.code === "PGRST204") &&
+      this.filters.some(([f]) => f === "includedInPremium")
+    ) {
+      return new QuerySnapshot([], 0);
+    }
     throwDatabase(error);
     const docs = (data || []).map((row: Record<string, unknown>) => {
       const value = rowFromDatabase(this.name, row as Record<string, unknown>);

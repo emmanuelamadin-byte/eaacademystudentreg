@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   shopItemSchema,
-  shopCourseModuleSchema,
-  shopCourseLessonSchema,
   shopProgressUpdateSchema,
 } from "../src/server/schemas";
 import type { AcademyUser } from "../src/lib/types";
@@ -161,6 +159,61 @@ describe("Shop & Course Builder Schemas", () => {
         thumbnailUrl: "https://example.com/img.jpg",
       }),
     ).toThrow();
+  });
+
+  it("allows courses with uploaded thumbnails, uploaded resources, and empty optional fields", () => {
+    const newlyBuiltCourse = {
+      slug: "brand-new-course",
+      type: "course" as const,
+      title: "Brand New Course",
+      price: 15000,
+      compareAtPrice: 0,
+      category: "Systems & Development",
+      tags: ["Practical", ""],
+      thumbnailUrl: "/api/upload?path=uploads%2Fadmin%2Fcover.png",
+      previewVideoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      whatYouWillLearn: ["Point 1", "", "   "],
+      requirements: [],
+      targetAudience: [],
+      published: true,
+      curriculum: [
+        {
+          id: "mod-1",
+          title: "Module 1",
+          description: "",
+          order: 1,
+          lessons: [
+            {
+              id: "les-1",
+              title: "Lesson 1",
+              duration: "10:00",
+              videoUrl: "/api/upload?path=uploads%2Fadmin%2Fvideo.mp4",
+              content: "",
+              resources: [
+                {
+                  title: "Resource 1",
+                  url: "/api/upload?path=uploads%2Fadmin%2Fnotes.pdf",
+                  size: "2.1 MB",
+                },
+              ],
+              isFreePreview: false,
+              order: 1,
+            },
+          ],
+        },
+      ],
+    };
+
+    const parsed = shopItemSchema.parse(newlyBuiltCourse);
+    expect(parsed.title).toBe("Brand New Course");
+    expect(parsed.published).toBe(true);
+    expect(parsed.thumbnailUrl).toBe("/api/upload?path=uploads%2Fadmin%2Fcover.png");
+    expect(parsed.compareAtPrice).toBeNull();
+    expect(parsed.whatYouWillLearn).toEqual(["Point 1"]);
+    expect(parsed.tags).toEqual(["Practical"]);
+    expect(parsed.curriculum[0].lessons[0].resources[0].url).toBe(
+      "/api/upload?path=uploads%2Fadmin%2Fnotes.pdf",
+    );
   });
 
   it("validates progress update payloads", () => {

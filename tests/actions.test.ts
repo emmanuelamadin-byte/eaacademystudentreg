@@ -793,4 +793,48 @@ describe("server action boundaries", () => {
       libraryRes.courses.some((c) => c.item?.id === "premium-course"),
     ).toBe(true);
   });
+
+  it("allows admin to save and publish a course via shop.admin.save", async () => {
+    state.actor = { ...student, id: "admin-user", role: "Admin", email: "emmanuelamadin@gmail.com" };
+    const saved = (await dispatch(token, "shop.admin.save", {
+      item: {
+        title: "Fullstack Architecture Masterclass",
+        slug: "fullstack-architecture-masterclass",
+        type: "course",
+        price: 25000,
+        category: "Systems & Development",
+        published: true,
+        curriculum: [
+          {
+            id: "m-1",
+            title: "Module 1",
+            order: 1,
+            lessons: [
+              {
+                id: "l-1",
+                title: "Lesson 1",
+                duration: "12:00",
+                videoUrl: "/api/upload?path=uploads%2Fadmin%2Flesson1.mp4",
+                order: 1,
+              },
+            ],
+          },
+        ],
+      },
+    })) as { id: string; slug: string };
+
+    expect(saved.id).toBeDefined();
+    expect(saved.slug).toBe("fullstack-architecture-masterclass");
+
+    const savedDoc = state.documents.get(`shopItems/${saved.id}`) as Record<string, unknown>;
+    expect(savedDoc).toBeDefined();
+    expect(savedDoc.published).toBe(true);
+    expect(savedDoc.title).toBe("Fullstack Architecture Masterclass");
+
+    // Non-admin cannot save
+    state.actor = { ...student, role: "Student" };
+    await expect(
+      dispatch(token, "shop.admin.save", { item: { title: "Hacked" } }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
 });

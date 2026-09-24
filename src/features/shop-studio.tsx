@@ -30,7 +30,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { api, uploadFile } from "@/lib/api";
-import { useAction } from "@/features/admin/shared";
+import { useAction, ActionMessage } from "@/features/admin/shared";
 import { getVideoEmbed } from "@/lib/video";
 import type {
   ShopItem,
@@ -40,12 +40,13 @@ import type {
 } from "@/lib/types";
 
 function slugify(text: string): string {
-  return text
+  const base = text
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
+  return base.length >= 2 ? base : `${base || "course"}-${Date.now().toString().slice(-4)}`;
 }
 
 const DEFAULT_COURSE: Omit<ShopItem, "id" | "createdAt" | "updatedAt"> = {
@@ -176,23 +177,85 @@ export function ShopStudio() {
   const handleSave = async (publishNow?: boolean) => {
     if (!activeItem) return;
 
-    if (!activeItem.title?.trim()) {
-      alert("Please enter a title.");
+    const finalTitle = activeItem.title?.trim();
+    if (!finalTitle) {
+      alert("Please enter a title for your course or product.");
+      setActiveTab("info");
       return;
     }
 
+    const isPublished =
+      publishNow !== undefined ? publishNow : !!activeItem.published;
+
+    // Sanitize modules and lessons
+    const sanitizedCurriculum: ShopCourseModule[] = (activeItem.curriculum || []).map(
+      (mod, mIdx) => ({
+        id: mod.id || `module-${Date.now()}-${mIdx}`,
+        title: mod.title?.trim() || `Module ${mIdx + 1}`,
+        description: mod.description?.trim() || "",
+        order: mIdx + 1,
+        lessons: (mod.lessons || []).map((les, lIdx) => ({
+          id: les.id || `lesson-${Date.now()}-${mIdx}-${lIdx}`,
+          title: les.title?.trim() || `Lesson ${lIdx + 1}`,
+          duration: les.duration?.trim() || "10:00",
+          videoUrl: les.videoUrl?.trim() || "",
+          content: les.content || "",
+          resources: (les.resources || []).map((res) => ({
+            id: (res as ShopCourseLessonResource & { id?: string }).id,
+            title: res.title?.trim() || "Resource",
+            url: res.url?.trim() || "",
+            size: res.size?.trim(),
+          })),
+          isFreePreview: Boolean(les.isFreePreview),
+          order: lIdx + 1,
+        })),
+      }),
+    );
+
+    const rawComparePrice = activeItem.compareAtPrice;
+    const cleanComparePrice =
+      typeof rawComparePrice === "number" && rawComparePrice > 0
+        ? rawComparePrice
+        : undefined;
+
     const payload: Partial<ShopItem> = {
       ...activeItem,
-      slug: activeItem.slug?.trim() || slugify(activeItem.title || "product"),
-      published: publishNow !== undefined ? publishNow : !!activeItem.published,
+      title: finalTitle,
+      slug: slugify(activeItem.slug?.trim() || finalTitle),
+      published: isPublished,
+      subtitle: activeItem.subtitle?.trim() || "",
+      description: activeItem.description?.trim() || "",
+      price: Math.max(100, Number(activeItem.price) || 100),
+      compareAtPrice: cleanComparePrice,
+      thumbnailUrl: activeItem.thumbnailUrl?.trim() || "",
+      previewVideoUrl: activeItem.previewVideoUrl?.trim() || "",
+      whatYouWillLearn: (activeItem.whatYouWillLearn || [])
+        .map((s) => s.trim())
+        .filter(Boolean),
+      requirements: (activeItem.requirements || [])
+        .map((s) => s.trim())
+        .filter(Boolean),
+      targetAudience: (activeItem.targetAudience || [])
+        .map((s) => s.trim())
+        .filter(Boolean),
+      tags: (activeItem.tags || []).map((s) => s.trim()).filter(Boolean),
+      curriculum: sanitizedCurriculum,
     };
 
-    await action.run(async () => {
+    const successMsg = isPublished
+      ? "Course published and live in catalog!"
+      : "Course draft saved successfully!";
+
+    const ok = await action.run(async () => {
       await api("shop.admin.save", { item: payload });
       await fetchItems();
       setActiveItem(null);
       setSelectedLessonEdit(null);
-    }, "Shop item saved successfully!");
+    }, successMsg);
+
+    if (!ok) {
+      alert(action.message || "Failed to save or publish. Please check details.");
+    }
   };
 
   const handleDelete = async (id: string, title: string) => {
@@ -363,10 +426,21 @@ export function ShopStudio() {
                 View live page
               </Link>
             )}
+            {activeItem.published && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={() => handleSave(false)}
+                disabled={action.busy}
+                title="Unpublish course and set back to Draft"
+              >
+                Revert to draft
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={() => handleSave()}
+              onClick={() => handleSave(false)}
               disabled={action.busy}
             >
               Save draft
@@ -374,13 +448,16 @@ export function ShopStudio() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => handleSave(!activeItem.published)}
+              onClick={() => handleSave(true)}
               disabled={action.busy}
             >
+              <Check size={15} />
               {activeItem.published ? "Update & Keep Live" : "Save & Publish"}
             </button>
           </div>
         </div>
+
+        <ActionMessage action={action} />
 
         {/* Tab Navigation */}
         <div className="studio-nav-tabs">
@@ -1218,6 +1295,8 @@ export function ShopStudio() {
           </button>
         </div>
       </div>
+
+      <ActionMessage action={action} />
 
       {loading ? (
         <div className="studio-loading">Loading studio items…</div>
