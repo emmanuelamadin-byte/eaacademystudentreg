@@ -12,7 +12,11 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAcademy } from "@/components/academy-provider";
-import { getVideoEmbed } from "@/lib/video";
+import {
+  buildAdEmbedUrl,
+  getVideoEmbed,
+  isKnownVideoUrl,
+} from "@/lib/video";
 import type { VideoAd } from "@/lib/types";
 
 interface AdVideoPlayerProps {
@@ -23,8 +27,6 @@ interface AdVideoPlayerProps {
   courseId?: string;
   className?: string;
 }
-
-const AD_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes session cooldown
 
 export function AdVideoPlayer({
   videoUrl,
@@ -40,8 +42,17 @@ export function AdVideoPlayer({
   const [secondsLeft, setSecondsLeft] = useState(5);
   const [canSkip, setCanSkip] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-  const [isAdLoaded, setIsAdLoaded] = useState(false);
+  const [, setIsAdLoaded] = useState(false);
   const adVideoRef = useRef<HTMLVideoElement>(null);
+  const adIframeRef = useRef<HTMLIFrameElement>(null);
+
+  const adEmbed = ad ? getVideoEmbed(ad.mediaUrl) : null;
+  const isVideoAd = Boolean(
+    ad && (ad.mediaType === "video" || isKnownVideoUrl(ad.mediaUrl)),
+  );
+  const isEmbeddedVideoAd = Boolean(
+    isVideoAd && adEmbed && !adEmbed.isDirectVideo && adEmbed.embedUrl,
+  );
 
   // Check and fetch ad
   useEffect(() => {
@@ -60,19 +71,6 @@ export function AdVideoPlayer({
       return;
     }
 
-    // Check cooldown from sessionStorage
-    try {
-      const lastServed = Number(
-        sessionStorage.getItem("ea_ad_last_served") || 0,
-      );
-      if (Date.now() - lastServed < AD_COOLDOWN_MS) {
-        setShowAd(false);
-        return;
-      }
-    } catch {
-      // Ignore sessionStorage errors
-    }
-
     let isMounted = true;
 
     async function checkAd() {
@@ -85,17 +83,13 @@ export function AdVideoPlayer({
         if (isMounted && res.hasAd && res.ad) {
           setAd(res.ad);
           setShowAd(true);
+          setIsMuted(true);
           const duration =
             typeof res.ad.skipDurationSeconds === "number"
               ? res.ad.skipDurationSeconds
               : 5;
           setSecondsLeft(duration);
           setCanSkip(duration <= 0);
-          try {
-            sessionStorage.setItem("ea_ad_last_served", String(Date.now()));
-          } catch {
-            // Ignore
-          }
         } else if (isMounted) {
           setShowAd(false);
         }
@@ -143,16 +137,99 @@ export function AdVideoPlayer({
     return () => clearInterval(interval);
   }, [showAd, ad?.id, ad?.skipDurationSeconds]);
 
-  // Ensure video playback starts properly on mobile browsers
+  // Ensure direct HTML5 video playback starts properly on mobile browsers
   useEffect(() => {
-    if (showAd && adVideoRef.current && ad?.mediaType === "video") {
+    if (showAd && adVideoRef.current && isVideoAd && !isEmbeddedVideoAd) {
       adVideoRef.current.defaultMuted = true;
       adVideoRef.current.muted = isMuted;
       adVideoRef.current.play().catch(() => {
         // Autoplay may be restricted by mobile browser policy
       });
     }
-  }, [showAd, isMuted, ad?.mediaType, ad?.mediaUrl]);
+  }, [showAd, isMuted, isVideoAd, isEmbeddedVideoAd, ad?.mediaUrl]);
+
+  // Sync mute/unmute state with embedded YouTube / Vimeo iframe via postMessage
+  useEffect(() => {
+    if (!showAd || !isEmbeddedVideoAd || !adIframeRef.current?.contentWindow) {
+      return;
+    }
+    const win = adIframeRef.current.contentWindow;
+    try {
+      if (adEmbed?.provider === "youtube") {
+        win.postMessage(
+          JSON.stringify({
+            event: "command",
+            func: isMuted ? "mute" : "unMute",
+            args: [],
+          }),
+          "*",
+        );
+        if (!isMuted) {
+          win.postMessage(
+            JSON.stringify({
+              event: "command",
+              func: "setVolume",
+              args: [100],
+            }),
+            "*",
+          );
+          win.postMessage(
+            JSON.stringify({
+              event: "command",
+              func: "playVideo",
+              args: [],
+            }),
+            "*",
+          );
+        }
+      } else if (adEmbed?.provider === "vimeo") {
+        win.postMessage(
+          JSON.stringify({
+            method: "setMuted",
+            value: isMuted,
+          }),
+          "*",
+        );
+        if (!isMuted) {
+          win.postMessage(
+            JSON.stringify({
+              method: "setVolume",
+              value: 1,
+            }),
+            "*",
+          );
+        }
+      }
+    } catch {
+      // Ignore cross-origin errors
+    }
+  }, [showAd, isMuted, isEmbeddedVideoAd, adEmbed?.provider]);
+
+  // Listen for YouTube / Vimeo completion events to automatically advance to lesson video
+  useEffect(() => {
+    if (!showAd || !isEmbeddedVideoAd) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.data) return;
+      try {
+        const data =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        if (
+          (data?.event === "infoDelivery" && data?.info?.playerState === 0) ||
+          (data?.event === "onStateChange" && data?.info === 0) ||
+          data?.event === "ended" ||
+          data?.event === "finish"
+        ) {
+          setShowAd(false);
+        }
+      } catch {
+        // Ignore non-JSON postMessages
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [showAd, isEmbeddedVideoAd]);
 
   const handleSkip = (e?: React.MouseEvent | React.TouchEvent) => {
     if (e) {
@@ -222,19 +299,61 @@ export function AdVideoPlayer({
       {/* Skippable Pre-Roll Ad Overlay */}
       {showAd && ad && (
         <div className="ad-overlay">
-          {/* Ad Media (Video or Banner) */}
+          {/* Ad Media (YouTube/Embedded Video, Direct MP4 Video, or Banner) */}
           <div className="ad-media-layer">
-            {ad.mediaType === "video" ? (
-              <video
-                ref={adVideoRef}
-                src={ad.mediaUrl}
-                autoPlay
-                playsInline
-                muted={isMuted}
-                onLoadedData={() => setIsAdLoaded(true)}
-                onError={() => handleSkip()}
-                onEnded={() => handleSkip()}
-              />
+            {isVideoAd ? (
+              isEmbeddedVideoAd && adEmbed ? (
+                <iframe
+                  ref={adIframeRef}
+                  src={buildAdEmbedUrl(adEmbed.embedUrl, adEmbed.provider)}
+                  title={ad.title || "Sponsored Video"}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  onLoad={() => {
+                    setIsAdLoaded(true);
+                    try {
+                      adIframeRef.current?.contentWindow?.postMessage(
+                        JSON.stringify({
+                          event: "listening",
+                          id: "ea-ad-player",
+                          channel: "widget",
+                        }),
+                        "*",
+                      );
+                      adIframeRef.current?.contentWindow?.postMessage(
+                        JSON.stringify({
+                          event: "command",
+                          func: "addEventListener",
+                          args: ["onStateChange"],
+                          id: "ea-ad-player",
+                          channel: "widget",
+                        }),
+                        "*",
+                      );
+                    } catch {
+                      // Ignore cross-origin errors
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    border: 0,
+                    display: "block",
+                    pointerEvents: "auto",
+                  }}
+                />
+              ) : (
+                <video
+                  ref={adVideoRef}
+                  src={adEmbed?.embedUrl || ad.mediaUrl}
+                  autoPlay
+                  playsInline
+                  muted={isMuted}
+                  onLoadedData={() => setIsAdLoaded(true)}
+                  onError={() => handleSkip()}
+                  onEnded={() => handleSkip()}
+                />
+              )
             ) : (
               <div
                 className="ad-banner-bg"
@@ -289,7 +408,7 @@ export function AdVideoPlayer({
                 </a>
 
                 {/* Sound unmute toggle for video ads */}
-                {ad.mediaType === "video" && (
+                {isVideoAd && (
                   <button
                     type="button"
                     onClick={() => setIsMuted(!isMuted)}

@@ -18,6 +18,17 @@ export function extractVideoUrl(input: string): string {
     return iframeSrcMatch[1].trim();
   }
 
+  // If the user pasted a known video domain without protocol (e.g. youtu.be/xyz or www.youtube.com/watch?v=xyz)
+  if (
+    !/^https?:\/\//i.test(trimmed) &&
+    !trimmed.startsWith("/") &&
+    /^(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com|loom\.com|drive\.google\.com|dailymotion\.com|dai\.ly)\//i.test(
+      trimmed,
+    )
+  ) {
+    return `https://${trimmed}`;
+  }
+
   // Otherwise, return trimmed string
   return trimmed;
 }
@@ -46,6 +57,17 @@ const DIRECT_VIDEO_EXTENSIONS = [
   ".m4v",
   ".mkv",
 ];
+
+const KNOWN_VIDEO_PROVIDERS = new Set<VideoEmbedResult["provider"]>([
+  "youtube",
+  "vimeo",
+  "loom",
+  "googledrive",
+  "bunnystream",
+  "wistia",
+  "dailymotion",
+  "direct",
+]);
 
 /**
  * Normalizes video inputs (URLs or iframe embed code) into an embeddable URL or direct video stream.
@@ -230,4 +252,62 @@ export function getVideoEmbed(rawInput: string): VideoEmbedResult {
   }
 
   return { embedUrl: "", isDirectVideo: false, provider: "none" };
+}
+
+/**
+ * Returns true if the URL points to a known video provider (YouTube, Vimeo, Loom, etc.) or direct video file (.mp4, .webm, etc.).
+ */
+export function isKnownVideoUrl(rawInput: string): boolean {
+  const result = getVideoEmbed(rawInput);
+  return result.isDirectVideo || KNOWN_VIDEO_PROVIDERS.has(result.provider);
+}
+
+/**
+ * Extracts a YouTube thumbnail URL if the input is a valid YouTube link.
+ */
+export function getYouTubeThumbnailUrl(rawInput: string): string | null {
+  const result = getVideoEmbed(rawInput);
+  if (result.provider !== "youtube" || !result.embedUrl) return null;
+  const match = result.embedUrl.match(/\/embed\/([a-zA-Z0-9_-]+)/);
+  if (!match || !match[1]) return null;
+  return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+}
+
+/**
+ * Builds an autoplay-ready embed URL for pre-roll video ads (YouTube, Vimeo, etc.)
+ * with JS API enabled for mute/unmute and completion detection.
+ */
+export function buildAdEmbedUrl(
+  embedUrl: string,
+  provider: VideoEmbedResult["provider"],
+): string {
+  if (!embedUrl) return "";
+  try {
+    const parsed = new URL(embedUrl);
+    if (provider === "youtube") {
+      // Use www.youtube.com for maximum IFrame Player API & mobile autoplay compatibility
+      parsed.hostname = "www.youtube.com";
+      parsed.searchParams.set("autoplay", "1");
+      parsed.searchParams.set("mute", "1");
+      parsed.searchParams.set("playsinline", "1");
+      parsed.searchParams.set("rel", "0");
+      parsed.searchParams.set("modestbranding", "1");
+      parsed.searchParams.set("iv_load_policy", "3");
+      parsed.searchParams.set("enablejsapi", "1");
+      return parsed.toString();
+    }
+    if (provider === "vimeo") {
+      parsed.searchParams.set("autoplay", "1");
+      parsed.searchParams.set("muted", "1");
+      parsed.searchParams.set("playsinline", "1");
+      parsed.searchParams.set("autopause", "0");
+      return parsed.toString();
+    }
+    parsed.searchParams.set("autoplay", "1");
+    parsed.searchParams.set("mute", "1");
+    parsed.searchParams.set("muted", "1");
+    return parsed.toString();
+  } catch {
+    return embedUrl;
+  }
 }

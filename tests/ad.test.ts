@@ -133,6 +133,18 @@ describe("Video Ad Engine", () => {
         }),
       ).toThrow();
     });
+
+    it("accepts YouTube links and extracts iframe src in mediaUrl", () => {
+      const parsed = videoAdSchema.parse({
+        title: "YouTube Pre-Roll Ad",
+        mediaType: "video",
+        mediaUrl: `<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>`,
+        destinationUrl: "/app/billing",
+      });
+
+      expect(parsed.mediaUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+      expect(parsed.mediaType).toBe("video");
+    });
   });
 
   describe("Ad Server Actions & Policy Boundaries", () => {

@@ -294,16 +294,19 @@ export const destinationUrlSchema = z
     "Enter a valid internal path (starting with /) or a public HTTPS URL.",
   );
 
-export const mediaUrlSchema = z
-  .string()
-  .trim()
-  .max(2000)
-  .refine(
-    (s) =>
-      s.startsWith("/") ||
-      (/^https:\/\//i.test(s) && !s.includes("localhost") && !s.includes("127.0.0.1")),
-    "Enter a valid media URL (HTTPS or uploaded file).",
-  );
+export const mediaUrlSchema = z.preprocess(
+  (val) => (typeof val === "string" ? extractVideoUrl(val) : val),
+  z
+    .string()
+    .trim()
+    .max(2000)
+    .refine(
+      (s) =>
+        s.startsWith("/") ||
+        (/^https:\/\//i.test(s) && !s.includes("localhost") && !s.includes("127.0.0.1")),
+      "Enter a valid media URL (HTTPS or uploaded file).",
+    ),
+);
 
 export const videoAdSchema = z.object({
   id: optionalId,

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { extractVideoUrl, getVideoEmbed } from "../src/lib/video";
+import {
+  buildAdEmbedUrl,
+  extractVideoUrl,
+  getVideoEmbed,
+  getYouTubeThumbnailUrl,
+  isKnownVideoUrl,
+} from "../src/lib/video";
 
 describe("extractVideoUrl", () => {
   it("extracts URL from YouTube iframe embed snippet", () => {
@@ -20,6 +26,15 @@ describe("extractVideoUrl", () => {
     expect(
       extractVideoUrl("  https://www.youtube.com/watch?v=dQw4w9WgXcQ  "),
     ).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  });
+
+  it("prepends https:// to bare YouTube and youtu.be links", () => {
+    expect(extractVideoUrl("youtu.be/dQw4w9WgXcQ")).toBe(
+      "https://youtu.be/dQw4w9WgXcQ",
+    );
+    expect(extractVideoUrl("www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    );
   });
 
   it("handles empty or blank string", () => {
@@ -144,5 +159,32 @@ describe("getVideoEmbed", () => {
     const result = getVideoEmbed("");
     expect(result.embedUrl).toBe("");
     expect(result.provider).toBe("none");
+  });
+});
+
+describe("Ad Video Helpers", () => {
+  it("identifies YouTube, Vimeo, and MP4 URLs as known video URLs while excluding banner images", () => {
+    expect(isKnownVideoUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(true);
+    expect(isKnownVideoUrl("https://youtu.be/dQw4w9WgXcQ")).toBe(true);
+    expect(isKnownVideoUrl("https://vimeo.com/76979871")).toBe(true);
+    expect(isKnownVideoUrl("https://example.com/ad.mp4")).toBe(true);
+    expect(isKnownVideoUrl("https://images.unsplash.com/photo-123.jpg")).toBe(false);
+  });
+
+  it("extracts YouTube thumbnail URL for YouTube links", () => {
+    expect(
+      getYouTubeThumbnailUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+    ).toBe("https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg");
+    expect(getYouTubeThumbnailUrl("https://example.com/banner.jpg")).toBeNull();
+  });
+
+  it("builds autoplay-enabled YouTube ad embed URL with JS API", () => {
+    const embed = getVideoEmbed("https://youtu.be/dQw4w9WgXcQ");
+    const adUrl = buildAdEmbedUrl(embed.embedUrl, embed.provider);
+    expect(adUrl).toContain("https://www.youtube.com/embed/dQw4w9WgXcQ");
+    expect(adUrl).toContain("autoplay=1");
+    expect(adUrl).toContain("mute=1");
+    expect(adUrl).toContain("playsinline=1");
+    expect(adUrl).toContain("enablejsapi=1");
   });
 });

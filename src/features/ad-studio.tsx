@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -26,6 +26,13 @@ import {
 import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
 import { TRACKS } from "@/lib/types";
+import {
+  buildAdEmbedUrl,
+  extractVideoUrl,
+  getVideoEmbed,
+  getYouTubeThumbnailUrl,
+  isKnownVideoUrl,
+} from "@/lib/video";
 import type { VideoAd, VideoAdMediaType, VideoAdPriority } from "@/lib/types";
 
 const DEFAULT_AD_FORM: Partial<VideoAd> = {
@@ -133,7 +140,17 @@ export default function AdStudio() {
     try {
       setSaving(true);
       setError(null);
-      await api("ad.admin.save", { ad: editingAd });
+      const cleanMediaUrl = extractVideoUrl(editingAd.mediaUrl || "");
+      const resolvedMediaType: VideoAdMediaType = isKnownVideoUrl(cleanMediaUrl)
+        ? "video"
+        : editingAd.mediaType || "banner";
+      await api("ad.admin.save", {
+        ad: {
+          ...editingAd,
+          mediaUrl: cleanMediaUrl,
+          mediaType: resolvedMediaType,
+        },
+      });
       setSuccessMessage("Ad saved successfully!");
       setTimeout(() => setSuccessMessage(null), 3000);
       setEditingAd(null);
@@ -683,7 +700,11 @@ export default function AdStudio() {
                 </tr>
               </thead>
               <tbody>
-                {ads.map((ad) => (
+                {ads.map((ad) => {
+                  const isVideo =
+                    ad.mediaType === "video" || isKnownVideoUrl(ad.mediaUrl);
+                  const ytThumb = getYouTubeThumbnailUrl(ad.mediaUrl);
+                  return (
                   <tr
                     key={ad.id}
                     style={{
@@ -695,6 +716,7 @@ export default function AdStudio() {
                       <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                         <div
                           style={{
+                            position: "relative",
                             width: "48px",
                             height: "32px",
                             borderRadius: "6px",
@@ -706,8 +728,28 @@ export default function AdStudio() {
                             justifyContent: "center",
                           }}
                         >
-                          {ad.mediaType === "video" ? (
-                            <Play size={16} color="#38bdf8" />
+                          {isVideo ? (
+                            <>
+                              {ytThumb && (
+                                <img
+                                  src={ytThumb}
+                                  alt=""
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    opacity: 0.65,
+                                  }}
+                                />
+                              )}
+                              <Play
+                                size={16}
+                                color="#38bdf8"
+                                style={{ position: "relative", zIndex: 1 }}
+                              />
+                            </>
                           ) : (
                             <img
                               src={ad.mediaUrl}
@@ -753,14 +795,12 @@ export default function AdStudio() {
                           fontWeight: 600,
                           padding: "3px 8px",
                           borderRadius: "4px",
-                          background:
-                            ad.mediaType === "video" ? "#e0f2fe" : "#f1f5f9",
-                          color:
-                            ad.mediaType === "video" ? "#0369a1" : "#475569",
+                          background: isVideo ? "#e0f2fe" : "#f1f5f9",
+                          color: isVideo ? "#0369a1" : "#475569",
                           textTransform: "capitalize",
                         }}
                       >
-                        {ad.mediaType}
+                        {isVideo ? "video" : ad.mediaType}
                       </span>
                     </td>
 
@@ -925,7 +965,8 @@ export default function AdStudio() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1092,7 +1133,7 @@ export default function AdStudio() {
                     }}
                   >
                     <option value="banner">Banner Image</option>
-                    <option value="video">Video (MP4)</option>
+                    <option value="video">Video (YouTube, Vimeo, or MP4)</option>
                   </select>
                 </div>
 
@@ -1106,16 +1147,29 @@ export default function AdStudio() {
                       marginBottom: "6px",
                     }}
                   >
-                    Media URL (HTTPS) *
+                    Media URL (YouTube, Video, or Image HTTPS) *
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     required
-                    placeholder="https://example.com/banner.jpg"
-                    value={editingAd.mediaUrl || ""}
-                    onChange={(e) =>
-                      setEditingAd({ ...editingAd, mediaUrl: e.target.value })
+                    placeholder={
+                      editingAd.mediaType === "video"
+                        ? "https://www.youtube.com/watch?v=... or .mp4 link"
+                        : "https://www.youtube.com/watch?v=... or image URL"
                     }
+                    value={editingAd.mediaUrl || ""}
+                    onChange={(e) => {
+                      const rawVal = e.target.value;
+                      const extracted = extractVideoUrl(rawVal);
+                      const detectedVideo = isKnownVideoUrl(extracted);
+                      setEditingAd({
+                        ...editingAd,
+                        mediaUrl: extracted,
+                        mediaType: detectedVideo
+                          ? "video"
+                          : editingAd.mediaType || "banner",
+                      });
+                    }}
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -1124,6 +1178,18 @@ export default function AdStudio() {
                       fontSize: "14px",
                     }}
                   />
+                  {editingAd.mediaUrl && isKnownVideoUrl(editingAd.mediaUrl) && (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#0284c7",
+                        fontWeight: 600,
+                        marginTop: "6px",
+                      }}
+                    >
+                      ✓ Video link detected ({getVideoEmbed(editingAd.mediaUrl).provider.toUpperCase()}) — will play as a pre-roll video ad.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1425,10 +1491,19 @@ function PreviewSimulatorModal({
   const [seconds, setSeconds] = useState(ad.skipDurationSeconds || 5);
   const [skipped, setSkipped] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const adIframeRef = useRef<HTMLIFrameElement>(null);
+
+  const adEmbed = getVideoEmbed(ad.mediaUrl);
+  const isVideoAd =
+    ad.mediaType === "video" || isKnownVideoUrl(ad.mediaUrl);
+  const isEmbeddedVideoAd = Boolean(
+    isVideoAd && !adEmbed.isDirectVideo && adEmbed.embedUrl,
+  );
 
   useEffect(() => {
     setSeconds(ad.skipDurationSeconds || 5);
     setSkipped(false);
+    setIsMuted(true);
   }, [ad]);
 
   useEffect(() => {
@@ -1438,6 +1513,80 @@ function PreviewSimulatorModal({
     }, 1000);
     return () => clearInterval(t);
   }, [skipped, seconds]);
+
+  // Sync mute/unmute state with embedded YouTube / Vimeo iframe
+  useEffect(() => {
+    if (skipped || !isEmbeddedVideoAd || !adIframeRef.current?.contentWindow) {
+      return;
+    }
+    const win = adIframeRef.current.contentWindow;
+    try {
+      if (adEmbed.provider === "youtube") {
+        win.postMessage(
+          JSON.stringify({
+            event: "command",
+            func: isMuted ? "mute" : "unMute",
+            args: [],
+          }),
+          "*",
+        );
+        if (!isMuted) {
+          win.postMessage(
+            JSON.stringify({
+              event: "command",
+              func: "setVolume",
+              args: [100],
+            }),
+            "*",
+          );
+          win.postMessage(
+            JSON.stringify({
+              event: "command",
+              func: "playVideo",
+              args: [],
+            }),
+            "*",
+          );
+        }
+      } else if (adEmbed.provider === "vimeo") {
+        win.postMessage(
+          JSON.stringify({
+            method: "setMuted",
+            value: isMuted,
+          }),
+          "*",
+        );
+      }
+    } catch {
+      // Ignore cross-origin errors
+    }
+  }, [skipped, isMuted, isEmbeddedVideoAd, adEmbed.provider]);
+
+  // Listen for YouTube / Vimeo completion events
+  useEffect(() => {
+    if (skipped || !isEmbeddedVideoAd) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.data) return;
+      try {
+        const data =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        if (
+          (data?.event === "infoDelivery" && data?.info?.playerState === 0) ||
+          (data?.event === "onStateChange" && data?.info === 0) ||
+          data?.event === "ended" ||
+          data?.event === "finish"
+        ) {
+          setSkipped(true);
+        }
+      } catch {
+        // Ignore
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [skipped, isEmbeddedVideoAd]);
 
   return (
     <div
@@ -1560,18 +1709,59 @@ function PreviewSimulatorModal({
             >
               {/* Media */}
               <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
-                {ad.mediaType === "video" ? (
-                  <video
-                    src={ad.mediaUrl}
-                    autoPlay
-                    playsInline
-                    muted={isMuted}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
+                {isVideoAd ? (
+                  isEmbeddedVideoAd ? (
+                    <iframe
+                      ref={adIframeRef}
+                      src={buildAdEmbedUrl(adEmbed.embedUrl, adEmbed.provider)}
+                      title={ad.title || "Sponsored Video"}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      onLoad={() => {
+                        try {
+                          adIframeRef.current?.contentWindow?.postMessage(
+                            JSON.stringify({
+                              event: "listening",
+                              id: "ea-ad-simulator",
+                              channel: "widget",
+                            }),
+                            "*",
+                          );
+                          adIframeRef.current?.contentWindow?.postMessage(
+                            JSON.stringify({
+                              event: "command",
+                              func: "addEventListener",
+                              args: ["onStateChange"],
+                              id: "ea-ad-simulator",
+                              channel: "widget",
+                            }),
+                            "*",
+                          );
+                        } catch {
+                          // Ignore
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        border: 0,
+                        display: "block",
+                      }}
+                    />
+                  ) : (
+                    <video
+                      src={adEmbed.embedUrl || ad.mediaUrl}
+                      autoPlay
+                      playsInline
+                      muted={isMuted}
+                      onEnded={() => setSkipped(true)}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  )
                 ) : (
                   <div
                     style={{
@@ -1662,7 +1852,7 @@ function PreviewSimulatorModal({
                       {ad.ctaText || "Learn More"}
                       <ExternalLink size={13} />
                     </a>
-                    {ad.mediaType === "video" && (
+                    {isVideoAd && (
                       <button
                         type="button"
                         onClick={() => setIsMuted(!isMuted)}
