@@ -149,6 +149,7 @@ export default function Page({
         <Billing />
       </Suspense>
     );
+  if (section === "membership") redirect("/app/billing");
   if (section === "account") return <Account />;
   return (
     <EmptyState

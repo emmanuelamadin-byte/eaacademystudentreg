@@ -111,28 +111,54 @@ export function AdVideoPlayer({
     };
   }, [user, trackId, courseId, videoUrl]);
 
-  // Countdown timer for skipping
+  // Robust countdown timer for skipping
   useEffect(() => {
-    if (!showAd || secondsLeft <= 0) {
-      if (showAd && secondsLeft <= 0) setCanSkip(true);
+    if (!showAd) return;
+
+    const duration =
+      typeof ad?.skipDurationSeconds === "number"
+        ? ad.skipDurationSeconds
+        : 5;
+
+    if (duration <= 0) {
+      setSecondsLeft(0);
+      setCanSkip(true);
       return;
     }
 
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setCanSkip(true);
-          return 0;
-        }
-        return prev - 1;
+    setSecondsLeft(duration);
+    setCanSkip(false);
+
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const remaining = Math.max(0, duration - elapsed);
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        setCanSkip(true);
+        clearInterval(interval);
+      }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [showAd, ad?.id, ad?.skipDurationSeconds]);
+
+  // Ensure video playback starts properly on mobile browsers
+  useEffect(() => {
+    if (showAd && adVideoRef.current && ad?.mediaType === "video") {
+      adVideoRef.current.defaultMuted = true;
+      adVideoRef.current.muted = isMuted;
+      adVideoRef.current.play().catch(() => {
+        // Autoplay may be restricted by mobile browser policy
       });
-    }, 1000);
+    }
+  }, [showAd, isMuted, ad?.mediaType, ad?.mediaUrl]);
 
-    return () => clearInterval(timer);
-  }, [showAd, secondsLeft]);
-
-  const handleSkip = () => {
+  const handleSkip = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setShowAd(false);
   };
 
@@ -195,28 +221,9 @@ export function AdVideoPlayer({
 
       {/* Skippable Pre-Roll Ad Overlay */}
       {showAd && ad && (
-        <div
-          className="ad-overlay"
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 30,
-            background: "#050b14",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            overflow: "hidden",
-          }}
-        >
+        <div className="ad-overlay">
           {/* Ad Media (Video or Banner) */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 1,
-              pointerEvents: "none",
-            }}
-          >
+          <div className="ad-media-layer">
             {ad.mediaType === "video" ? (
               <video
                 ref={adVideoRef}
@@ -227,17 +234,11 @@ export function AdVideoPlayer({
                 onLoadedData={() => setIsAdLoaded(true)}
                 onError={() => handleSkip()}
                 onEnded={() => handleSkip()}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
               />
             ) : (
               <div
+                className="ad-banner-bg"
                 style={{
-                  width: "100%",
-                  height: "100%",
                   backgroundImage: `linear-gradient(to top, rgba(5, 11, 20, 0.95) 0%, rgba(5, 11, 20, 0.4) 50%, rgba(5, 11, 20, 0.85) 100%), url(${ad.mediaUrl})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
@@ -247,120 +248,33 @@ export function AdVideoPlayer({
           </div>
 
           {/* Top Bar: Sponsor Label + Remove Ads Link */}
-          <div
-            style={{
-              position: "relative",
-              zIndex: 10,
-              padding: "16px 20px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              background:
-                "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span
-                style={{
-                  background: "#f59e0b",
-                  color: "#000000",
-                  fontSize: "11px",
-                  fontWeight: 800,
-                  letterSpacing: "0.08em",
-                  padding: "3px 8px",
-                  borderRadius: "4px",
-                  textTransform: "uppercase",
-                }}
-              >
-                SPONSORED
-              </span>
-              <span
-                style={{
-                  color: "rgba(255,255,255,0.7)",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                }}
-              >
-                Video will play after ad
-              </span>
+          <div className="ad-top-bar">
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+              <span className="ad-badge-sponsored">SPONSORED</span>
+              <span className="ad-top-hint">Video will play after ad</span>
             </div>
 
             <Link
-              href="/app/membership"
+              href="/app/billing"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                color: "#38bdf8",
-                fontSize: "12px",
-                fontWeight: 600,
-                textDecoration: "none",
-                background: "rgba(15, 23, 42, 0.75)",
-                border: "1px solid rgba(56, 189, 248, 0.3)",
-                padding: "6px 12px",
-                borderRadius: "20px",
-                backdropFilter: "blur(4px)",
-              }}
+              className="ad-premium-link"
             >
-              <Zap size={13} />
-              Go Ad-Free with Premium
+              <Zap size={13} style={{ flexShrink: 0 }} />
+              <span className="ad-premium-label-full">Go Ad-Free with Premium</span>
+              <span className="ad-premium-label-short">Go Ad-Free</span>
             </Link>
           </div>
 
-          {/* Bottom Bar: Ad Info, CTA & Skip Button */}
-          <div
-            style={{
-              position: "relative",
-              zIndex: 10,
-              padding: "20px 24px",
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "space-between",
-              gap: "16px",
-              background:
-                "linear-gradient(to top, rgba(5,11,20,0.95) 0%, rgba(5,11,20,0.6) 60%, transparent 100%)",
-            }}
-          >
-            {/* Left: Headline & Call To Action */}
-            <div style={{ maxWidth: "60%" }}>
-              <h3
-                style={{
-                  color: "#ffffff",
-                  fontSize: "18px",
-                  fontWeight: 700,
-                  margin: "0 0 4px",
-                  textShadow: "0 2px 4px rgba(0,0,0,0.6)",
-                }}
-              >
-                {ad.title}
-              </h3>
+          {/* Bottom Bar: Ad Info & CTA (Leaves space on right for skip button) */}
+          <div className="ad-info-bar">
+            <div className="ad-info-content">
+              <h3 className="ad-title">{ad.title}</h3>
               {ad.subtitle && (
-                <p
-                  style={{
-                    color: "rgba(255,255,255,0.8)",
-                    fontSize: "13px",
-                    margin: "0 0 12px",
-                    lineHeight: 1.4,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                >
-                  {ad.subtitle}
-                </p>
+                <p className="ad-subtitle">{ad.subtitle}</p>
               )}
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  marginTop: "8px",
-                }}
-              >
+              <div className="ad-actions-row">
                 <a
                   href={ad.destinationUrl}
                   target={
@@ -368,22 +282,10 @@ export function AdVideoPlayer({
                   }
                   rel="noopener noreferrer"
                   onClick={handleAdClick}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    background: "#0284c7",
-                    color: "#ffffff",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    padding: "8px 18px",
-                    borderRadius: "8px",
-                    textDecoration: "none",
-                    boxShadow: "0 4px 12px rgba(2, 132, 199, 0.4)",
-                  }}
+                  className="ad-cta-btn"
                 >
                   {ad.ctaText || "Learn More"}
-                  <ExternalLink size={14} />
+                  <ExternalLink size={13} />
                 </a>
 
                 {/* Sound unmute toggle for video ads */}
@@ -391,68 +293,33 @@ export function AdVideoPlayer({
                   <button
                     type="button"
                     onClick={() => setIsMuted(!isMuted)}
-                    style={{
-                      background: "rgba(255,255,255,0.15)",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      color: "#ffffff",
-                      borderRadius: "50%",
-                      width: "36px",
-                      height: "36px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                    }}
+                    className="ad-mute-btn"
                     title={isMuted ? "Unmute audio" : "Mute audio"}
+                    aria-label={isMuted ? "Unmute audio" : "Mute audio"}
                   >
-                    {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                    {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                   </button>
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Right: Skip Countdown & Button */}
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {canSkip ? (
-                <button
-                  type="button"
-                  onClick={handleSkip}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    background: "rgba(255, 255, 255, 0.95)",
-                    color: "#0f172a",
-                    border: "none",
-                    padding: "10px 22px",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  Skip Ad
-                  <SkipForward size={16} />
-                </button>
-              ) : (
-                <div
-                  style={{
-                    background: "rgba(0, 0, 0, 0.75)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    color: "#e2e8f0",
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    backdropFilter: "blur(4px)",
-                  }}
-                >
-                  Skip in {secondsLeft}s
-                </div>
-              )}
-            </div>
+          {/* Dedicated Absolute Skip Button / Countdown Slot (Always visible on mobile & desktop) */}
+          <div className="ad-skip-slot">
+            {canSkip ? (
+              <button
+                type="button"
+                onClick={handleSkip}
+                className="ad-skip-btn"
+              >
+                Skip Ad
+                <SkipForward size={14} />
+              </button>
+            ) : (
+              <div className="ad-countdown-pill">
+                Skip in {secondsLeft}s
+              </div>
+            )}
           </div>
         </div>
       )}

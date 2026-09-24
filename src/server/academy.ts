@@ -1635,7 +1635,7 @@ export const HOUSE_AD: VideoAd = {
   mediaUrl:
     "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=80",
   ctaText: "Upgrade to Premium",
-  destinationUrl: "/app/membership",
+  destinationUrl: "/app/billing",
   active: true,
   priority: "normal",
   skipDurationSeconds: 5,

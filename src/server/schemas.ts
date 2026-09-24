@@ -312,7 +312,7 @@ export const videoAdSchema = z.object({
   mediaType: z.enum(["video", "banner"]).default("banner"),
   mediaUrl: mediaUrlSchema,
   ctaText: z.string().trim().min(1).max(50).default("Learn More"),
-  destinationUrl: destinationUrlSchema.default("/app/membership"),
+  destinationUrl: destinationUrlSchema.default("/app/billing"),
   active: z.boolean().default(true),
   priority: z.enum(["low", "normal", "high"]).default("normal"),
   targetTracks: z.array(z.string().trim().max(50)).max(20).default([]),

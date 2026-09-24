@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.video_ads (
   media_type text NOT NULL CHECK (media_type IN ('video', 'banner')),
   media_url text NOT NULL,
   cta_text text NOT NULL DEFAULT 'Learn More',
-  destination_url text NOT NULL DEFAULT '/app/membership',
+  destination_url text NOT NULL DEFAULT '/app/billing',
   active boolean NOT NULL DEFAULT true,
   priority text NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high')),
   target_tracks text[] NOT NULL DEFAULT '{}'::text[],

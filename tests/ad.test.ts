@@ -145,7 +145,7 @@ describe("Video Ad Engine", () => {
             title: "Student Ad Attempt",
             mediaUrl: "https://example.com/banner.jpg",
             ctaText: "Click",
-            destinationUrl: "/app/membership",
+            destinationUrl: "/app/billing",
           },
         }),
       ).rejects.toMatchObject({ status: 403 });
@@ -240,7 +240,7 @@ describe("Video Ad Engine", () => {
       expect(res.hasAd).toBe(true);
       expect(res.ad.id).toBe("house-premium");
       expect(res.ad.title).toContain("1-on-1 Mentorship");
-      expect(res.ad.destinationUrl).toBe("/app/membership");
+      expect(res.ad.destinationUrl).toBe("/app/billing");
       expect(res.ad.skipDurationSeconds).toBe(5);
     });
 
