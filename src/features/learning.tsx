@@ -382,14 +382,25 @@ function Dashboard() {
                     onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
                     className="dashboard-shop-card-img"
                   >
-                    {item.thumbnailUrl ? (
+                    {item.thumbnailUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.thumbnailUrl} alt={item.title} loading="lazy" />
-                    ) : (
-                      <div className="dashboard-shop-card-fallback">
-                        {isCourse ? <BookOpen size={28} /> : <Download size={28} />}
-                      </div>
+                      <img
+                        src={item.thumbnailUrl}
+                        alt={item.title}
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          const fallback = e.currentTarget.parentElement?.querySelector(".dashboard-shop-card-fallback");
+                          if (fallback) (fallback as HTMLElement).style.display = "flex";
+                        }}
+                      />
                     )}
+                    <div
+                      className="dashboard-shop-card-fallback"
+                      style={{ display: item.thumbnailUrl ? "none" : "flex" }}
+                    >
+                      {isCourse ? <BookOpen size={28} /> : <Download size={28} />}
+                    </div>
                     <span className={`dashboard-shop-type-tag ${isCourse ? "course" : "product"}`}>
                       {isCourse ? "Course" : "Digital Asset"}
                     </span>

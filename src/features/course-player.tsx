@@ -23,7 +23,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
-import { api } from "@/lib/api";
+import { api, downloadAttachment } from "@/lib/api";
 import { getVideoEmbed } from "@/lib/video";
 import { AdVideoPlayer } from "@/components/ad-video-player";
 import type {
@@ -355,7 +355,7 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                 onClick={() => setActiveTab("resources")}
               >
                 <Paperclip size={15} />
-                Downloads & Resources ({currentLesson?.resources?.length || 0})
+                Resources & Materials ({currentLesson?.resources?.length || 0})
               </button>
             </div>
 
@@ -373,7 +373,7 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                 <div className="classroom-resources-body">
                   {!currentLesson?.resources || currentLesson.resources.length === 0 ? (
                     <p className="text-muted">
-                      No external download files attached to this lesson.
+                      No external material files attached to this lesson.
                     </p>
                   ) : (
                     <div className="classroom-resource-list">
@@ -385,6 +385,12 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                           rel="noreferrer"
                           download
                           className="classroom-resource-card"
+                          onClick={(e) => {
+                            if (res.url.startsWith("/api/upload") || res.url.startsWith("uploads/")) {
+                              e.preventDefault();
+                              void downloadAttachment(res.url);
+                            }
+                          }}
                         >
                           <div className="res-icon">
                             <Download size={18} />

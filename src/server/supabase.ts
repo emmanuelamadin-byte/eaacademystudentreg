@@ -341,7 +341,13 @@ const store = {
 export const db = () => store;
 
 export async function identity(request: Request): Promise<AuthToken> {
-  const bearer = request.headers.get("authorization");
+  let bearer = request.headers.get("authorization");
+  if (!bearer?.startsWith("Bearer ")) {
+    try {
+      const token = new URL(request.url).searchParams.get("token");
+      if (token) bearer = `Bearer ${token}`;
+    } catch {}
+  }
   if (!bearer?.startsWith("Bearer "))
     throw new ApiError(401, "Please sign in to continue.");
   const { data, error } = await adminClient().auth.getUser(bearer.slice(7));

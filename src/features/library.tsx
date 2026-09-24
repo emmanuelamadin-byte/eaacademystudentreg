@@ -17,7 +17,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
-import { api } from "@/lib/api";
+import { api, downloadAttachment } from "@/lib/api";
 import type {
   ShopItem,
   ShopPurchase,
@@ -352,6 +352,12 @@ export function StudentLibrary() {
                               rel="noreferrer"
                               download
                               className="btn btn-secondary btn-small library-download-btn"
+                              onClick={(e) => {
+                                if (fileUrl.startsWith("/api/upload") || fileUrl.startsWith("uploads/")) {
+                                  e.preventDefault();
+                                  void downloadAttachment(fileUrl);
+                                }
+                              }}
                             >
                               <Download size={15} />
                               Download {fileFormat}

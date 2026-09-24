@@ -266,6 +266,8 @@ function ShopProductCard({ item }: { item: ShopItem }) {
     return item.curriculum.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0);
   }, [isCourse, item.curriculum]);
 
+  const [imgError, setImgError] = useState(false);
+
   return (
     <article className="shop-card">
       <Link
@@ -274,13 +276,14 @@ function ShopProductCard({ item }: { item: ShopItem }) {
         onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
         className="shop-card-image-wrap"
       >
-        {item.thumbnailUrl ? (
+        {item.thumbnailUrl && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.thumbnailUrl}
             alt={item.title}
             className="shop-card-image"
             loading="lazy"
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="shop-card-image-fallback">
@@ -412,6 +415,7 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
     [item.curriculum?.[0]?.id || ""]: true,
   });
   const [previewLesson, setPreviewLesson] = useState<ShopCourseLesson | null>(null);
+  const [detailImgError, setDetailImgError] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -736,14 +740,30 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                     <span>Watch Free Preview Trailer</span>
                   </div>
                 </div>
-              ) : item.thumbnailUrl ? (
+              ) : item.thumbnailUrl && !detailImgError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={item.thumbnailUrl}
                   alt={item.title}
                   className="shop-purchase-card-thumbnail"
+                  onError={() => setDetailImgError(true)}
                 />
-              ) : null}
+              ) : (
+                <div
+                  className="shop-card-image-fallback"
+                  style={{
+                    aspectRatio: "16 / 9",
+                    borderRadius: 0,
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "var(--surface-muted, rgba(255, 255, 255, 0.04))",
+                  }}
+                >
+                  {isCourse ? <BookOpen size={48} /> : <FileText size={48} />}
+                </div>
+              )}
 
               <div className="shop-purchase-inner">
                 {hasFreePremiumAccess ? (
@@ -936,7 +956,11 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                 <div className="shop-guarantees-list">
                   <div className="shop-guarantee-item">
                     <ShieldCheck size={16} className="guarantee-icon" />
-                    <span>Instant automatic enrollment & download</span>
+                    <span>
+                      {isCourse
+                        ? "Instant automatic enrollment & streaming access"
+                        : "Instant automatic access & download"}
+                    </span>
                   </div>
                   {isCourse && item.certificateEnabled && (
                     <div className="shop-guarantee-item">

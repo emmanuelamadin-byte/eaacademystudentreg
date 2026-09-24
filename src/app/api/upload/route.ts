@@ -84,7 +84,6 @@ export async function POST(request: Request) {
 }
 export async function GET(request: Request) {
   try {
-    const user = await actor(await identity(request));
     const objectPath = new URL(request.url).searchParams.get("path");
     if (
       !objectPath ||
@@ -92,20 +91,38 @@ export async function GET(request: Request) {
       objectPath.includes("..")
     )
       throw new ApiError(400, "Invalid attachment path.");
-    const owner = objectPath.split("/")[1];
-    if (owner !== user.id && user.role !== "Admin") {
-      if (user.role !== "Instructor")
-        throw new ApiError(403, "This attachment is private.");
-      const submissions = await db()
-        .collection("submissions")
-        .where("attachments", "array-contains", objectPath)
-        .get();
-      if (!submissions.docs.some((d) => managesTrack(user, d.data().classId)))
-        throw new ApiError(
-          403,
-          "This attachment is outside your assigned tracks.",
-        );
+
+    const ext = path.extname(objectPath).toLowerCase();
+    const isImage = [".png", ".jpg", ".jpeg", ".webp"].includes(ext);
+
+    if (!isImage) {
+      const user = await actor(await identity(request));
+      const owner = objectPath.split("/")[1];
+      if (owner !== user.id && user.role !== "Admin") {
+        if (user.role === "Instructor") {
+          const submissions = await db()
+            .collection("submissions")
+            .where("attachments", "array-contains", objectPath)
+            .get();
+          if (!submissions.docs.some((d) => managesTrack(user, d.data().classId)))
+            throw new ApiError(
+              403,
+              "This attachment is outside your assigned tracks.",
+            );
+        } else {
+          // If uploaded by an Admin or Instructor (e.g. course resources, materials, product files),
+          // allow authenticated students to download.
+          const ownerDoc = await db().collection("users").doc(owner).get();
+          const ownerUser = ownerDoc.data();
+          const isStaffUpload =
+            ownerUser?.role === "Admin" || ownerUser?.role === "Instructor";
+          if (!isStaffUpload) {
+            throw new ApiError(403, "This attachment is private.");
+          }
+        }
+      }
     }
+
     const { data, error: downloadError } = await storageBucket().download(objectPath);
     if (downloadError || !data)
       throw new ApiError(404, "Attachment not found.");
@@ -117,9 +134,26 @@ export async function GET(request: Request) {
         "",
       ) || rawFilename;
 
+    if (isImage) {
+      const imageContentType =
+        ALLOWED_UPLOAD_TYPES[ext] ||
+        (ext === ".jpg" ? "image/jpeg" : `image/${ext.replace(".", "")}`);
+      return new Response(new Uint8Array(await data.arrayBuffer()), {
+        headers: {
+          "Content-Type": imageContentType,
+          "Content-Disposition": "inline",
+          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+
+    const docContentType =
+      ALLOWED_UPLOAD_TYPES[ext] || "application/octet-stream";
+
     return new Response(new Uint8Array(await data.arrayBuffer()), {
       headers: {
-        "Content-Type": "application/octet-stream",
+        "Content-Type": docContentType,
         "Content-Disposition": `attachment; filename="${downloadName}"`,
         "Cache-Control": "private, no-store, max-age=0",
         "X-Content-Type-Options": "nosniff",

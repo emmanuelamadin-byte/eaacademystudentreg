@@ -152,6 +152,7 @@ export function ShopStudio() {
 
   const [uploadingThumb, setUploadingThumb] = useState(false);
   const [uploadingAsset, setUploadingAsset] = useState(false);
+  const [thumbError, setThumbError] = useState(false);
   const [filterType, setFilterType] = useState<"all" | "course" | "digital_product">("all");
 
   const filteredItems = useMemo(() => {
@@ -166,12 +167,14 @@ export function ShopStudio() {
     setActiveItem(base);
     setActiveTab("info");
     setSelectedLessonEdit(null);
+    setThumbError(false);
   };
 
   const handleEditItem = (item: ShopItem) => {
     setActiveItem(JSON.parse(JSON.stringify(item)));
     setActiveTab("info");
     setSelectedLessonEdit(null);
+    setThumbError(false);
   };
 
   const handleSave = async (publishNow?: boolean) => {
@@ -271,9 +274,8 @@ export function ShopStudio() {
     try {
       setUploadingThumb(true);
       const res = await uploadFile(file);
-      if (activeItem) {
-        setActiveItem({ ...activeItem, thumbnailUrl: res.url });
-      }
+      setActiveItem((prev) => (prev ? { ...prev, thumbnailUrl: res.url } : prev));
+      setThumbError(false);
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Upload failed.");
     } finally {
@@ -726,15 +728,16 @@ export function ShopStudio() {
               <section className="studio-section-card">
                 <h3>Cover Thumbnail Image</h3>
                 <div className="form-group">
-                  <label>Image URL</label>
+                  <label>Image URL or Uploaded Path</label>
                   <input
-                    type="url"
+                    type="text"
                     className="input"
-                    placeholder="https://..."
+                    placeholder="https://... or click Upload from Device below"
                     value={activeItem.thumbnailUrl || ""}
-                    onChange={(e) =>
-                      setActiveItem({ ...activeItem, thumbnailUrl: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setThumbError(false);
+                      setActiveItem({ ...activeItem, thumbnailUrl: e.target.value });
+                    }}
                   />
                 </div>
                 <div className="studio-upload-box">
@@ -743,7 +746,7 @@ export function ShopStudio() {
                     {uploadingThumb ? "Uploading…" : "Upload from Device"}
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/png,image/jpeg,image/webp"
                       hidden
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -752,11 +755,36 @@ export function ShopStudio() {
                       disabled={uploadingThumb}
                     />
                   </label>
+                  <span className="text-muted" style={{ fontSize: "12px", marginLeft: "10px" }}>
+                    Recommended: 16:9 ratio (JPG, PNG, or WebP up to 2 MB)
+                  </span>
                 </div>
                 {activeItem.thumbnailUrl && (
-                  <div className="studio-thumbnail-preview">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={activeItem.thumbnailUrl} alt="Thumbnail preview" />
+                  <div>
+                    <div className="studio-thumbnail-preview">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={activeItem.thumbnailUrl}
+                        alt="Thumbnail preview"
+                        onError={() => setThumbError(true)}
+                        onLoad={() => setThumbError(false)}
+                      />
+                    </div>
+                    {thumbError && (
+                      <div
+                        style={{
+                          marginTop: "8px",
+                          padding: "8px 12px",
+                          borderRadius: "8px",
+                          background: "rgba(239, 68, 68, 0.1)",
+                          border: "1px solid rgba(239, 68, 68, 0.25)",
+                          color: "#ef4444",
+                          fontSize: "12px",
+                        }}
+                      >
+                        ⚠️ Image failed to load from this link. If using an external host, make sure the link is public and ends directly in an image extension (.jpg, .png, .webp). Or click &quot;Upload from Device&quot; to upload your picture directly.
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
@@ -1332,14 +1360,24 @@ export function ShopStudio() {
             return (
               <div key={item.id} className="studio-item-card">
                 <div className="studio-item-card-media">
-                  {item.thumbnailUrl ? (
+                  {item.thumbnailUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.thumbnailUrl} alt={item.title} />
-                  ) : (
-                    <div className="studio-card-fallback">
-                      {isCourse ? <BookOpen size={30} /> : <Download size={30} />}
-                    </div>
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={item.title}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        const fallback = e.currentTarget.parentElement?.querySelector(".studio-card-fallback");
+                        if (fallback) (fallback as HTMLElement).style.display = "flex";
+                      }}
+                    />
                   )}
+                  <div
+                    className="studio-card-fallback"
+                    style={{ display: item.thumbnailUrl ? "none" : "flex" }}
+                  >
+                    {isCourse ? <BookOpen size={30} /> : <Download size={30} />}
+                  </div>
                   <div className="studio-card-badges">
                     <span
                       className={`shop-card-type-badge ${isCourse ? "course" : "product"}`}
