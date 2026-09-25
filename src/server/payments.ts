@@ -80,7 +80,7 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
       amount: z.number().min(100).max(10000000).optional(),
       donorName: z.string().trim().max(100).optional(),
       anonymous: z.boolean().default(false),
-      recurring: z.boolean().default(true),
+      recurring: z.boolean().default(false),
       itemId: z.string().optional(),
     })
     .parse(p);

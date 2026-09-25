@@ -28,7 +28,7 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAcademy();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [recurring, setRecurring] = useState(true);
+  const [recurring, setRecurring] = useState(false);
   const router = useRouter();
   const premium = isPremium(user);
 
