@@ -262,6 +262,7 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
           <div className="classroom-video-frame">
             {currentLesson?.videoUrl ? (
               <AdVideoPlayer
+                key={currentLesson.id}
                 videoUrl={currentLesson.videoUrl}
                 title={currentLesson.title || "Lesson Video"}
                 poster={course.thumbnailUrl}

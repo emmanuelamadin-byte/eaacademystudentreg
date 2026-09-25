@@ -1434,7 +1434,12 @@ function ClassPostCard({
           <h2>{lesson.title}</h2>
           <p className="muted">{lesson.duration || "Self-paced"}</p>
           <div className="class-post-video">
-            <LessonVideo url={lesson.videoUrl} title={lesson.title} />
+            <LessonVideo
+              key={lesson.id}
+              url={lesson.videoUrl}
+              title={lesson.title}
+              trackId={lesson.classId}
+            />
           </div>
           <div className="class-post-notes prose">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -1687,6 +1692,7 @@ function LessonPlayer({ id }: { id?: string }) {
       )}
       <div className="video-container">
         <LessonVideo
+          key={lesson.id}
           url={lesson.videoUrl}
           title={lesson.title}
           trackId={lesson.classId}
