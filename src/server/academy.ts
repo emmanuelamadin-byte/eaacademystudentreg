@@ -54,6 +54,7 @@ import {
   saveCommunicationPreferences,
 } from "./communications";
 import { savePushToken, removePushToken } from "./push";
+import { sendTikTokServerEvent } from "./tiktok";
 import {
   getCountries,
   isValidPhoneNumber,
@@ -311,6 +312,24 @@ async function ensureProfile(token: AuthToken, p: Payload) {
       studentName: profile.name || token.name || "New student",
       studentEmail: normalizedEmail || "",
       trackName,
+    }).catch(() => {});
+
+    void sendTikTokServerEvent({
+      event: "CompleteRegistration",
+      event_id: `reg_${profile.id}`,
+      properties: {
+        value: 0,
+        currency: "NGN",
+        content_id: String(enrolledId),
+        content_type: "product",
+        content_name: String(trackName),
+        content_category: "Career Track Enrollment",
+      },
+      user: {
+        email: normalizedEmail || profile.email,
+        phone_number: profile.phoneNumber,
+        external_id: profile.id,
+      },
     }).catch(() => {});
   }
   return profile;

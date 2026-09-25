@@ -5,6 +5,7 @@ import type { AcademyUser } from "@/lib/types";
 import { db, limit } from "./supabase";
 import { ApiError, extendPremiumUntil, premiumAmountKobo } from "./policy";
 import { sendDonationThankYouEmail } from "./communications";
+import { sendTikTokServerEvent } from "./tiktok";
 
 type PaystackTransaction = {
   reference: string;
@@ -201,6 +202,53 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
       itemId: input.itemId || undefined,
     },
   });
+  const contentId =
+    input.kind === "shop_item"
+      ? String(input.itemId || reference)
+      : input.kind === "premium"
+        ? "ea-academy-premium"
+        : "ea-scholarship-fund";
+  const contentName =
+    input.kind === "shop_item"
+      ? String(shopItemData?.title || "EA Academy Store Item")
+      : input.kind === "premium"
+        ? "EA Academy Premium Membership"
+        : "EA Academy Scholarship Donation";
+
+  void sendTikTokServerEvent({
+    event: "InitiateCheckout",
+    event_id: `checkout_${reference}`,
+    properties: {
+      value: amount / 100,
+      currency: "NGN",
+      content_id: contentId,
+      content_type: "product",
+      content_name: contentName,
+    },
+    user: {
+      email: user.email,
+      phone_number: user.phoneNumber,
+      external_id: user.id,
+    },
+  }).catch(() => {});
+
+  void sendTikTokServerEvent({
+    event: "PlaceAnOrder",
+    event_id: `order_${reference}`,
+    properties: {
+      value: amount / 100,
+      currency: "NGN",
+      content_id: contentId,
+      content_type: "product",
+      content_name: contentName,
+    },
+    user: {
+      email: user.email,
+      phone_number: user.phoneNumber,
+      external_id: user.id,
+    },
+  }).catch(() => {});
+
   return {
     url: result.authorization_url,
     authorization_url: result.authorization_url,
@@ -282,6 +330,7 @@ async function applyPayment(
     );
   const ownerRef = store.collection("users").doc(intent.studentId);
   let newlyFulfilled = false;
+  let ownerPhone: string | undefined;
   let donationReceipt: {
     donorEmail: string;
     donorName: string;
@@ -297,6 +346,10 @@ async function applyPayment(
     if (existing.exists) return;
     if (!owner.exists) throw new ApiError(404, "Payment account not found.");
     newlyFulfilled = true;
+    ownerPhone =
+      typeof owner.data()?.phoneNumber === "string"
+        ? owner.data()?.phoneNumber
+        : undefined;
     const paidAt = new Date(transaction.paid_at).toISOString();
     tx.create(paymentRef, {
       id: transaction.reference,
@@ -381,6 +434,47 @@ async function applyPayment(
     if (initial.exists) tx.update(intentRef, { status: "success" });
   });
 
+  if (newlyFulfilled) {
+    const contentId =
+      intent.kind === "shop_item"
+        ? String(intent.itemId || transaction.reference)
+        : intent.kind === "premium"
+          ? "ea-academy-premium"
+          : "ea-scholarship-fund";
+    const contentName =
+      intent.kind === "shop_item"
+        ? String(intent.itemTitle || "EA Academy Store Item")
+        : intent.kind === "premium"
+          ? "EA Academy Premium Membership"
+          : "EA Academy Scholarship Donation";
+    const eventProps = {
+      value: transaction.amount / 100,
+      currency: "NGN",
+      content_id: contentId,
+      content_type: "product",
+      content_name: contentName,
+    };
+    const eventUser = {
+      email: String(intent.email || transaction.customer?.email || ""),
+      phone_number: ownerPhone,
+      external_id: String(intent.studentId || ""),
+    };
+
+    void sendTikTokServerEvent({
+      event: "Purchase",
+      event_id: `purchase_${transaction.reference}`,
+      properties: eventProps,
+      user: eventUser,
+    }).catch(() => {});
+
+    void sendTikTokServerEvent({
+      event: "CompletePayment",
+      event_id: `purchase_${transaction.reference}_cp`,
+      properties: eventProps,
+      user: eventUser,
+    }).catch(() => {});
+  }
+
   if (newlyFulfilled && donationReceipt) {
     void sendDonationThankYouEmail(donationReceipt).catch((err) => {
       console.error("Failed to send donation thank-you email:", err);
@@ -391,6 +485,7 @@ async function applyPayment(
     status: "success",
     reference: transaction.reference,
     kind: intent.kind,
+    amount: transaction.amount / 100,
   };
 }
 export async function verifyPayment(user: AcademyUser, reference: string) {

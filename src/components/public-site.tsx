@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, MotionConfig } from "motion/react";
 import {
   ArrowRight,
@@ -33,6 +33,7 @@ import {
   CourseListSchema,
   FaqPageSchema,
 } from "./seo-structured-data";
+import { trackTikTokEvent } from "@/lib/tiktok";
 
 export function PublicHeader() {
   const [open, setOpen] = useState(false);
@@ -947,9 +948,30 @@ function FaqSection() {
   );
 }
 export function TracksPage() {
+  const { user } = useAcademy();
   const { data: modules, error } = useRecords<CourseModule>("modules", [
     ["published", "==", true],
   ]);
+
+  useEffect(() => {
+    trackTikTokEvent(
+      "ViewContent",
+      {
+        value: 0,
+        currency: "NGN",
+        content_id: "ea-career-tracks",
+        content_type: "product",
+        content_name: "EA Academy Career Tracks",
+        content_category: "Curriculum",
+      },
+      {
+        email: user?.email,
+        phone_number: user?.phoneNumber,
+        external_id: user?.id,
+      },
+    );
+  }, [user?.id, user?.email, user?.phoneNumber]);
+
   return (
     <>
       <PublicHeader />
@@ -1011,6 +1033,24 @@ export function TracksPage() {
                 <Link
                   href={`/signup?track=${track.id}`}
                   className="btn btn-primary"
+                  onClick={() => {
+                    trackTikTokEvent(
+                      "AddToWishlist",
+                      {
+                        value: 0,
+                        currency: "NGN",
+                        content_id: track.id,
+                        content_type: "product",
+                        content_name: track.name,
+                        content_category: "Career Track",
+                      },
+                      {
+                        email: user?.email,
+                        phone_number: user?.phoneNumber,
+                        external_id: user?.id,
+                      },
+                    );
+                  }}
                 >
                   Choose this track <ArrowUpRight size={17} />
                 </Link>

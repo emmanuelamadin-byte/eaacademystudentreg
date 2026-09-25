@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
 import { api, downloadAttachment } from "@/lib/api";
+import { trackTikTokEvent } from "@/lib/tiktok";
 import type {
   ShopItem,
   ShopPurchase,
@@ -51,6 +52,7 @@ export function StudentLibrary() {
     searchParams.get("ref") ||
     searchParams.get("reference") ||
     searchParams.get("trxref");
+  const purchasedItemId = searchParams.get("purchased") || undefined;
   const verifiedRef = useRef<string | null>(null);
 
   const [data, setData] = useState<LibraryData | null>(null);
@@ -80,8 +82,25 @@ export function StudentLibrary() {
     if (!ref || !user || verifiedRef.current === ref) return;
     verifiedRef.current = ref;
     setPurchaseNotice("Confirming your purchase with Paystack…");
-    api("billing.verify", { reference: ref })
-      .then(() => {
+    api<{ amount?: number }>("billing.verify", { reference: ref })
+      .then((res) => {
+        trackTikTokEvent(
+          "Purchase",
+          {
+            event_id: `purchase_${ref}`,
+            value: res?.amount || 0,
+            currency: "NGN",
+            content_id: purchasedItemId || ref,
+            content_type: "product",
+            content_name: "EA Academy Store Purchase",
+            content_category: "Store Item",
+          },
+          {
+            email: user?.email,
+            phone_number: user?.phoneNumber,
+            external_id: user?.id,
+          },
+        );
         setPurchaseNotice("Purchase confirmed! Your item is now available in your library.");
         if (typeof window !== "undefined" && window.history?.replaceState) {
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -92,7 +111,7 @@ export function StudentLibrary() {
         setPurchaseNotice(null);
         setError(err instanceof Error ? err.message : "Unable to verify purchase.");
       });
-  }, [ref, user]);
+  }, [ref, purchasedItemId, user]);
 
   const totalCourses = data?.courses.length || 0;
   const totalProducts = data?.digitalProducts.length || 0;

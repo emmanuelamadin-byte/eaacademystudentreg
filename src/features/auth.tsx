@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { TRACKS, type CareerPathClassId } from "@/lib/types";
 import { useAcademy } from "@/components/academy-provider";
 import { Brand } from "@/components/ui";
+import { trackTikTokEvent } from "@/lib/tiktok";
 
 function authError(error: unknown) {
   const message =
@@ -140,6 +141,24 @@ export default function AuthPage({
         phoneNumber,
         birthday: { month: Number(birthMonth), day: Number(birthDay) },
       });
+      const trackObj = TRACKS.find((item) => item.id === track);
+      trackTikTokEvent(
+        "CompleteRegistration",
+        {
+          event_id: authUser?.id ? `reg_${authUser.id}` : undefined,
+          value: 0,
+          currency: "NGN",
+          content_id: track,
+          content_type: "product",
+          content_name: trackObj?.name || track,
+          content_category: "Career Track Enrollment",
+        },
+        {
+          email: authUser?.email,
+          phone_number: phoneNumber,
+          external_id: authUser?.id,
+        },
+      );
       createdProfile.current = true;
       await refreshProfile();
       router.replace("/welcome");

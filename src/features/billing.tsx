@@ -22,6 +22,7 @@ import {
   type Donation,
   type PlatformSettings,
 } from "@/lib/types";
+import { trackTikTokEvent } from "@/lib/tiktok";
 
 export function Pricing({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAcademy();
@@ -30,7 +31,44 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
   const [recurring, setRecurring] = useState(true);
   const router = useRouter();
   const premium = isPremium(user);
+
+  useEffect(() => {
+    if (embedded) return;
+    trackTikTokEvent(
+      "ViewContent",
+      {
+        value: 3000,
+        currency: "NGN",
+        content_id: "ea-academy-premium",
+        content_type: "product",
+        content_name: "EA Academy Premium Membership",
+        content_category: "Membership",
+      },
+      {
+        email: user?.email,
+        phone_number: user?.phoneNumber,
+        external_id: user?.id,
+      },
+    );
+  }, [embedded, user?.id, user?.email, user?.phoneNumber]);
+
   async function checkout() {
+    const itemParams = {
+      value: 3000,
+      currency: "NGN",
+      content_id: "ea-academy-premium",
+      content_type: "product",
+      content_name: "EA Academy Premium Membership",
+      content_category: "Membership",
+    };
+    const userParams = {
+      email: user?.email,
+      phone_number: user?.phoneNumber,
+      external_id: user?.id,
+    };
+
+    trackTikTokEvent("AddToCart", itemParams, userParams);
+
     if (!user) {
       router.push("/signup");
       return;
@@ -38,9 +76,26 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
     setBusy(true);
     setError("");
     try {
-      const result = await api<{ authorization_url: string }>(
-        "billing.checkout",
-        { kind: "premium", recurring },
+      const result = await api<{
+        authorization_url: string;
+        reference?: string;
+      }>("billing.checkout", { kind: "premium", recurring });
+      trackTikTokEvent(
+        "InitiateCheckout",
+        {
+          ...itemParams,
+          event_id: result.reference ? `checkout_${result.reference}` : undefined,
+        },
+        userParams,
+      );
+      trackTikTokEvent("AddPaymentInfo", itemParams, userParams);
+      trackTikTokEvent(
+        "PlaceAnOrder",
+        {
+          ...itemParams,
+          event_id: result.reference ? `order_${result.reference}` : undefined,
+        },
+        userParams,
       );
       window.location.assign(result.authorization_url);
     } catch (err) {
@@ -208,8 +263,32 @@ export default function Billing() {
   const runVerification = (ref: string) => {
     setMessage("Confirming your payment with Paystack…");
     setError("");
-    api("billing.verify", { reference: ref })
-      .then(() => refreshProfile())
+    api<{ kind?: string; amount?: number }>("billing.verify", { reference: ref })
+      .then((res) => {
+        const isDonation = res?.kind === "donation";
+        trackTikTokEvent(
+          "Purchase",
+          {
+            event_id: `purchase_${ref}`,
+            value: res?.amount || 3000,
+            currency: "NGN",
+            content_id: isDonation
+              ? "ea-scholarship-fund"
+              : "ea-academy-premium",
+            content_type: "product",
+            content_name: isDonation
+              ? "EA Academy Scholarship Donation"
+              : "EA Academy Premium Membership",
+            content_category: isDonation ? "Donation" : "Membership",
+          },
+          {
+            email: user?.email,
+            phone_number: user?.phoneNumber,
+            external_id: user?.id,
+          },
+        );
+        return refreshProfile();
+      })
       .then(() => {
         setMessage("Payment confirmed. Your account has been updated.");
         setError("");
@@ -397,7 +476,43 @@ export function Donations() {
   const { data: settings } = useRecord<PlatformSettings>("settings", "public");
   const total = donations.reduce((sum, d) => sum + d.amount, 0);
   const goal = settings?.scholarshipGoal || 0;
+
+  useEffect(() => {
+    trackTikTokEvent(
+      "ViewContent",
+      {
+        value: 3000,
+        currency: "NGN",
+        content_id: "ea-scholarship-fund",
+        content_type: "product",
+        content_name: "EA Academy Scholarship Fund",
+        content_category: "Donation",
+      },
+      {
+        email: user?.email,
+        phone_number: user?.phoneNumber,
+        external_id: user?.id,
+      },
+    );
+  }, [user?.id, user?.email, user?.phoneNumber]);
+
   async function give() {
+    const itemParams = {
+      value: amount || 3000,
+      currency: "NGN",
+      content_id: "ea-scholarship-fund",
+      content_type: "product",
+      content_name: "EA Academy Scholarship Donation",
+      content_category: "Donation",
+    };
+    const userParams = {
+      email: user?.email,
+      phone_number: user?.phoneNumber,
+      external_id: user?.id,
+    };
+
+    trackTikTokEvent("AddToCart", itemParams, userParams);
+
     if (!user) {
       router.push("/signup");
       return;
@@ -409,14 +524,31 @@ export function Donations() {
     setBusy(true);
     setError("");
     try {
-      const data = await api<{ authorization_url: string }>(
-        "billing.checkout",
+      const data = await api<{
+        authorization_url: string;
+        reference?: string;
+      }>("billing.checkout", {
+        kind: "donation",
+        amount,
+        anonymous,
+        donorName: donorName || user.name,
+      });
+      trackTikTokEvent(
+        "InitiateCheckout",
         {
-          kind: "donation",
-          amount,
-          anonymous,
-          donorName: donorName || user.name,
+          ...itemParams,
+          event_id: data.reference ? `checkout_${data.reference}` : undefined,
         },
+        userParams,
+      );
+      trackTikTokEvent("AddPaymentInfo", itemParams, userParams);
+      trackTikTokEvent(
+        "PlaceAnOrder",
+        {
+          ...itemParams,
+          event_id: data.reference ? `order_${data.reference}` : undefined,
+        },
+        userParams,
       );
       location.assign(data.authorization_url);
     } catch (err) {

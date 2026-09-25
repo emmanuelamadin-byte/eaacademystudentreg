@@ -124,11 +124,11 @@ export default function RootLayout({
         <WebSiteSchema />
       </head>
       <body>
-        <TikTokPixel />
         <a className="skip-link" href="#main-content">
           Skip to content
         </a>
         <AcademyProvider>
+          <TikTokPixel />
           <NavigationScrollHandler />
           <div id="main-content">{children}</div>
           <PwaTools />

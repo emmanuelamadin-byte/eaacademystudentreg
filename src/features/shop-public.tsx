@@ -28,6 +28,7 @@ import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
 import { getVideoEmbed } from "@/lib/video";
 import { type ShopItem, type ShopCourseLesson, isPremium } from "@/lib/types";
+import { trackTikTokEvent } from "@/lib/tiktok";
 
 export function ShopCatalogPage() {
   const [items, setItems] = useState<ShopItem[]>([]);
@@ -62,6 +63,20 @@ export function ShopCatalogPage() {
   const [activeTab, setActiveTab] = useState<"all" | "course" | "digital_product">("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) return;
+    const timer = setTimeout(() => {
+      trackTikTokEvent("Search", {
+        query: q,
+        content_type: "product",
+        content_category: selectedCategory !== "all" ? selectedCategory : "Store Catalog",
+        currency: "NGN",
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCategory]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -441,6 +456,26 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
     return () => cancelAnimationFrame(raf);
   }, [item.id]);
 
+  useEffect(() => {
+    trackTikTokEvent(
+      "ViewContent",
+      {
+        value: item.price,
+        currency: "NGN",
+        content_id: item.id,
+        content_type: "product",
+        content_name: item.title,
+        content_category:
+          item.category || (item.type === "course" ? "Course" : "Digital Product"),
+      },
+      {
+        email: user?.email,
+        phone_number: user?.phoneNumber,
+        external_id: user?.id,
+      },
+    );
+  }, [item.id, item.price, item.title, item.category, item.type, user?.id, user?.email, user?.phoneNumber]);
+
   const isCourse = item.type === "course";
   const isPremiumUser = user ? isPremium(user) : false;
   const isIncludedForPremium = isCourse && item.includedInPremium === true;
@@ -460,6 +495,23 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
   };
 
   async function handleBuyNow() {
+    const itemParams = {
+      value: item.price,
+      currency: "NGN",
+      content_id: item.id,
+      content_type: "product",
+      content_name: item.title,
+      content_category:
+        item.category || (item.type === "course" ? "Course" : "Digital Product"),
+    };
+    const userParams = {
+      email: user?.email,
+      phone_number: user?.phoneNumber,
+      external_id: user?.id,
+    };
+
+    trackTikTokEvent("AddToCart", itemParams, userParams);
+
     if (!user) {
       // Direct visitor to signup/login while remembering their intent
       const returnUrl = `/shop/${item.slug}`;
@@ -470,12 +522,33 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
     try {
       setBuying(true);
       setCheckoutError(null);
-      const res = await api<{ authorizationUrl?: string; url?: string }>("billing.checkout", {
+      const res = await api<{
+        authorizationUrl?: string;
+        url?: string;
+        reference?: string;
+      }>("billing.checkout", {
         kind: "shop_item",
         itemId: item.id,
       });
       const targetUrl = res.authorizationUrl || res.url;
       if (targetUrl) {
+        trackTikTokEvent(
+          "InitiateCheckout",
+          {
+            ...itemParams,
+            event_id: res.reference ? `checkout_${res.reference}` : undefined,
+          },
+          userParams,
+        );
+        trackTikTokEvent("AddPaymentInfo", itemParams, userParams);
+        trackTikTokEvent(
+          "PlaceAnOrder",
+          {
+            ...itemParams,
+            event_id: res.reference ? `order_${res.reference}` : undefined,
+          },
+          userParams,
+        );
         window.location.href = targetUrl;
       } else {
         throw new Error("Could not initialize Paystack checkout.");

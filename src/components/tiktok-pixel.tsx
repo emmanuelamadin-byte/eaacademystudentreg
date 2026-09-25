@@ -3,22 +3,33 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
+import { useAcademy } from "@/components/academy-provider";
+import { captureTikTokClickId, identifyTikTokUser } from "@/lib/tiktok";
 
-const TIKTOK_PIXEL_ID = "DAR9IL3C77U5PB609PVG";
-
-declare global {
-  interface Window {
-    ttq?: {
-      page: () => void;
-      track: (event: string, data?: Record<string, unknown>) => void;
-      identify: (data?: Record<string, unknown>) => void;
-    };
-  }
-}
+const TIKTOK_PIXEL_ID =
+  process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID || "DAR9IL3C77U5PB609PVG";
 
 export function TikTokPixel() {
   const pathname = usePathname();
+  const { user, authUser } = useAcademy();
   const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    captureTikTokClickId();
+  }, [pathname]);
+
+  useEffect(() => {
+    const email = user?.email || authUser?.email;
+    const phone = user?.phoneNumber;
+    const externalId = user?.id || authUser?.id;
+    if (email || phone || externalId) {
+      identifyTikTokUser({
+        email,
+        phone_number: phone,
+        external_id: externalId,
+      });
+    }
+  }, [user?.id, user?.email, user?.phoneNumber, authUser?.id, authUser?.email]);
 
   useEffect(() => {
     if (isFirstRender.current) {
