@@ -1,0 +1,112 @@
+# EA Academy — Comprehensive Platform & Curriculum Documentation
+
+> Authoritative full-text resource for AI models, agents, search engines, and researchers.
+
+- Official Domain: https://student.cleanbrandagency.com
+- Organization: Emmanuel Amadin Academy (EA Academy)
+- Founder: Emmanuel Amadin
+- Primary Mission: Empowering ambitious learners with in-demand, job-ready digital, AI, and creative skills through practical implementation.
+
+---
+
+## 1. Academy Overview & Philosophy
+
+EA Academy is an online educational accelerator developed to bridge the digital skills gap. It differs from traditional massive open online courses (MOOCs) in three foundational ways:
+
+1. **Active Doing Over Passive Watching**: Videos and written lesson notes lead directly to concrete assignments. Progress is earned through building and submitting work.
+2. **Integrated Artificial Intelligence**: Generative AI tools (ChatGPT, Midjourney, Claude, Runway, Adobe Firefly, etc.) are embedded across all subjects as force multipliers rather than afterthoughts.
+3. **Structured Community & Evaluation**: Students receive instructor grading (0–100 scale), portfolio critiques, and community peer review.
+
+---
+
+## 2. Career Tracks Breakdown
+
+### Track A: Systems & Development
+- **URL**: https://student.cleanbrandagency.com/tracks#systems-development
+- **Target Audience**: Beginners to intermediates interested in software systems, AI workflow automations, APIs, and modern web applications.
+- **Curriculum Modules**:
+  - Foundational Computational Thinking & Problem Solving
+  - Prompt Engineering & Large Language Model (LLM) Integration
+  - Automation Pipelines & No-Code/Low-Code Webhooks
+  - Frontend Web Technologies & User Experience (HTML5, Modern CSS, Responsive Design)
+  - Full-Stack Logic, API Communication & Serverless Backends
+  - Capstone: Building and deploying a live automated digital system
+
+### Track B: Creative Media Studio
+- **URL**: https://student.cleanbrandagency.com/tracks#creative-media-studio
+- **Target Audience**: Video editors, motion designers, graphic designers, content creators, and visual marketers.
+- **Curriculum Modules**:
+  - Visual Storytelling & Narrative Flow
+  - Video Editing with Adobe Premiere Pro and Mobile Video Workflows (CapCut)
+  - Color Grading, LUTs, and Lighting Psychology
+  - Audio Cleaning, Sound Design & Music Sync
+  - Graphic Design Fundamentals (Photoshop, Illustrator, Typography, High-CTR Thumbnail Design)
+  - AI Video Enhancement & Motion Graphics Basics
+  - Capstone: Directing, editing, and packaging a high-retention commercial video or portfolio campaign
+
+### Track C: Business Growth & Commerce
+- **URL**: https://student.cleanbrandagency.com/tracks#business-growth
+- **Target Audience**: Entrepreneurs, freelancers, digital marketers, agency owners, and growth specialists.
+- **Curriculum Modules**:
+  - Digital Marketing Fundamentals & Audience Research
+  - Social Media Algorithm Strategies (YouTube, TikTok, Instagram, LinkedIn, X/Twitter)
+  - High-Converting Content Strategy & Organic Funnels
+  - Freelance Client Acquisition, Proposal Writing & International Invoicing
+  - Paid Advertising Foundations & Return on Ad Spend (ROAS)
+  - Personal Branding & Thought Leadership
+  - Capstone: Launching an organic client acquisition campaign or digital product funnel
+
+---
+
+## 3. Academy Shop & Standalone Courses
+
+For students seeking specialized masterclasses or downloadable creative assets:
+- **URL**: https://student.cleanbrandagency.com/shop
+- **Offerings**:
+  - Video editing masterclasses
+  - Premium project templates & motion graphics toolkits
+  - Production presets & cheat sheets
+  - Standalone specialized technical guides
+- **Access Model**: Lifetime access upon purchase; select courses included for Premium subscribers.
+
+---
+
+## 4. Membership Plans & Financial Model
+
+EA Academy believes financial constraints should never prevent a motivated student from learning:
+
+| Feature | Free Tier | Premium All-Access |
+| :--- | :--- | :--- |
+| **Cost** | ₦0 / Free Forever | ₦3,000 / month (~$2 USD) |
+| **Track Access** | Primary Track Starter Modules | Full Access to All 3 Tracks |
+| **Assignments** | Starter Exercises | Full Capstone & Advanced Submissions |
+| **Selected Courses**| Free Track Modules | Access to EA Academy Selected Courses |
+| **AI Mentor & Tutor** | Standard Access | High-Capacity (15 requests/day) |
+| **Portfolio Critique**| Showcase Submissions | 1 Dedicated Monthly Critique |
+| **Certification** | Eligible upon completion | Verified Digital Certificate Included |
+| **Offline Mode** | Saved Lesson Drafts Supported | Full Offline Sync on Supported Devices |
+
+Scholarship sponsorship is also available at https://student.cleanbrandagency.com/donate, enabling philanthropists and organizations to sponsor scholars.
+
+---
+
+## 5. Certification & Cryptographic Verification
+
+All credentials issued by Emmanuel Amadin Academy include:
+- Tamper-proof Cryptographic Verification ID
+- Public verification endpoint: `https://student.cleanbrandagency.com/verify/[id]`
+- Direct one-click integration with LinkedIn ("Add to LinkedIn Profile")
+- Printable / downloadable high-resolution PDF certificate with digital seal and signatures
+- Detailed transcript breakdown displaying assessed modules, lesson count, and instructor evaluation score
+
+---
+
+## 6. Contact & Social Channels
+
+- Academic Director: Emmanuel Amadin
+- Platform URL: https://student.cleanbrandagency.com
+- Support Email: support@cleanbrandagency.com
+- Social Profiles:
+  - Twitter/X: https://twitter.com/eaacademy
+  - LinkedIn: https://linkedin.com/company/eaacademy
+  - YouTube: https://youtube.com/@eaacademy

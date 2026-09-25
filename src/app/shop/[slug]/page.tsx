@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicShopItem } from "@/server/academy";
 import { ShopProductDetailPage } from "@/features/shop-public";
+import { ShopProductSchema } from "@/components/seo-structured-data";
 
 export async function generateMetadata({
   params,
@@ -14,7 +15,16 @@ export async function generateMetadata({
     return {
       title: `${item.title} | EA Academy Shop`,
       description: item.subtitle || item.description?.slice(0, 160),
+      alternates: {
+        canonical: `/shop/${slug}`,
+      },
       openGraph: {
+        title: item.title,
+        description: item.subtitle,
+        images: item.thumbnailUrl ? [item.thumbnailUrl] : [],
+      },
+      twitter: {
+        card: "summary_large_image",
         title: item.title,
         description: item.subtitle,
         images: item.thumbnailUrl ? [item.thumbnailUrl] : [],
@@ -35,7 +45,12 @@ export default async function Page({
   const { slug } = await params;
   try {
     const item = await getPublicShopItem(slug);
-    return <ShopProductDetailPage item={item} />;
+    return (
+      <>
+        <ShopProductSchema item={item} />
+        <ShopProductDetailPage item={item} />
+      </>
+    );
   } catch {
     notFound();
   }

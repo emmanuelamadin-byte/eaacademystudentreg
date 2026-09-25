@@ -1,5 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicHeader, PublicFooter } from "@/components/public-site";
+
+export const metadata: Metadata = {
+  title: "Membership Terms & Academic Honor Code | EA Academy",
+  description:
+    "Review membership terms, Free and Premium tier access guidelines, Paystack payment policies, instructor feedback policies, and community standards at EA Academy.",
+  alternates: {
+    canonical: "/terms",
+  },
+};
+
 export default function Page() {
   return (
     <>

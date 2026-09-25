@@ -1,4 +1,15 @@
+import type { Metadata } from "next";
 import { PublicHeader, PublicFooter } from "@/components/public-site";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy & Student Data Protection | EA Academy",
+  description:
+    "Learn how EA Academy protects student privacy, handles account data, offline drafts, messaging preferences, and verified learning records.",
+  alternates: {
+    canonical: "/privacy",
+  },
+};
+
 export default function Page() {
   return (
     <>

@@ -1,4 +1,4 @@
-import { TRACKS } from "@/lib/types";
+import { TRACKS, type ShopItem } from "@/lib/types";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://student.cleanbrandagency.com";
@@ -11,20 +11,65 @@ export function OrganizationSchema() {
     alternateName: ["EA Academy", "Emmanuel Amadin Digital Academy"],
     url: SITE_URL,
     logo: `${SITE_URL}/icon.svg`,
+    image: `${SITE_URL}/og-image.jpg`,
     description:
-      "A free platform to learn practical online AI and digital skills, creative media, and business growth.",
+      "A free, project-based platform to learn practical online AI tools, modern digital workflows, creative media, video editing, and business growth.",
     sameAs: [
       "https://twitter.com/eaacademy",
       "https://linkedin.com/company/eaacademy",
       "https://youtube.com/@eaacademy",
     ],
-    offers: {
-      "@type": "Offer",
-      category: "Free Online AI & Digital Skills Education",
-      price: "0",
-      priceCurrency: "NGN",
-      availability: "https://schema.org/InStock",
+    knowsAbout: [
+      "Artificial Intelligence",
+      "AI Tools & Prompt Engineering",
+      "Video Editing",
+      "Adobe Premiere Pro",
+      "CapCut",
+      "Motion Graphics",
+      "Graphic Design",
+      "Brand Identity Design",
+      "Digital Marketing",
+      "Social Media Growth",
+      "Freelancing & Client Acquisition",
+      "Business Growth",
+    ],
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "EA Academy Educational Programs",
+      itemListElement: [
+        {
+          "@type": "Offer",
+          name: "Free Career Tracks Starter Tier",
+          description:
+            "Free access to introductory modules, starter assignments, progress tracking, and community practice in AI, creative media, and business growth.",
+          price: "0",
+          priceCurrency: "NGN",
+          availability: "https://schema.org/InStock",
+        },
+        {
+          "@type": "Offer",
+          name: "Premium All-Access Pass",
+          description:
+            "Full access to all career tracks, unlimited lesson videos, instructor code and portfolio reviews, AI mentor tutor, and verified digital certificates.",
+          price: "3000",
+          priceCurrency: "NGN",
+          priceSpecification: {
+            "@type": "UnitPriceSpecification",
+            price: "3000",
+            priceCurrency: "NGN",
+            unitText: "MONTH",
+          },
+          availability: "https://schema.org/InStock",
+        },
+      ],
     },
+    audience: {
+      "@type": "EducationalAudience",
+      educationalRole: "student",
+      audienceType:
+        "Aspiring tech professionals, creators, freelancers, and students",
+    },
+    areaServed: ["Global", "Nigeria", "Africa"],
   };
 
   return (
@@ -156,6 +201,67 @@ export function BreadcrumbSchema({
       item: item.url.startsWith("http") ? item.url : `${SITE_URL}${item.url}`,
     })),
   };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+export function ShopProductSchema({ item }: { item: ShopItem }) {
+  const isCourse = item.type === "course";
+  const image = item.thumbnailUrl
+    ? item.thumbnailUrl.startsWith("http")
+      ? item.thumbnailUrl
+      : `${SITE_URL}${item.thumbnailUrl}`
+    : `${SITE_URL}/og-image.jpg`;
+
+  const schema = isCourse
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Course",
+        name: item.title,
+        description: item.subtitle || item.description,
+        provider: {
+          "@type": "EducationalOrganization",
+          name: "EA Academy",
+          sameAs: SITE_URL,
+        },
+        image,
+        isAccessibleForFree: item.price === 0,
+        offers: {
+          "@type": "Offer",
+          price: String(item.price),
+          priceCurrency: "NGN",
+          availability: "https://schema.org/InStock",
+          url: `${SITE_URL}/shop/${item.slug}`,
+        },
+        hasCourseInstance: {
+          "@type": "CourseInstance",
+          courseMode: "Online",
+        },
+        educationalCredentialAwarded: "Certificate of Completion",
+      }
+    : {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: item.title,
+        description: item.subtitle || item.description,
+        image,
+        brand: {
+          "@type": "Brand",
+          name: "EA Academy",
+        },
+        offers: {
+          "@type": "Offer",
+          price: String(item.price),
+          priceCurrency: "NGN",
+          availability: "https://schema.org/InStock",
+          url: `${SITE_URL}/shop/${item.slug}`,
+        },
+      };
 
   return (
     <script

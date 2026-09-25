@@ -1,12 +1,13 @@
 import type { MetadataRoute } from "next";
+import { listPublicShopItems } from "@/server/academy";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://student.cleanbrandagency.com";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
 
-  const routes = [
+  const routes: MetadataRoute.Sitemap = [
     {
       url: `${SITE_URL}`,
       lastModified,
@@ -62,6 +63,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.3,
     },
   ];
+
+  try {
+    const shopItems = await listPublicShopItems();
+    for (const item of shopItems) {
+      if (item?.slug && item.published !== false) {
+        routes.push({
+          url: `${SITE_URL}/shop/${item.slug}`,
+          lastModified: item.updatedAt ? new Date(item.updatedAt) : lastModified,
+          changeFrequency: "weekly" as const,
+          priority: 0.85,
+        });
+      }
+    }
+  } catch {
+    // Graceful fallback for database edge cases
+  }
 
   return routes;
 }

@@ -97,7 +97,8 @@ export function StudentLibrary() {
   const totalCourses = data?.courses.length || 0;
   const totalProducts = data?.digitalProducts.length || 0;
   const completedCourses =
-    data?.courses.filter((c) => c.percent === 100 || c.progress?.completed).length || 0;
+    data?.courses.filter((c) => Boolean(c.progress?.certificateId || c.progress?.completed))
+      .length || 0;
 
   return (
     <div className="library-page">
@@ -231,7 +232,19 @@ export function StudentLibrary() {
                 {data!.courses.map(({ purchase, item, progress, totalLessons, completedCount, percent }) => {
                   const title = item?.title || purchase.itemTitle || "Course";
                   const thumb = item?.thumbnailUrl;
-                  const isCompleted = percent === 100 || progress?.completed;
+                  const hasRequiredQuizzes = Boolean(
+                    item?.curriculum?.some(
+                      (m) =>
+                        m.quiz?.enabled &&
+                        m.quiz?.required !== false &&
+                        (m.quiz?.questions?.length || 0) > 0,
+                    ),
+                  );
+                  const certUnlocked = Boolean(
+                    progress?.certificateId ||
+                      progress?.completed ||
+                      (!hasRequiredQuizzes && percent === 100),
+                  );
 
                   return (
                     <div key={purchase.id} className="library-course-card">
@@ -245,7 +258,7 @@ export function StudentLibrary() {
                           </div>
                         )}
                         <span className="library-card-badge">
-                          {isCompleted ? "Completed" : `${percent}% complete`}
+                          {certUnlocked ? "Certificate Unlocked" : `${percent}% lessons`}
                         </span>
                       </div>
 
@@ -271,6 +284,52 @@ export function StudentLibrary() {
                           </div>
                         </div>
 
+                        {/* Quiz & Certificate Eligibility Status */}
+                        {item?.certificateEnabled !== false && (
+                          <div
+                            style={{
+                              marginTop: "0.65rem",
+                              marginBottom: "0.75rem",
+                              padding: "0.65rem 0.8rem",
+                              borderRadius: "10px",
+                              fontSize: "11.5px",
+                              background: certUnlocked
+                                ? "rgba(16, 185, 129, 0.1)"
+                                : "rgba(255, 255, 255, 0.03)",
+                              border: certUnlocked
+                                ? "1px solid rgba(16, 185, 129, 0.35)"
+                                : "1px solid rgba(255, 255, 255, 0.08)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                fontWeight: 700,
+                                marginBottom: "2px",
+                                color: certUnlocked ? "#10b981" : undefined,
+                              }}
+                            >
+                              <span>
+                                {certUnlocked
+                                  ? "🏆 Certificate Unlocked"
+                                  : "🔒 Certificate Locked"}
+                              </span>
+                              {typeof progress?.overallQuizPercentage === "number" && (
+                                <span>
+                                  Quiz: {progress.overallQuizPercentage}%
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-muted" style={{ fontSize: "11px" }}>
+                              {certUnlocked
+                                ? "Congratulations! Your certificate is ready for download"
+                                : "Complete all required lessons and achieve a minimum overall quiz score of 50%"}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="library-card-actions">
                           <Link
                             href={`/app/learn-course/${purchase.itemId}`}
@@ -279,8 +338,8 @@ export function StudentLibrary() {
                             <PlayCircle size={15} />
                             {completedCount === 0
                               ? "Start Course"
-                              : isCompleted
-                              ? "Revisit Classroom"
+                              : certUnlocked
+                              ? "View Certificate & Classroom"
                               : "Resume Learning"}
                           </Link>
                         </div>

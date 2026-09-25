@@ -228,12 +228,47 @@ export const shopCourseLessonSchema = z.object({
   order: z.number().int().min(0).max(10000).default(0),
 });
 
+export const shopQuizQuestionTypeSchema = z.enum([
+  "multiple_choice",
+  "true_false",
+  "multiple_answer",
+  "short_answer",
+]);
+
+export const shopChapterQuizQuestionSchema = z.object({
+  id: id,
+  type: shopQuizQuestionTypeSchema.default("multiple_choice"),
+  question: z.string().trim().min(1).max(2000),
+  options: z.array(z.string().trim().max(500)).max(10).optional().default([]),
+  correctAnswer: z.string().trim().max(500).optional().default(""),
+  correctAnswers: z
+    .array(z.string().trim().max(500))
+    .max(10)
+    .optional()
+    .default([]),
+  explanation: z.string().trim().max(2000).optional().default(""),
+  points: z.number().int().min(1).max(100).optional().default(1),
+});
+
+export const shopChapterQuizConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  required: z.boolean().default(true),
+  requiredQuestionsCount: z.number().int().min(1).max(50).optional(),
+  retakePolicy: z.enum(["unlimited", "limited", "single"]).default("unlimited"),
+  maxAttempts: z.number().int().min(1).max(50).optional().default(3),
+  scoringMethod: z.enum(["highest", "latest", "average"]).default("highest"),
+  questions: z.array(shopChapterQuizQuestionSchema).max(50).default([]),
+});
+
 export const shopCourseModuleSchema = z.object({
   id: id,
   title: short,
   description: z.string().max(5000).default(""),
+  summary: z.string().max(10000).optional().default(""),
+  keyLearningPoints: stringList(30),
   order: z.number().int().min(0).max(10000).default(0),
   lessons: z.array(shopCourseLessonSchema).max(100).default([]),
+  quiz: shopChapterQuizConfigSchema.optional(),
 });
 
 export const shopItemSchema = z.object({
@@ -281,6 +316,41 @@ export const shopProgressUpdateSchema = z.object({
   courseId: id,
   lessonId: id,
   completed: z.boolean().default(true),
+});
+
+export const shopQuizGenerateSchema = z.object({
+  courseTitle: z.string().trim().max(300).optional().default(""),
+  chapterTitle: z.string().trim().min(1).max(300),
+  chapterDescription: z.string().max(10000).optional().default(""),
+  chapterSummary: z.string().max(10000).optional().default(""),
+  keyLearningPoints: z.array(z.string().max(500)).max(30).optional().default([]),
+  lessons: z
+    .array(
+      z.object({
+        title: z.string().max(300),
+        content: z.string().max(50000).optional().default(""),
+      }),
+    )
+    .max(50)
+    .optional()
+    .default([]),
+  questionCount: z.number().int().min(1).max(30).default(5),
+  allowedTypes: z
+    .array(shopQuizQuestionTypeSchema)
+    .min(1)
+    .max(4)
+    .optional()
+    .default(["multiple_choice", "true_false", "multiple_answer", "short_answer"]),
+  existingQuestionToReplace: z.string().max(2000).optional(),
+});
+
+export const shopQuizSubmitSchema = z.object({
+  courseId: id,
+  moduleId: id,
+  answers: z.record(
+    z.string(),
+    z.union([z.string().max(2000), z.array(z.string().max(500)).max(20)]),
+  ),
 });
 
 export const destinationUrlSchema = z

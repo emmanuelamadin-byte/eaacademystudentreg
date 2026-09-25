@@ -6,6 +6,13 @@ import type {
   CourseModule,
   Lesson,
   ShopItem,
+  ShopCourseModule,
+  ShopChapterQuizQuestion,
+  ShopChapterQuizResult,
+  ShopQuizAttempt,
+  ShopQuizQuestionFeedback,
+  ShopCourseQuizAnalytics,
+  ShopCourseQuizStudentStat,
   ShopPurchase,
   ShopCourseProgress,
   ShopCertificate,
@@ -37,7 +44,7 @@ import {
   utcMonthKey,
 } from "./policy";
 import * as s from "./schemas";
-import { askAI } from "./ai";
+import { askAI, generateChapterQuiz } from "./ai";
 import { checkout, verifyPayment, manageSubscription } from "./payments";
 import {
   createBroadcast,
@@ -1238,12 +1245,21 @@ export async function dispatch(
       return saveShopItem(user, p.item);
     case "shop.admin.delete":
       return deleteShopItem(user, parsedId(p));
+    case "shop.admin.quiz.generate":
+      return generateChapterQuiz(user, p);
+    case "shop.admin.quiz.analytics":
+      return getShopCourseQuizAnalytics(
+        user,
+        z.string().parse(p.courseId || p.id),
+      );
     case "shop.library":
       return getStudentLibrary(user);
     case "shop.course.get":
       return getShopCourse(user, z.string().parse(p.courseId || p.id));
     case "shop.course.progress":
       return updateShopProgress(user, p);
+    case "shop.course.quiz.submit":
+      return submitShopCourseQuiz(user, p);
     case "shop.certificate.get":
       return getShopCertificate(user, parsedId(p));
     case "ad.admin.list":
@@ -1261,6 +1277,136 @@ export async function dispatch(
   }
 }
 
+function getActiveModuleQuestions(mod: ShopCourseModule): ShopChapterQuizQuestion[] {
+  if (!mod.quiz || !mod.quiz.enabled || !Array.isArray(mod.quiz.questions)) {
+    return [];
+  }
+  const all = mod.quiz.questions;
+  const reqCount = mod.quiz.requiredQuestionsCount;
+  if (typeof reqCount === "number" && reqCount > 0 && reqCount < all.length) {
+    return all.slice(0, reqCount);
+  }
+  return all;
+}
+
+function sanitizeCurriculumForStudent(
+  curriculum: ShopCourseModule[] | undefined,
+  stripLessonContent = false,
+): ShopCourseModule[] {
+  if (!Array.isArray(curriculum)) return [];
+  return curriculum.map((m) => {
+    const activeQuestions = getActiveModuleQuestions(m);
+    return {
+      ...m,
+      lessons: (m.lessons || []).map((l) =>
+        stripLessonContent
+          ? {
+              ...l,
+              videoUrl: l.isFreePreview ? l.videoUrl : "",
+              content: l.isFreePreview ? l.content : "",
+              resources: l.isFreePreview ? l.resources : [],
+            }
+          : l,
+      ),
+      quiz: m.quiz
+        ? {
+            ...m.quiz,
+            questions: activeQuestions.map((q) => ({
+              id: q.id,
+              type: q.type,
+              question: q.question,
+              options: q.options,
+              points: q.points || 1,
+            })),
+          }
+        : undefined,
+    };
+  });
+}
+
+function evaluateCourseCompletionAndEligibility(
+  course: ShopItem,
+  completedLessonIds: string[],
+  quizResults: Record<string, ShopChapterQuizResult> = {},
+) {
+  const allLessons: string[] = [];
+  const requiredQuizModules: ShopCourseModule[] = [];
+
+  (course.curriculum || []).forEach((mod) => {
+    (mod.lessons || []).forEach((lesson) => {
+      if (lesson.id) allLessons.push(lesson.id);
+    });
+    const activeQuestions = getActiveModuleQuestions(mod);
+    if (
+      mod.quiz &&
+      mod.quiz.enabled &&
+      mod.quiz.required !== false &&
+      activeQuestions.length > 0
+    ) {
+      requiredQuizModules.push(mod);
+    }
+  });
+
+  const allLessonsCompleted =
+    allLessons.length > 0 &&
+    allLessons.every((id) => completedLessonIds.includes(id));
+
+  let overallQuizScore = 0;
+  let overallQuizTotal = 0;
+  let completedRequiredQuizzesCount = 0;
+
+  if (requiredQuizModules.length > 0) {
+    for (const mod of requiredQuizModules) {
+      const activeQuestions = getActiveModuleQuestions(mod);
+      const modTotal = activeQuestions.length;
+      overallQuizTotal += modTotal;
+      const res = quizResults[mod.id];
+      if (res && res.attemptsCount > 0) {
+        completedRequiredQuizzesCount += 1;
+        overallQuizScore += Number(res.effectiveScore || 0);
+      }
+    }
+  } else {
+    // If no required quizzes, aggregate any optional quizzes attempted
+    for (const mod of course.curriculum || []) {
+      const res = quizResults[mod.id];
+      if (res && res.attemptsCount > 0) {
+        overallQuizScore += Number(res.effectiveScore || 0);
+        overallQuizTotal += Number(res.totalQuestions || 0);
+      }
+    }
+  }
+
+  const allRequiredQuizzesCompleted =
+    requiredQuizModules.length === 0 ||
+    completedRequiredQuizzesCount >= requiredQuizModules.length;
+
+  const overallQuizPercentage =
+    overallQuizTotal > 0
+      ? Math.round((overallQuizScore / overallQuizTotal) * 100)
+      : 100;
+
+  const quizScoreRequirementMet =
+    requiredQuizModules.length === 0 || overallQuizPercentage >= 50;
+
+  const eligibleForCertificate =
+    allLessonsCompleted &&
+    allRequiredQuizzesCompleted &&
+    quizScoreRequirementMet;
+
+  return {
+    allLessonsCompleted,
+    allRequiredQuizzesCompleted,
+    requiredQuizzesCount: requiredQuizModules.length,
+    completedRequiredQuizzesCount,
+    overallQuizScore: Math.round(overallQuizScore * 100) / 100,
+    overallQuizTotal,
+    overallQuizPercentage,
+    quizScoreRequirementMet,
+    eligibleForCertificate,
+  };
+}
+
 export async function listPublicShopItems() {
   const snapshot = await db()
     .collection("shopItems")
@@ -1270,15 +1416,7 @@ export async function listPublicShopItems() {
     .map((d) => {
       const data = d.data() as ShopItem;
       if (data.type === "course" && Array.isArray(data.curriculum)) {
-        data.curriculum = data.curriculum.map((m) => ({
-          ...m,
-          lessons: (m.lessons || []).map((l) => ({
-            ...l,
-            videoUrl: l.isFreePreview ? l.videoUrl : "",
-            content: l.isFreePreview ? l.content : "",
-            resources: l.isFreePreview ? l.resources : [],
-          })),
-        }));
+        data.curriculum = sanitizeCurriculumForStudent(data.curriculum, true);
       }
       return { ...data, id: d.id };
     })
@@ -1296,15 +1434,7 @@ export async function getPublicShopItem(slug: string) {
   const data = doc.data() as ShopItem;
   if (!data.published) throw new ApiError(404, "Product or course not found.");
   if (data.type === "course" && Array.isArray(data.curriculum)) {
-    data.curriculum = data.curriculum.map((m) => ({
-      ...m,
-      lessons: (m.lessons || []).map((l) => ({
-        ...l,
-        videoUrl: l.isFreePreview ? l.videoUrl : "",
-        content: l.isFreePreview ? l.content : "",
-        resources: l.isFreePreview ? l.resources : [],
-      })),
-    }));
+    data.curriculum = sanitizeCurriculumForStudent(data.curriculum, true);
   }
   return { ...data, id: doc.id };
 }
@@ -1419,7 +1549,12 @@ async function getStudentLibrary(user: AcademyUser) {
           : 0;
       return {
         purchase: p,
-        item,
+        item: item
+          ? {
+              ...item,
+              curriculum: sanitizeCurriculumForStudent(item.curriculum, false),
+            }
+          : null,
         progress: prog,
         totalLessons,
         completedCount,
@@ -1487,7 +1622,10 @@ async function getStudentLibrary(user: AcademyUser) {
 
         return {
           purchase: syntheticPurchase,
-          item,
+          item: {
+            ...item,
+            curriculum: sanitizeCurriculumForStudent(item.curriculum, false),
+          },
           progress: prog,
           totalLessons,
           completedCount,
@@ -1529,8 +1667,16 @@ async function getShopCourse(user: AcademyUser, courseId: string) {
     .doc(`${user.id}_${courseId}`)
     .get();
 
+  const sanitizedCourse: ShopItem = {
+    ...courseData,
+    id: courseDoc.id || courseId,
+    curriculum: isStaff
+      ? courseData.curriculum
+      : sanitizeCurriculumForStudent(courseData.curriculum, false),
+  };
+
   return {
-    course: { ...courseData, id: courseDoc.id || courseId },
+    course: sanitizedCourse,
     progress: progressDoc.exists
       ? (progressDoc.data() as ShopCourseProgress)
       : null,
@@ -1560,13 +1706,6 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
     }
   }
 
-  const allLessons: string[] = [];
-  (course.curriculum || []).forEach((mod) => {
-    (mod.lessons || []).forEach((lesson) => {
-      if (lesson.id) allLessons.push(lesson.id);
-    });
-  });
-
   const progRef = db()
     .collection("shopCourseProgress")
     .doc(`${user.id}_${input.courseId}`);
@@ -1582,12 +1721,20 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
     completedIds = completedIds.filter((id) => id !== input.lessonId);
   }
 
-  const isAllCompleted =
-    allLessons.length > 0 &&
-    allLessons.every((id) => completedIds.includes(id));
+  const quizResults = currentProg?.quizResults || {};
+  const evaluation = evaluateCourseCompletionAndEligibility(
+    course,
+    completedIds,
+    quizResults,
+  );
+
   let certificateId = currentProg?.certificateId || null;
 
-  if (isAllCompleted && !certificateId && course.certificateEnabled !== false) {
+  if (
+    evaluation.eligibleForCertificate &&
+    !certificateId &&
+    course.certificateEnabled !== false
+  ) {
     certificateId = randomUUID();
     const certRef = db().collection("shopCertificates").doc(certificateId);
     await certRef.set({
@@ -1607,13 +1754,472 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
     courseId: input.courseId,
     completedLessonIds: completedIds,
     lastLessonId: input.lessonId,
-    completed: isAllCompleted,
-    completedAt: isAllCompleted ? currentProg?.completedAt || now() : undefined,
+    completed: evaluation.eligibleForCertificate,
+    completedAt: evaluation.eligibleForCertificate
+      ? currentProg?.completedAt || now()
+      : undefined,
     certificateId: certificateId || undefined,
+    quizResults: Object.keys(quizResults).length > 0 ? quizResults : undefined,
+    overallQuizScore:
+      evaluation.overallQuizTotal > 0 ? evaluation.overallQuizScore : undefined,
+    overallQuizTotal:
+      evaluation.overallQuizTotal > 0 ? evaluation.overallQuizTotal : undefined,
+    overallQuizPercentage:
+      evaluation.overallQuizTotal > 0
+        ? evaluation.overallQuizPercentage
+        : undefined,
   };
 
   await progRef.set(clean(updated), { merge: true });
-  return { progress: updated, certificateId };
+  return {
+    progress: updated,
+    certificateId,
+    evaluation,
+  };
+}
+
+function gradeSingleQuestion(
+  question: ShopChapterQuizQuestion,
+  rawStudentAnswer: string | string[] | undefined,
+): ShopQuizQuestionFeedback {
+  const pointsPossible = 1;
+  const type = question.type || "multiple_choice";
+
+  if (type === "multiple_answer") {
+    const studentSelected = (
+      Array.isArray(rawStudentAnswer)
+        ? rawStudentAnswer
+        : typeof rawStudentAnswer === "string" && rawStudentAnswer.trim()
+          ? [rawStudentAnswer]
+          : []
+    )
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+
+    const expectedList = (
+      Array.isArray(question.correctAnswers) &&
+      question.correctAnswers.length > 0
+        ? question.correctAnswers
+        : question.correctAnswer
+          ? [question.correctAnswer]
+          : []
+    )
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+
+    const uniqueStudent = Array.from(new Set(studentSelected));
+    const uniqueExpected = Array.from(new Set(expectedList));
+
+    const isCorrect =
+      uniqueExpected.length > 0 &&
+      uniqueStudent.length === uniqueExpected.length &&
+      uniqueExpected.every((exp) => uniqueStudent.includes(exp));
+
+    return {
+      questionId: question.id,
+      correct: isCorrect,
+      studentAnswer: Array.isArray(rawStudentAnswer)
+        ? rawStudentAnswer
+        : rawStudentAnswer
+          ? [rawStudentAnswer]
+          : [],
+      correctAnswer:
+        question.correctAnswers && question.correctAnswers.length > 0
+          ? question.correctAnswers
+          : question.correctAnswer
+            ? [question.correctAnswer]
+            : [],
+      explanation: question.explanation,
+      pointsEarned: isCorrect ? pointsPossible : 0,
+      pointsPossible,
+    };
+  }
+
+  const studentText = (
+    Array.isArray(rawStudentAnswer)
+      ? rawStudentAnswer[0] || ""
+      : rawStudentAnswer || ""
+  ).trim();
+
+  const acceptableAnswers = Array.from(
+    new Set(
+      [
+        question.correctAnswer || "",
+        ...(question.correctAnswers || []),
+      ]
+        .map((a) => a.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  let isCorrect = false;
+  if (type === "short_answer") {
+    const normStudent = studentText
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .trim();
+    isCorrect =
+      normStudent.length > 0 &&
+      acceptableAnswers.some((ans) => {
+        const normAns = ans
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, "")
+          .trim();
+        if (!normAns) return false;
+        return (
+          normStudent === normAns ||
+          (normAns.length >= 4 && normStudent.includes(normAns)) ||
+          (normStudent.length >= 4 && normAns.includes(normStudent))
+        );
+      });
+  } else {
+    // multiple_choice or true_false
+    const normStudent = studentText.toLowerCase();
+    isCorrect =
+      normStudent.length > 0 &&
+      acceptableAnswers.some((ans) => ans.toLowerCase() === normStudent);
+  }
+
+  return {
+    questionId: question.id,
+    correct: isCorrect,
+    studentAnswer: studentText,
+    correctAnswer: question.correctAnswer || acceptableAnswers[0] || "",
+    explanation: question.explanation,
+    pointsEarned: isCorrect ? pointsPossible : 0,
+    pointsPossible,
+  };
+}
+
+async function submitShopCourseQuiz(user: AcademyUser, p: Payload) {
+  const input = s.shopQuizSubmitSchema.parse(p);
+  const courseDoc = await db()
+    .collection("shopItems")
+    .doc(input.courseId)
+    .get();
+  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
+  const course = courseDoc.data() as ShopItem;
+
+  const isStaff = user.role === "Admin" || user.role === "Instructor";
+  const isIncludedWithPremium =
+    course.includedInPremium === true && hasPremium(user);
+
+  if (!isStaff && !isIncludedWithPremium) {
+    const purchase = await db()
+      .collection("shopPurchases")
+      .doc(`${user.id}_${input.courseId}`)
+      .get();
+    if (!purchase.exists) {
+      throw new ApiError(403, "You have not purchased this course.");
+    }
+  }
+
+  const targetModule = (course.curriculum || []).find(
+    (m) => m.id === input.moduleId,
+  );
+  if (!targetModule || !targetModule.quiz || !targetModule.quiz.enabled) {
+    throw new ApiError(404, "No active quiz found for this chapter.");
+  }
+
+  const activeQuestions = getActiveModuleQuestions(targetModule);
+  if (activeQuestions.length === 0) {
+    throw new ApiError(400, "This chapter quiz has no questions configured.");
+  }
+
+  const progRef = db()
+    .collection("shopCourseProgress")
+    .doc(`${user.id}_${input.courseId}`);
+  const currentSnap = await progRef.get();
+  const currentProg = currentSnap.data() as ShopCourseProgress | undefined;
+
+  const existingQuizResults: Record<string, ShopChapterQuizResult> = {
+    ...(currentProg?.quizResults || {}),
+  };
+  const prevChapterResult = existingQuizResults[input.moduleId];
+  const prevAttemptsCount = prevChapterResult?.attemptsCount || 0;
+
+  // Enforce retake rules (Staff can always test/retake)
+  const retakePolicy = targetModule.quiz.retakePolicy || "unlimited";
+  const maxAttempts =
+    retakePolicy === "single"
+      ? 1
+      : retakePolicy === "limited"
+        ? Math.max(1, Number(targetModule.quiz.maxAttempts) || 3)
+        : Infinity;
+
+  if (!isStaff && prevAttemptsCount >= maxAttempts) {
+    throw new ApiError(
+      400,
+      retakePolicy === "single"
+        ? "This quiz allows only a single attempt, which you have already completed."
+        : `You have reached the maximum number of attempts (${maxAttempts}) allowed for this chapter quiz.`,
+    );
+  }
+
+  // Grade all active questions
+  const feedback: ShopQuizQuestionFeedback[] = activeQuestions.map((q) =>
+    gradeSingleQuestion(q, input.answers[q.id]),
+  );
+
+  const correctCount = feedback.filter((f) => f.correct).length;
+  const totalQuestions = activeQuestions.length;
+  const incorrectCount = totalQuestions - correctCount;
+  const score = correctCount;
+  const percentage =
+    totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+  const passed = percentage >= 50;
+
+  const attempt: ShopQuizAttempt = {
+    attemptNumber: prevAttemptsCount + 1,
+    score,
+    totalQuestions,
+    correctCount,
+    incorrectCount,
+    percentage,
+    passed,
+    submittedAt: now(),
+    feedback,
+  };
+
+  const allAttempts = [...(prevChapterResult?.attempts || []), attempt];
+  const scoringMethod = targetModule.quiz.scoringMethod || "highest";
+
+  let effectiveScore = score;
+  if (scoringMethod === "highest") {
+    effectiveScore = Math.max(...allAttempts.map((a) => a.score));
+  } else if (scoringMethod === "latest") {
+    effectiveScore = attempt.score;
+  } else if (scoringMethod === "average") {
+    const sum = allAttempts.reduce((acc, a) => acc + a.score, 0);
+    effectiveScore = Math.round((sum / allAttempts.length) * 100) / 100;
+  }
+
+  const effectivePercentage =
+    totalQuestions > 0
+      ? Math.round((effectiveScore / totalQuestions) * 100)
+      : 0;
+
+  const chapterResult: ShopChapterQuizResult = {
+    moduleId: input.moduleId,
+    attemptsCount: allAttempts.length,
+    effectiveScore,
+    totalQuestions,
+    effectivePercentage,
+    passed: effectivePercentage >= 50,
+    lastAttemptAt: attempt.submittedAt,
+    attempts: allAttempts.slice(-10), // Keep up to 10 recent attempts for history
+  };
+
+  existingQuizResults[input.moduleId] = chapterResult;
+
+  const completedIds = currentProg?.completedLessonIds || [];
+  const evaluation = evaluateCourseCompletionAndEligibility(
+    course,
+    completedIds,
+    existingQuizResults,
+  );
+
+  let certificateId = currentProg?.certificateId || null;
+  if (
+    evaluation.eligibleForCertificate &&
+    !certificateId &&
+    course.certificateEnabled !== false
+  ) {
+    certificateId = randomUUID();
+    const certRef = db().collection("shopCertificates").doc(certificateId);
+    await certRef.set({
+      id: certificateId,
+      studentId: user.id,
+      studentName: user.name,
+      courseId: input.courseId,
+      courseTitle: course.title,
+      issuedAt: now(),
+      verificationCode: `EACERT-${certificateId.slice(0, 8).toUpperCase()}`,
+    });
+  }
+
+  const updated: ShopCourseProgress = {
+    id: `${user.id}_${input.courseId}`,
+    studentId: user.id,
+    courseId: input.courseId,
+    completedLessonIds: completedIds,
+    lastLessonId:
+      currentProg?.lastLessonId ||
+      targetModule.lessons?.[0]?.id ||
+      input.moduleId,
+    completed: evaluation.eligibleForCertificate,
+    completedAt: evaluation.eligibleForCertificate
+      ? currentProg?.completedAt || now()
+      : undefined,
+    certificateId: certificateId || undefined,
+    quizResults: existingQuizResults,
+    overallQuizScore: evaluation.overallQuizScore,
+    overallQuizTotal: evaluation.overallQuizTotal,
+    overallQuizPercentage: evaluation.overallQuizPercentage,
+  };
+
+  await progRef.set(clean(updated), { merge: true });
+
+  return {
+    attempt,
+    chapterResult,
+    progress: updated,
+    certificateId,
+    certificateUnlocked: Boolean(
+      evaluation.eligibleForCertificate && certificateId,
+    ),
+    evaluation,
+  };
+}
+
+async function getShopCourseQuizAnalytics(
+  user: AcademyUser,
+  courseId: string,
+): Promise<ShopCourseQuizAnalytics> {
+  if (user.role !== "Admin" && user.role !== "Instructor") {
+    throw new ApiError(403, "Only instructors and administrators can view quiz analytics.");
+  }
+
+  const courseDoc = await db().collection("shopItems").doc(courseId).get();
+  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
+  const course = courseDoc.data() as ShopItem;
+
+  const [progressSnap, purchasesSnap] = await Promise.all([
+    db()
+      .collection("shopCourseProgress")
+      .where("courseId", "==", courseId)
+      .get(),
+    db().collection("shopPurchases").where("itemId", "==", courseId).get(),
+  ]);
+
+  const progressDocs = progressSnap.docs.map(
+    (d) => ({ ...d.data(), id: d.id }) as ShopCourseProgress,
+  );
+  const purchaseMap = new Map<string, ShopPurchase>();
+  purchasesSnap.docs.forEach((d) => {
+    const p = d.data() as ShopPurchase;
+    if (p.studentId) purchaseMap.set(p.studentId, p);
+  });
+
+  // Resolve student profiles for any progress rows not in purchaseMap
+  const missingUserIds = progressDocs
+    .map((p) => p.studentId)
+    .filter((uid) => uid && !purchaseMap.has(uid));
+  const userDocs = await Promise.all(
+    Array.from(new Set(missingUserIds)).map((uid) =>
+      db().collection("users").doc(uid).get(),
+    ),
+  );
+  const userMap = new Map<string, AcademyUser>();
+  userDocs.forEach((u) => {
+    if (u.exists) userMap.set(u.id, u.data() as AcademyUser);
+  });
+
+  const totalLessonsCount = (course.curriculum || []).reduce(
+    (acc, m) => acc + (m.lessons?.length || 0),
+    0,
+  );
+
+  const chapters = (course.curriculum || []).map((mod) => {
+    const activeQuestions = getActiveModuleQuestions(mod);
+    const enabled = Boolean(mod.quiz?.enabled && activeQuestions.length > 0);
+    const required = mod.quiz?.required !== false;
+
+    const chapterAttempts = progressDocs
+      .map((p) => p.quizResults?.[mod.id])
+      .filter((r): r is ShopChapterQuizResult => Boolean(r && r.attemptsCount > 0));
+
+    const studentsAttempted = chapterAttempts.length;
+    const averagePercentage =
+      studentsAttempted > 0
+        ? Math.round(
+            chapterAttempts.reduce(
+              (acc, r) => acc + Number(r.effectivePercentage || 0),
+              0,
+            ) / studentsAttempted,
+          )
+        : 0;
+    const passedCount = chapterAttempts.filter((r) => r.passed).length;
+    const passRate =
+      studentsAttempted > 0
+        ? Math.round((passedCount / studentsAttempted) * 100)
+        : 0;
+
+    return {
+      moduleId: mod.id,
+      moduleTitle: mod.title,
+      enabled,
+      required,
+      questionsCount: activeQuestions.length,
+      retakePolicy: mod.quiz?.retakePolicy || "unlimited",
+      scoringMethod: mod.quiz?.scoringMethod || "highest",
+      studentsAttempted,
+      averagePercentage,
+      passRate,
+    };
+  });
+
+  const students: ShopCourseQuizStudentStat[] = progressDocs.map((prog) => {
+    const purchase = purchaseMap.get(prog.studentId);
+    const profile = userMap.get(prog.studentId);
+    const evaluation = evaluateCourseCompletionAndEligibility(
+      course,
+      prog.completedLessonIds || [],
+      prog.quizResults || {},
+    );
+
+    const chapterScores: ShopCourseQuizStudentStat["chapterScores"] = {};
+    for (const [modId, res] of Object.entries(prog.quizResults || {})) {
+      if (res && res.attemptsCount > 0) {
+        chapterScores[modId] = {
+          score: res.effectiveScore,
+          total: res.totalQuestions,
+          percentage: res.effectivePercentage,
+          attempts: res.attemptsCount,
+          passed: res.passed,
+        };
+      }
+    }
+
+    return {
+      studentId: prog.studentId,
+      studentName:
+        purchase?.studentName || profile?.name || "Enrolled Student",
+      studentEmail: purchase?.studentEmail || profile?.email || "",
+      completedLessonsCount: (prog.completedLessonIds || []).length,
+      totalLessonsCount,
+      completedQuizzesCount: evaluation.completedRequiredQuizzesCount,
+      requiredQuizzesCount: evaluation.requiredQuizzesCount,
+      overallScore: evaluation.overallQuizScore,
+      overallTotal: evaluation.overallQuizTotal,
+      overallPercentage: evaluation.overallQuizPercentage,
+      certificateUnlocked: Boolean(
+        evaluation.eligibleForCertificate && prog.certificateId,
+      ),
+      certificateId: prog.certificateId,
+      chapterScores,
+    };
+  });
+
+  const studentsWithQuizAttempts = students.filter(
+    (s) => Object.keys(s.chapterScores).length > 0,
+  );
+  const overallAveragePercentage =
+    studentsWithQuizAttempts.length > 0
+      ? Math.round(
+          studentsWithQuizAttempts.reduce(
+            (acc, s) => acc + s.overallPercentage,
+            0,
+          ) / studentsWithQuizAttempts.length,
+        )
+      : 0;
+
+  return {
+    courseId,
+    chapters,
+    overallAveragePercentage,
+    students,
+  };
 }
 
 async function getShopCertificate(user: AcademyUser, id: string) {

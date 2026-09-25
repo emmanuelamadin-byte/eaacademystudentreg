@@ -898,7 +898,7 @@ const FAQS = [
   {
     question: "What is the difference between Free and Premium membership?",
     answer:
-      "Free membership gives you access to foundational modules, starter assignments, and community lounge forums. Premium (₦3,000/month) unlocks full simultaneous access to all three career tracks, 1-on-1 instructor assignment reviews, live group mentor sessions, and expanded AI tutor assistance.",
+      "Free membership gives you access to foundational modules, starter assignments, and community lounge forums. Premium (₦3,000/month) unlocks full simultaneous access to all three career tracks, access to EA Academy selected courses, live group mentor sessions, and expanded AI tutor assistance.",
   },
 ];
 

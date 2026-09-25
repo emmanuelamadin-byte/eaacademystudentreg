@@ -230,12 +230,45 @@ export interface ShopCourseLesson {
   order: number;
 }
 
+export type ShopQuizQuestionType =
+  | "multiple_choice"
+  | "true_false"
+  | "multiple_answer"
+  | "short_answer";
+
+export type ShopQuizRetakePolicy = "unlimited" | "limited" | "single";
+export type ShopQuizScoringMethod = "highest" | "latest" | "average";
+
+export interface ShopChapterQuizQuestion {
+  id: string;
+  type: ShopQuizQuestionType;
+  question: string;
+  options?: string[];
+  correctAnswer?: string;
+  correctAnswers?: string[];
+  explanation?: string;
+  points?: number;
+}
+
+export interface ShopChapterQuizConfig {
+  enabled: boolean;
+  required?: boolean;
+  requiredQuestionsCount?: number;
+  retakePolicy: ShopQuizRetakePolicy;
+  maxAttempts?: number;
+  scoringMethod: ShopQuizScoringMethod;
+  questions: ShopChapterQuizQuestion[];
+}
+
 export interface ShopCourseModule {
   id: string;
   title: string;
   description?: string;
+  summary?: string;
+  keyLearningPoints?: string[];
   order: number;
   lessons: ShopCourseLesson[];
+  quiz?: ShopChapterQuizConfig;
 }
 
 export interface ShopItem {
@@ -288,6 +321,39 @@ export interface ShopPurchase {
   purchasedAt: string;
 }
 
+export interface ShopQuizQuestionFeedback {
+  questionId: string;
+  correct: boolean;
+  studentAnswer: string | string[];
+  correctAnswer?: string | string[];
+  explanation?: string;
+  pointsEarned: number;
+  pointsPossible: number;
+}
+
+export interface ShopQuizAttempt {
+  attemptNumber: number;
+  score: number;
+  totalQuestions: number;
+  correctCount: number;
+  incorrectCount: number;
+  percentage: number;
+  passed: boolean;
+  submittedAt: string;
+  feedback?: ShopQuizQuestionFeedback[];
+}
+
+export interface ShopChapterQuizResult {
+  moduleId: string;
+  attemptsCount: number;
+  effectiveScore: number;
+  totalQuestions: number;
+  effectivePercentage: number;
+  passed: boolean;
+  lastAttemptAt: string;
+  attempts: ShopQuizAttempt[];
+}
+
 export interface ShopCourseProgress {
   id: string;
   studentId: string;
@@ -297,6 +363,53 @@ export interface ShopCourseProgress {
   completed: boolean;
   completedAt?: string;
   certificateId?: string;
+  quizResults?: Record<string, ShopChapterQuizResult>;
+  overallQuizScore?: number;
+  overallQuizTotal?: number;
+  overallQuizPercentage?: number;
+}
+
+export interface ShopCourseQuizStudentStat {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  completedLessonsCount: number;
+  totalLessonsCount: number;
+  completedQuizzesCount: number;
+  requiredQuizzesCount: number;
+  overallScore: number;
+  overallTotal: number;
+  overallPercentage: number;
+  certificateUnlocked: boolean;
+  certificateId?: string;
+  chapterScores: Record<
+    string,
+    {
+      score: number;
+      total: number;
+      percentage: number;
+      attempts: number;
+      passed: boolean;
+    }
+  >;
+}
+
+export interface ShopCourseQuizAnalytics {
+  courseId: string;
+  chapters: Array<{
+    moduleId: string;
+    moduleTitle: string;
+    enabled: boolean;
+    required: boolean;
+    questionsCount: number;
+    retakePolicy: ShopQuizRetakePolicy;
+    scoringMethod: ShopQuizScoringMethod;
+    studentsAttempted: number;
+    averagePercentage: number;
+    passRate: number;
+  }>;
+  overallAveragePercentage: number;
+  students: ShopCourseQuizStudentStat[];
 }
 
 export interface ShopCertificate {

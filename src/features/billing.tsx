@@ -114,7 +114,7 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
                 "Full access to all three career tracks",
                 "EA AI Mentor & Tutor — up to 15 requests daily",
                 "AI code reviews and pre-submission checks",
-                "Two instructor assignment reviews monthly",
+                "Access to EA Academy selected courses",
                 "Live group mentor sessions and recordings",
                 "One portfolio critique monthly",
                 "Verified learning record",
@@ -172,8 +172,8 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
                 "Premium costs ₦3,000 monthly. Choose automatic renewal or pay for one month at a time. Cancellation stops future renewal; your paid access continues until its expiry.",
               ],
               [
-                "How do instructor reviews work?",
-                "Premium includes two assignment review requests each calendar month and one new portfolio critique each calendar month. Group mentor sessions are included when scheduled.",
+                "What is included with selected courses and reviews?",
+                "Premium includes access to EA Academy selected courses, one portfolio critique each calendar month, and group mentor sessions when scheduled.",
               ],
               [
                 "When will the curriculum be available?",

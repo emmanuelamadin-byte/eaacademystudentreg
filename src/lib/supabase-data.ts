@@ -403,6 +403,31 @@ export function rowFromDatabase(name: string, source: Row): Row {
   if (name === "shopPurchases") {
     if (result.amount !== undefined) result.amount = Number(result.amount);
   }
+  if (name === "shopCourseProgress" && Array.isArray(result.completedLessonIds)) {
+    const rawIds = result.completedLessonIds as string[];
+    const cleanIds: string[] = [];
+    for (const entry of rawIds) {
+      if (typeof entry === "string" && entry.startsWith("__quiz_meta__:")) {
+        try {
+          const parsed = JSON.parse(entry.slice("__quiz_meta__:".length));
+          if (parsed && typeof parsed === "object") {
+            if (parsed.quizResults) result.quizResults = parsed.quizResults;
+            if (typeof parsed.overallQuizScore === "number")
+              result.overallQuizScore = parsed.overallQuizScore;
+            if (typeof parsed.overallQuizTotal === "number")
+              result.overallQuizTotal = parsed.overallQuizTotal;
+            if (typeof parsed.overallQuizPercentage === "number")
+              result.overallQuizPercentage = parsed.overallQuizPercentage;
+          }
+        } catch {
+          // Ignore malformed quiz metadata
+        }
+      } else {
+        cleanIds.push(entry);
+      }
+    }
+    result.completedLessonIds = cleanIds;
+  }
   if (name === "videoAds") {
     if (result.skipDurationSeconds !== undefined)
       result.skipDurationSeconds = Number(result.skipDurationSeconds);
@@ -420,6 +445,15 @@ export function rowToDatabase(name: string, source: Row): Row {
     if (value === undefined || key === "lessonCount" || key === "lessons")
       continue;
     if ((name === "progress" || name === "votes") && key === "id") continue;
+    if (
+      name === "shopCourseProgress" &&
+      (key === "quizResults" ||
+        key === "overallQuizScore" ||
+        key === "overallQuizTotal" ||
+        key === "overallQuizPercentage")
+    ) {
+      continue;
+    }
     if (name === "users" && key === "birthday") {
       const birthday = value as { month?: number; day?: number };
       result.birth_month = birthday?.month;
@@ -432,6 +466,29 @@ export function rowToDatabase(name: string, source: Row): Row {
       continue;
     }
     result[databaseField(name, key)] = value;
+  }
+  if (name === "shopCourseProgress") {
+    const lessonIds = Array.isArray(source.completedLessonIds)
+      ? (source.completedLessonIds as string[]).filter(
+          (id) => typeof id === "string" && !id.startsWith("__quiz_meta__:"),
+        )
+      : [];
+    if (
+      source.quizResults !== undefined ||
+      source.overallQuizScore !== undefined ||
+      source.overallQuizTotal !== undefined ||
+      source.overallQuizPercentage !== undefined
+    ) {
+      const meta = JSON.stringify({
+        quizResults: source.quizResults || {},
+        overallQuizScore: source.overallQuizScore,
+        overallQuizTotal: source.overallQuizTotal,
+        overallQuizPercentage: source.overallQuizPercentage,
+      });
+      result.completed_lesson_ids = [...lessonIds, `__quiz_meta__:${meta}`];
+    } else if (Array.isArray(source.completedLessonIds)) {
+      result.completed_lesson_ids = lessonIds;
+    }
   }
   return result;
 }
