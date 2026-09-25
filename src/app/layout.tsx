@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { AcademyProvider } from "@/components/academy-provider";
 import { PwaTools } from "@/components/pwa-tools";
 import { NavigationScrollHandler } from "@/components/navigation-scroll-handler";
+import { TikTokPixel } from "@/components/tiktok-pixel";
 import {
   OrganizationSchema,
   WebSiteSchema,
@@ -123,6 +124,7 @@ export default function RootLayout({
         <WebSiteSchema />
       </head>
       <body>
+        <TikTokPixel />
         <a className="skip-link" href="#main-content">
           Skip to content
         </a>
