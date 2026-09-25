@@ -19,8 +19,18 @@ vi.mock("../src/server/supabase", () => {
   const store = {
     collection: (name: string) => ({
       doc: (id: string) => reference(`${name}/${id}`),
-      where: () => ({
-        get: async () => ({ empty: true, docs: [] }),
+      where: (field: string, operator: string, value: unknown) => ({
+        get: async () => {
+          const docs = Array.from(state.documents.entries())
+            .filter(([key, data]) =>
+              key.startsWith(`${name}/`) &&
+              (operator === "in"
+                ? (value as unknown[]).includes(data[field])
+                : data[field] === value),
+            )
+            .map(([key]) => ({ id: key.slice(name.length + 1) }));
+          return { empty: docs.length === 0, docs };
+        },
       }),
     }),
   };
@@ -126,5 +136,48 @@ describe("GET /api/upload", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("application/pdf");
     expect(res.headers.get("Content-Disposition")).toContain("attachment");
+  });
+
+  it("requires a purchase for a staff-uploaded digital product", async () => {
+    const objectPath = "uploads/admin-123/handbook.pdf";
+    state.documents.set("users/admin-123", { role: "Admin" });
+    state.documents.set("shopItems/handbook", {
+      fileUrl: `/api/upload?path=${encodeURIComponent(objectPath)}`,
+    });
+    const url = `http://localhost:3000/api/upload?path=${encodeURIComponent(objectPath)}`;
+
+    expect((await GET(new Request(url))).status).toBe(401);
+    expect((await GET(new Request(url, {
+      headers: { Authorization: "Bearer student-456" },
+    }))).status).toBe(403);
+
+    state.documents.set("shopPurchases/student-456_handbook", {
+      studentId: "student-456",
+      itemId: "handbook",
+    });
+    const purchased = await GET(new Request(url, {
+      headers: { Authorization: "Bearer student-456" },
+    }));
+    expect(purchased.status).toBe(200);
+    expect(purchased.headers.get("Cache-Control")).toContain("no-store");
+  });
+
+  it("does not publicly cache or serve purchased image files", async () => {
+    const objectPath = "uploads/admin-123/template.png";
+    state.documents.set("shopItems/template", {
+      fileUrl: `/api/upload?path=${encodeURIComponent(objectPath)}`,
+    });
+    const url = `http://localhost:3000/api/upload?path=${encodeURIComponent(objectPath)}`;
+
+    expect((await GET(new Request(url))).status).toBe(401);
+    state.documents.set("shopPurchases/student-456_template", {
+      studentId: "student-456",
+      itemId: "template",
+    });
+    const purchased = await GET(new Request(url, {
+      headers: { Authorization: "Bearer student-456" },
+    }));
+    expect(purchased.status).toBe(200);
+    expect(purchased.headers.get("Cache-Control")).toContain("no-store");
   });
 });

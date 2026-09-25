@@ -555,7 +555,6 @@ const SHOP_ITEM_CLIENT_COLUMNS = [
   "level",
   "total_duration",
   "certificate_enabled",
-  "curriculum",
   "file_size",
   "file_format",
   "version",

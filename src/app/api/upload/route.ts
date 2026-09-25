@@ -20,6 +20,24 @@ import {
 
 export const runtime = "nodejs";
 
+function shopFileUrlVariants(objectPath: string, requestUrl: string) {
+  const encodedPath = encodeURIComponent(objectPath);
+  const relativeUrls = [
+    `/api/upload?path=${encodedPath}`,
+    `/api/upload?path=${objectPath}`,
+  ];
+  const origins = [new URL(requestUrl).origin, process.env.NEXT_PUBLIC_APP_URL]
+    .filter((origin): origin is string => Boolean(origin && URL.canParse(origin)));
+  return Array.from(new Set([
+    ...relativeUrls,
+    objectPath,
+    `/${objectPath}`,
+    ...origins.flatMap((origin) =>
+      relativeUrls.map((url) => new URL(url, origin).toString()),
+    ),
+  ]));
+}
+
 export async function POST(request: Request) {
   try {
     const user = await actor(await identity(request));
@@ -95,10 +113,33 @@ export async function GET(request: Request) {
     const ext = path.extname(objectPath).toLowerCase();
     const isImage = [".png", ".jpg", ".jpeg", ".webp"].includes(ext);
 
+    // Product files share the upload bucket with public thumbnails and lesson
+    // resources. Resolve the product first, including image-based products.
+    const productFiles = await db()
+      .collection("shopItems")
+      .where("fileUrl", "in", shopFileUrlVariants(objectPath, request.url))
+      .get();
+    const productIds = productFiles.docs.map((doc) => doc.id);
+    let authorizedProduct = false;
+    if (productIds.length) {
+      const purchaser = await actor(await identity(request));
+      const owner = objectPath.split("/")[1];
+      if (owner !== purchaser.id && purchaser.role !== "Admin") {
+        const purchases = await Promise.all(
+          productIds.map((itemId) =>
+            db().collection("shopPurchases").doc(`${purchaser.id}_${itemId}`).get(),
+          ),
+        );
+        if (!purchases.some((purchase) => purchase.exists))
+          throw new ApiError(403, "Purchase this item to download its file.");
+      }
+      authorizedProduct = true;
+    }
+
     if (!isImage) {
       const user = await actor(await identity(request));
       const owner = objectPath.split("/")[1];
-      if (owner !== user.id && user.role !== "Admin") {
+      if (owner !== user.id && user.role !== "Admin" && !authorizedProduct) {
         if (user.role === "Instructor") {
           const submissions = await db()
             .collection("submissions")
@@ -110,7 +151,7 @@ export async function GET(request: Request) {
               "This attachment is outside your assigned tracks.",
             );
         } else {
-          // If uploaded by an Admin or Instructor (e.g. course resources, materials, product files),
+          // Staff lesson resources remain available to signed-in students.
           // allow authenticated students to download.
           const ownerDoc = await db().collection("users").doc(owner).get();
           const ownerUser = ownerDoc.data();
@@ -142,7 +183,9 @@ export async function GET(request: Request) {
         headers: {
           "Content-Type": imageContentType,
           "Content-Disposition": "inline",
-          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+          "Cache-Control": authorizedProduct
+            ? "private, no-store, max-age=0"
+            : "public, max-age=86400, stale-while-revalidate=604800",
           "X-Content-Type-Options": "nosniff",
         },
       });

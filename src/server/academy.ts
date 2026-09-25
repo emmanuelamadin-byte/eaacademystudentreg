@@ -1414,7 +1414,8 @@ export async function listPublicShopItems() {
     .get();
   return snapshot.docs
     .map((d) => {
-      const data = d.data() as ShopItem;
+      const data = { ...(d.data() as ShopItem) };
+      delete data.fileUrl;
       if (data.type === "course" && Array.isArray(data.curriculum)) {
         data.curriculum = sanitizeCurriculumForStudent(data.curriculum, true);
       }
@@ -1431,8 +1432,9 @@ export async function getPublicShopItem(slug: string) {
     .get();
   if (snapshot.empty) throw new ApiError(404, "Product or course not found.");
   const doc = snapshot.docs[0];
-  const data = doc.data() as ShopItem;
+  const data = { ...(doc.data() as ShopItem) };
   if (!data.published) throw new ApiError(404, "Product or course not found.");
+  delete data.fileUrl;
   if (data.type === "course" && Array.isArray(data.curriculum)) {
     data.curriculum = sanitizeCurriculumForStudent(data.curriculum, true);
   }
@@ -2438,4 +2440,3 @@ async function recordAdClick(user: AcademyUser, id: string) {
   }
   return { success: true };
 }
-

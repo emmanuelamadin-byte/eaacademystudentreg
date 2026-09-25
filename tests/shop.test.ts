@@ -59,6 +59,7 @@ vi.mock("../src/server/supabase", () => {
   ) => ({
     where: (field: string, _op: string, value: unknown) =>
       makeQuery(name, [...filters, { field, value }]),
+    limit: () => makeQuery(name, filters),
     get: async () => queryDocs(name, filters),
   });
   const store = {
@@ -101,7 +102,43 @@ vi.mock("../src/server/supabase", () => {
 
 import { checkout, verifyPayment } from "../src/server/payments";
 import { generateChapterQuiz } from "../src/server/ai";
-import { dispatch } from "../src/server/academy";
+import { dispatch, getPublicShopItem, listPublicShopItems } from "../src/server/academy";
+
+describe("Public shop responses", () => {
+  beforeEach(() => state.documents.clear());
+
+  it("keeps public previews but omits paid content and file links", async () => {
+    state.documents.set("shopItems/course", {
+      slug: "course",
+      type: "course",
+      published: true,
+      curriculum: [{
+        id: "module",
+        lessons: [
+          { id: "preview", isFreePreview: true, videoUrl: "preview-video", content: "sample" },
+          { id: "paid", isFreePreview: false, videoUrl: "paid-video", content: "paid notes" },
+        ],
+        quiz: { enabled: true, questions: [{ id: "q1", question: "Question", correctAnswer: "secret" }] },
+      }],
+    });
+    state.documents.set("shopItems/handbook", {
+      slug: "handbook",
+      type: "digital_product",
+      published: true,
+      fileUrl: "/api/upload?path=uploads%2Fadmin%2Fhandbook.pdf",
+    });
+
+    const items = await listPublicShopItems();
+    const course = items.find((item) => item.id === "course")!;
+    const handbook = await getPublicShopItem("handbook");
+    expect(course.curriculum?.[0].lessons[0].videoUrl).toBe("preview-video");
+    expect(course.curriculum?.[0].lessons[1].videoUrl).toBe("");
+    expect(course.curriculum?.[0].lessons[1].content).toBe("");
+    expect(course.curriculum?.[0].quiz?.questions[0].correctAnswer).toBeUndefined();
+    expect(handbook.fileUrl).toBeUndefined();
+    expect(items.find((item) => item.id === "handbook")?.fileUrl).toBeUndefined();
+  });
+});
 
 describe("Shop & Course Builder Schemas", () => {
   it("validates a professional course schema with curriculum", () => {
@@ -860,4 +897,3 @@ describe("AI-Powered Chapter Quiz & Certification System", () => {
     expect(analytics.students[0].certificateUnlocked).toBe(true);
   });
 });
-

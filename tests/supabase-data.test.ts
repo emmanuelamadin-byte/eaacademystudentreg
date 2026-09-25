@@ -53,6 +53,7 @@ describe("Supabase browser selections", () => {
 
   it("protects digital product download files from client-side browser selections", () => {
     const shopSelection = clientSelectionFor("shopItems");
+    expect(shopSelection).not.toContain("curriculum");
     expect(shopSelection).not.toContain("*");
     expect(shopSelection).toContain("title");
     expect(shopSelection).toContain("slug");
@@ -105,4 +106,3 @@ describe("Shop Supabase collection mapping & field normalization", () => {
     expect(purchase.paymentReference).toBe("ref_123");
   });
 });
-

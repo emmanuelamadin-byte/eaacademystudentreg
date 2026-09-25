@@ -25,15 +25,31 @@ import {
 } from "lucide-react";
 import { PublicHeader, PublicFooter } from "@/components/public-site";
 import { useAcademy } from "@/components/academy-provider";
-import { useRecords } from "@/lib/hooks";
 import { api } from "@/lib/api";
 import { getVideoEmbed } from "@/lib/video";
 import { type ShopItem, type ShopCourseLesson, isPremium } from "@/lib/types";
 
 export function ShopCatalogPage() {
-  const { data: items, loading, error } = useRecords<ShopItem>("shopItems", [
-    ["published", "==", true],
-  ]);
+  const [items, setItems] = useState<ShopItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/shop", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load products.");
+        const body = (await response.json()) as { data: ShopItem[] };
+        setItems(body.data);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
