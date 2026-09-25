@@ -45,6 +45,7 @@ vi.mock("../src/server/supabase", () => {
 import { validSignature, verifyPayment, webhook } from "../src/server/payments";
 import {
   buildSubscriptionReminderContent,
+  formatEmailSender,
   getSubscriptionReminderStage,
   sendDonationThankYouEmail,
 } from "../src/server/communications";
@@ -340,7 +341,18 @@ describe("payment verification and ledger integrity", () => {
     expect(reminder2d.idempotency_key).toBe(
       "subscription_expiry:2d:student_1:2026-10-08:email",
     );
+
+    expect(formatEmailSender("noreply@ea-academy.org")).toBe(
+      "EA Academy <noreply@ea-academy.org>",
+    );
+    expect(formatEmailSender("noreply <noreply@ea-academy.org>")).toBe(
+      "EA Academy <noreply@ea-academy.org>",
+    );
+    expect(formatEmailSender("EA Academy <onboarding@resend.dev>")).toBe(
+      "EA Academy <onboarding@resend.dev>",
+    );
   });
 });
+
 
 

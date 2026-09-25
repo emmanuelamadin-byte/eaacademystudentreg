@@ -343,83 +343,84 @@ export async function listBroadcasts(): Promise<{
   }
 }
 
+export function formatEmailSender(
+  rawFrom = process.env.EMAIL_FROM,
+): string | null {
+  const trimmed = rawFrom?.trim();
+  if (!trimmed) return null;
+  const angleMatch = trimmed.match(/<([^<>]+@[^<>]+)>/);
+  const address = (angleMatch ? angleMatch[1] : trimmed).trim();
+  if (!address.includes("@")) return trimmed;
+  return `EA Academy <${address}>`;
+}
+
 async function sendEmail(delivery: Delivery) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+  const from = formatEmailSender();
   if (!apiKey || !from) return null;
   const appUrl = (
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://student.cleanbrandagency.com"
+    "https://ea-academy.org"
   ).replace(/\/$/, "");
+  const billingUrl = `${appUrl}/app/billing`;
   const safeMessage = escapeHtml(delivery.message).replaceAll("\n", "<br />");
 
   let html = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#10233f"><h1 style="font-size:24px">${escapeHtml(delivery.subject || "EA Academy")}</h1><p style="font-size:16px;line-height:1.7">${safeMessage}</p>${appUrl ? `<p><a href="${escapeHtml(appUrl)}/app/account">Manage communication preferences</a></p>` : ""}</div>`;
 
   if (delivery.kind === "subscription_reminder") {
-    const vars = delivery.template_variables || {};
-    const firstName = escapeHtml(vars.firstName || "Student");
-    const daysRemaining = escapeHtml(vars.daysRemaining || "7");
-    const expiryDate = escapeHtml(vars.expiryDate || "soon");
-    const isUrgent = vars.stage === "2d";
-    const badgeBg = isUrgent ? "#fef2f2" : "#eff6ff";
-    const badgeColor = isUrgent ? "#dc2626" : "#0284c7";
+    const subjectStr = delivery.subject || "Your EA Academy Premium subscription expires soon";
+    const isUrgent =
+      subjectStr.includes("2 day") ||
+      delivery.template_variables?.stage === "2d";
+    const badgeBg = isUrgent ? "#fef2f2" : "#fffbeb";
+    const badgeColor = isUrgent ? "#dc2626" : "#d97706";
+    const badgeBorder = isUrgent ? "#fecaca" : "#fde68a";
     const badgeLabel = isUrgent
-      ? `⚠️ Expires in ${daysRemaining} Days`
-      : `⏳ Expires in ${daysRemaining} Days`;
+      ? "⚠️ Expires in 2 Days"
+      : "⏳ Expires in 7 Days";
 
     html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px 24px;background-color:#ffffff;color:#1e293b;border-radius:12px;border:1px solid #e2e8f0">
   <div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #f1f5f9">
-    <div style="display:inline-block;padding:6px 14px;background-color:${badgeBg};border-radius:9999px;font-size:12px;font-weight:700;color:${badgeColor};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px">
+    <div style="display:inline-block;padding:6px 14px;background-color:${badgeBg};border:1px solid ${badgeBorder};border-radius:9999px;font-size:12px;font-weight:700;color:${badgeColor};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px">
       ${badgeLabel}
     </div>
     <h1 style="margin:0;font-size:22px;font-weight:700;color:#002751;letter-spacing:-0.02em">
-      Your EA Academy Premium Pass Expires Soon
+      ${escapeHtml(subjectStr)}
     </h1>
   </div>
 
   <div style="padding:24px 0;line-height:1.65;font-size:15px;color:#334155">
-    <p style="margin-top:0">Hi <strong>${firstName}</strong>,</p>
-    <p>
-      This is a friendly reminder that your <strong>EA Academy Premium membership</strong> will expire in <strong>${daysRemaining} days</strong> (on <strong>${expiryDate}</strong>).
-    </p>
-    <p>
-      Renewing your membership ensures uninterrupted access to:
-    </p>
-    <ul style="margin:14px 0 22px;padding-left:20px;color:#334155">
-      <li style="margin-bottom:6px">Full access to all three Career Tracks &amp; practical assignments</li>
-      <li style="margin-bottom:6px">EA AI Mentor &amp; Tutor (up to 15 requests daily) &amp; AI code reviews</li>
-      <li style="margin-bottom:6px">Access to EA Academy selected courses &amp; live mentor sessions</li>
-      <li style="margin-bottom:6px">Monthly portfolio critiques &amp; verified learning record</li>
-    </ul>
+    <p style="margin:0 0 20px">${safeMessage}</p>
 
     <div style="margin:24px 0;padding:18px 20px;background-color:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">
+        Membership Summary
+      </div>
       <table style="width:100%;border-collapse:collapse;font-size:14px">
         <tr>
-          <td style="padding:6px 0;color:#64748b">Membership Plan:</td>
-          <td style="padding:6px 0;text-align:right;font-weight:700;color:#002751">EA Academy Premium (₦3,000/month)</td>
+          <td style="padding:5px 0;color:#64748b">Plan:</td>
+          <td style="padding:5px 0;text-align:right;font-weight:700;color:#002751">EA Academy Premium</td>
         </tr>
         <tr>
-          <td style="padding:6px 0;color:#64748b">Current Access Ends:</td>
-          <td style="padding:6px 0;text-align:right;font-weight:600;color:${badgeColor}">${expiryDate}</td>
+          <td style="padding:5px 0;color:#64748b">Renewal Rate:</td>
+          <td style="padding:5px 0;text-align:right;font-weight:600;color:#334155">₦3,000 / 30 days</td>
         </tr>
       </table>
     </div>
 
-    <div style="text-align:center;margin:28px 0 12px">
-      <a href="${escapeHtml(appUrl)}/app/billing" style="display:inline-block;padding:13px 26px;background-color:#002751;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:8px">
+    <div style="text-align:center;margin:28px 0 8px">
+      <a href="${escapeHtml(billingUrl)}" style="display:inline-block;background-color:#002751;color:#ffffff;font-weight:600;font-size:15px;padding:13px 28px;border-radius:8px;text-decoration:none">
         Renew Premium Membership &rarr;
       </a>
     </div>
   </div>
 
-  <div style="border-top:1px solid #f1f5f9;padding-top:20px;font-size:12px;color:#94a3b8;line-height:1.5;text-align:center">
-    <p style="margin:0 0 6px;color:#475569">
-      <strong>EA Academy</strong> — Practical AI &amp; Digital Skills
-    </p>
-    <p style="margin:0">
-      <a href="${escapeHtml(appUrl)}/app/billing" style="color:#0284c7;text-decoration:none">Billing &amp; Membership</a> &bull;
-      <a href="${escapeHtml(appUrl)}/app/account" style="color:#0284c7;text-decoration:none">Manage communication preferences</a>
+  <div style="border-top:1px solid #f1f5f9;padding-top:20px;font-size:13px;color:#64748b;line-height:1.5">
+    <p style="margin:0 0 4px;font-weight:600;color:#002751">Keep building your future,</p>
+    <p style="margin:0 0 12px;color:#334155"><strong>The EA Academy Team</strong></p>
+    <p style="margin:0;font-size:12px;color:#94a3b8">
+      Manage your subscription or notification settings anytime in your <a href="${escapeHtml(billingUrl)}" style="color:#0284c7;text-decoration:none">EA Academy Billing Dashboard</a>.
     </p>
   </div>
 </div>`;
@@ -923,7 +924,7 @@ export async function notifyOwnerOfNewStudent(info: {
   trackName: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+  const from = formatEmailSender();
   if (!apiKey || !from) return;
   const { ownerEmail, studentName, studentEmail, trackName } = info;
   const subject = `🎉 New student: ${studentName}`;
@@ -954,7 +955,7 @@ export async function sendDonationThankYouEmail(info: {
   reference: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+  const from = formatEmailSender();
   if (!apiKey || !from) return { sent: false, reason: "missing_credentials" };
 
   const { donorEmail, donorName, amount, reference } = info;
