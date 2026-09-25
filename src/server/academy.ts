@@ -51,6 +51,7 @@ import {
   listBroadcasts,
   notifyOwnerOfNewStudent,
   processMessageQueue,
+  queueSubscriptionExpiryReminders,
   saveCommunicationPreferences,
 } from "./communications";
 import { savePushToken, removePushToken } from "./push";
@@ -334,11 +335,26 @@ async function ensureProfile(token: AuthToken, p: Payload) {
   }
   return profile;
 }
+let lastSubscriptionReminderCheckAt = 0;
+function maybeTriggerSubscriptionReminders() {
+  if (process.env.NODE_ENV === "test") return;
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) return;
+  const nowMs = Date.now();
+  if (nowMs - lastSubscriptionReminderCheckAt < 30 * 60 * 1000) return;
+  lastSubscriptionReminderCheckAt = nowMs;
+  void queueSubscriptionExpiryReminders()
+    .then((res) => {
+      if (res.queued > 0) return processMessageQueue(20);
+    })
+    .catch(() => {});
+}
+
 export async function dispatch(
   token: AuthToken,
   action: string,
   p: Payload,
 ): Promise<unknown> {
+  maybeTriggerSubscriptionReminders();
   if (action === "profile.ensure") return ensureProfile(token, p);
   const user = await actor(token);
   await limit(user.id, "writes", 120);
@@ -455,6 +471,7 @@ export async function dispatch(
     }
     case "broadcast.process": {
       requireAdmin(user);
+      await queueSubscriptionExpiryReminders();
       return processMessageQueue(50);
     }
     case "streak.get": {

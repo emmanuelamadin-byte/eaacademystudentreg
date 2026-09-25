@@ -51,7 +51,7 @@ type Delivery = {
   id: string;
   broadcast_id?: string;
   student_id: string;
-  kind: "broadcast" | "birthday";
+  kind: "broadcast" | "birthday" | "subscription_reminder";
   channel: "email" | "whatsapp";
   recipient: string;
   subject?: string;
@@ -347,8 +347,84 @@ async function sendEmail(delivery: Delivery) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
   if (!apiKey || !from) return null;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const appUrl = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://student.cleanbrandagency.com"
+  ).replace(/\/$/, "");
   const safeMessage = escapeHtml(delivery.message).replaceAll("\n", "<br />");
+
+  let html = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#10233f"><h1 style="font-size:24px">${escapeHtml(delivery.subject || "EA Academy")}</h1><p style="font-size:16px;line-height:1.7">${safeMessage}</p>${appUrl ? `<p><a href="${escapeHtml(appUrl)}/app/account">Manage communication preferences</a></p>` : ""}</div>`;
+
+  if (delivery.kind === "subscription_reminder") {
+    const vars = delivery.template_variables || {};
+    const firstName = escapeHtml(vars.firstName || "Student");
+    const daysRemaining = escapeHtml(vars.daysRemaining || "7");
+    const expiryDate = escapeHtml(vars.expiryDate || "soon");
+    const isUrgent = vars.stage === "2d";
+    const badgeBg = isUrgent ? "#fef2f2" : "#eff6ff";
+    const badgeColor = isUrgent ? "#dc2626" : "#0284c7";
+    const badgeLabel = isUrgent
+      ? `⚠️ Expires in ${daysRemaining} Days`
+      : `⏳ Expires in ${daysRemaining} Days`;
+
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px 24px;background-color:#ffffff;color:#1e293b;border-radius:12px;border:1px solid #e2e8f0">
+  <div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #f1f5f9">
+    <div style="display:inline-block;padding:6px 14px;background-color:${badgeBg};border-radius:9999px;font-size:12px;font-weight:700;color:${badgeColor};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px">
+      ${badgeLabel}
+    </div>
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#002751;letter-spacing:-0.02em">
+      Your EA Academy Premium Pass Expires Soon
+    </h1>
+  </div>
+
+  <div style="padding:24px 0;line-height:1.65;font-size:15px;color:#334155">
+    <p style="margin-top:0">Hi <strong>${firstName}</strong>,</p>
+    <p>
+      This is a friendly reminder that your <strong>EA Academy Premium membership</strong> will expire in <strong>${daysRemaining} days</strong> (on <strong>${expiryDate}</strong>).
+    </p>
+    <p>
+      Renewing your membership ensures uninterrupted access to:
+    </p>
+    <ul style="margin:14px 0 22px;padding-left:20px;color:#334155">
+      <li style="margin-bottom:6px">Full access to all three Career Tracks &amp; practical assignments</li>
+      <li style="margin-bottom:6px">EA AI Mentor &amp; Tutor (up to 15 requests daily) &amp; AI code reviews</li>
+      <li style="margin-bottom:6px">Access to EA Academy selected courses &amp; live mentor sessions</li>
+      <li style="margin-bottom:6px">Monthly portfolio critiques &amp; verified learning record</li>
+    </ul>
+
+    <div style="margin:24px 0;padding:18px 20px;background-color:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Membership Plan:</td>
+          <td style="padding:6px 0;text-align:right;font-weight:700;color:#002751">EA Academy Premium (₦3,000/month)</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Current Access Ends:</td>
+          <td style="padding:6px 0;text-align:right;font-weight:600;color:${badgeColor}">${expiryDate}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="text-align:center;margin:28px 0 12px">
+      <a href="${escapeHtml(appUrl)}/app/billing" style="display:inline-block;padding:13px 26px;background-color:#002751;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:8px">
+        Renew Premium Membership &rarr;
+      </a>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #f1f5f9;padding-top:20px;font-size:12px;color:#94a3b8;line-height:1.5;text-align:center">
+    <p style="margin:0 0 6px;color:#475569">
+      <strong>EA Academy</strong> — Practical AI &amp; Digital Skills
+    </p>
+    <p style="margin:0">
+      <a href="${escapeHtml(appUrl)}/app/billing" style="color:#0284c7;text-decoration:none">Billing &amp; Membership</a> &bull;
+      <a href="${escapeHtml(appUrl)}/app/account" style="color:#0284c7;text-decoration:none">Manage communication preferences</a>
+    </p>
+  </div>
+</div>`;
+  }
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -362,7 +438,7 @@ async function sendEmail(delivery: Delivery) {
       subject: delivery.subject || "A message from EA Academy",
       reply_to: process.env.EMAIL_REPLY_TO || undefined,
       text: delivery.message,
-      html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#10233f"><h1 style="font-size:24px">${escapeHtml(delivery.subject || "EA Academy")}</h1><p style="font-size:16px;line-height:1.7">${safeMessage}</p>${appUrl ? `<p><a href="${escapeHtml(appUrl)}/app/account">Manage communication preferences</a></p>` : ""}</div>`,
+      html,
       tags: [
         { name: "kind", value: delivery.kind },
         { name: "student", value: delivery.student_id.replaceAll("-", "") },
@@ -668,6 +744,136 @@ export async function queueBirthdayMessages(now = new Date()) {
   } catch (err) {
     console.warn("queueBirthdayMessages exception:", err);
     return { queued: 0 };
+  }
+}
+
+export function getSubscriptionReminderStage(
+  premiumUntil: string | null | undefined,
+  now = new Date(),
+): "7d" | "2d" | null {
+  if (!premiumUntil) return null;
+  const expiryMs = Date.parse(premiumUntil);
+  if (!Number.isFinite(expiryMs)) return null;
+  const msRemaining = expiryMs - now.getTime();
+  if (msRemaining <= 0) return null;
+
+  const daysRemaining = msRemaining / (24 * 60 * 60 * 1000);
+  if (daysRemaining > 0 && daysRemaining <= 2.5) {
+    return "2d";
+  }
+  if (daysRemaining > 5 && daysRemaining <= 7.5) {
+    return "7d";
+  }
+  return null;
+}
+
+export function buildSubscriptionReminderContent(info: {
+  studentId: string;
+  fullName?: string | null;
+  email: string;
+  premiumUntil: string;
+  stage: "7d" | "2d";
+}) {
+  const firstName =
+    String(info.fullName || "Student")
+      .trim()
+      .split(/\s+/)[0] || "Student";
+  const expiryDateObj = new Date(info.premiumUntil);
+  const expiryDateFormatted = expiryDateObj.toLocaleDateString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+  const expiryDateKey = expiryDateObj.toISOString().slice(0, 10);
+
+  if (info.stage === "2d") {
+    return {
+      student_id: info.studentId,
+      kind: "subscription_reminder" as const,
+      channel: "email" as const,
+      recipient: info.email,
+      subject: `⚠️ Urgent: Your EA Academy Premium subscription expires in 2 days`,
+      message: `Hi ${firstName},\n\nYour EA Academy Premium subscription is expiring in 2 days (on ${expiryDateFormatted}).\n\nTo avoid losing access to all career tracks, the Academy selected courses, live mentor sessions, and your verified learning transcript, please renew your subscription before it expires.\n\nClick the button below to visit your Billing dashboard and renew in under a minute.`,
+      idempotency_key: `subscription_expiry:2d:${info.studentId}:${expiryDateKey}:email`,
+    };
+  }
+
+  return {
+    student_id: info.studentId,
+    kind: "subscription_reminder" as const,
+    channel: "email" as const,
+    recipient: info.email,
+    subject: `⏳ Your EA Academy Premium subscription expires in 7 days`,
+    message: `Hi ${firstName},\n\nThis is a friendly reminder that your EA Academy Premium subscription will expire in 7 days (on ${expiryDateFormatted}).\n\nRenewing your membership ensures uninterrupted access to:\n• All career tracks and Premium classroom modules\n• Access to the Academy selected courses.\n• Live mentor sessions, recordings, and your verified learning transcript\n\nYou can renew your Premium membership anytime from your Billing dashboard so you don't lose momentum.`,
+    idempotency_key: `subscription_expiry:7d:${info.studentId}:${expiryDateKey}:email`,
+  };
+}
+
+export async function queueSubscriptionExpiryReminders(now = new Date()) {
+  const minExpiryIso = now.toISOString();
+  const maxExpiryIso = new Date(
+    now.getTime() + 8 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const { data, error } = await adminClient()
+    .from("profiles")
+    .select(
+      "id,full_name,email,role,premium_until,premium_granted,email_notifications_enabled",
+    )
+    .eq("role", "Student")
+    .not("premium_until", "is", null)
+    .gt("premium_until", minExpiryIso)
+    .lte("premium_until", maxExpiryIso);
+
+  databaseError(error);
+
+  const rows: Record<string, unknown>[] = [];
+  let queued7d = 0;
+  let queued2d = 0;
+
+  for (const profile of data || []) {
+    if (profile.premium_granted === true) continue;
+    if (!profile.email || profile.email_notifications_enabled === false)
+      continue;
+    const stage = getSubscriptionReminderStage(profile.premium_until, now);
+    if (!stage) continue;
+
+    const row = buildSubscriptionReminderContent({
+      studentId: String(profile.id),
+      fullName: profile.full_name,
+      email: String(profile.email),
+      premiumUntil: String(profile.premium_until),
+      stage,
+    });
+    rows.push(row);
+    if (stage === "7d") queued7d += 1;
+    if (stage === "2d") queued2d += 1;
+  }
+
+  if (!rows.length) return { queued: 0, queued7d: 0, queued2d: 0 };
+
+  try {
+    const { data: inserted, error: insertError } = await adminClient()
+      .from("message_deliveries")
+      .upsert(rows, { onConflict: "idempotency_key", ignoreDuplicates: true })
+      .select("id");
+    if (insertError) {
+      console.warn(
+        "queueSubscriptionExpiryReminders warning:",
+        insertError.message,
+      );
+      return { queued: 0, queued7d: 0, queued2d: 0 };
+    }
+    return {
+      queued: inserted?.length || 0,
+      queued7d,
+      queued2d,
+    };
+  } catch (err) {
+    console.warn("queueSubscriptionExpiryReminders exception:", err);
+    return { queued: 0, queued7d: 0, queued2d: 0 };
   }
 }
 

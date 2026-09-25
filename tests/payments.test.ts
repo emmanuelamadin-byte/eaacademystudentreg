@@ -43,7 +43,11 @@ vi.mock("../src/server/supabase", () => {
   return { db: () => store, limit: async () => {} };
 });
 import { validSignature, verifyPayment, webhook } from "../src/server/payments";
-import { sendDonationThankYouEmail } from "../src/server/communications";
+import {
+  buildSubscriptionReminderContent,
+  getSubscriptionReminderStage,
+  sendDonationThankYouEmail,
+} from "../src/server/communications";
 const user: AcademyUser = {
   id: "student",
   name: "Student",
@@ -276,5 +280,67 @@ describe("payment verification and ledger integrity", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(sentEmails).toHaveLength(1);
   });
+
+  it("identifies 7-day and 2-day subscription expiry reminder stages and builds distinct idempotency keys", () => {
+    const now = new Date("2026-10-01T12:00:00.000Z");
+
+    // 7 days before expiry -> "7d"
+    expect(
+      getSubscriptionReminderStage("2026-10-08T12:00:00.000Z", now),
+    ).toBe("7d");
+
+    // 2 days before expiry -> "2d"
+    expect(
+      getSubscriptionReminderStage("2026-10-03T12:00:00.000Z", now),
+    ).toBe("2d");
+
+    // 15 days before expiry -> null
+    expect(
+      getSubscriptionReminderStage("2026-10-16T12:00:00.000Z", now),
+    ).toBeNull();
+
+    // 4 days before expiry (between 7d and 2d windows) -> null
+    expect(
+      getSubscriptionReminderStage("2026-10-05T12:00:00.000Z", now),
+    ).toBeNull();
+
+    // Already expired -> null
+    expect(
+      getSubscriptionReminderStage("2026-09-30T12:00:00.000Z", now),
+    ).toBeNull();
+
+    const reminder7d = buildSubscriptionReminderContent({
+      studentId: "student_1",
+      fullName: "Ada Lovelace",
+      email: "ada@example.com",
+      premiumUntil: "2026-10-08T12:00:00.000Z",
+      stage: "7d",
+    });
+    expect(reminder7d.kind).toBe("subscription_reminder");
+    expect(reminder7d.subject).toContain("expires in 7 days");
+    expect(reminder7d.message).toContain("Hi Ada,");
+    expect(reminder7d.message).toContain(
+      "Access to the Academy selected courses.",
+    );
+    expect(reminder7d.message).not.toContain("1-on-1");
+    expect(reminder7d.idempotency_key).toBe(
+      "subscription_expiry:7d:student_1:2026-10-08:email",
+    );
+
+    const reminder2d = buildSubscriptionReminderContent({
+      studentId: "student_1",
+      fullName: "Ada Lovelace",
+      email: "ada@example.com",
+      premiumUntil: "2026-10-08T12:00:00.000Z",
+      stage: "2d",
+    });
+    expect(reminder2d.kind).toBe("subscription_reminder");
+    expect(reminder2d.subject).toContain("expires in 2 days");
+    expect(reminder2d.message).not.toContain("1-on-1");
+    expect(reminder2d.idempotency_key).toBe(
+      "subscription_expiry:2d:student_1:2026-10-08:email",
+    );
+  });
 });
+
 
