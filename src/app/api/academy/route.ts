@@ -4,6 +4,7 @@ import { ApiError } from "@/server/policy";
 import { failure, identity } from "@/server/supabase";
 import { readLimitedBody } from "@/server/request-body";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 export async function POST(request: Request) {
   try {
     if (Number(request.headers.get("content-length") || 0) > 250000)

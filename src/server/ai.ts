@@ -81,17 +81,17 @@ async function generateWithLiveLLM(params: {
   }> = [
     {
       role: "system",
-      content: params.systemInstruction,
+      content: params.systemInstruction.slice(0, 6000),
     },
-    ...(params.history || []).map((item) => ({
+    ...(params.history || []).slice(-6).map((item) => ({
       role: (item.role === "user" ? "user" : "assistant") as
         | "user"
         | "assistant",
-      content: item.parts[0].text,
+      content: item.parts[0].text.slice(0, 1500),
     })),
     {
       role: "user",
-      content: params.userPrompt,
+      content: params.userPrompt.slice(0, 4000),
     },
   ];
 
@@ -105,13 +105,18 @@ async function generateWithLiveLLM(params: {
             Authorization: `Bearer ${openAiKey}`,
           } as Record<string, string>,
           model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          extra: { max_tokens: params.jsonMode ? 1800 : 800 },
         },
         {
           url: "https://text.pollinations.ai/openai",
           headers: {
             "Content-Type": "application/json",
           } as Record<string, string>,
-          model: "openai",
+          model: "openai-fast",
+          extra: {
+            reasoning_effort: "low",
+            max_tokens: params.jsonMode ? 1500 : 700,
+          },
         },
       ]
     : [
@@ -120,19 +125,35 @@ async function generateWithLiveLLM(params: {
           headers: {
             "Content-Type": "application/json",
           } as Record<string, string>,
+          model: "openai-fast",
+          extra: {
+            reasoning_effort: "low",
+            max_tokens: params.jsonMode ? 1500 : 700,
+          },
+        },
+        {
+          url: "https://text.pollinations.ai/openai",
+          headers: {
+            "Content-Type": "application/json",
+          } as Record<string, string>,
           model: "openai",
+          extra: {
+            reasoning_effort: "low",
+            max_tokens: params.jsonMode ? 1200 : 550,
+          },
         },
       ];
 
   for (const endpoint of endpoints) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+    const timeout = setTimeout(() => controller.abort(), 18000);
     try {
       const response = await fetch(endpoint.url, {
         method: "POST",
         headers: endpoint.headers,
         body: JSON.stringify({
           model: endpoint.model,
+          ...endpoint.extra,
           messages,
           ...(params.jsonMode
             ? { response_format: { type: "json_object" } }
@@ -152,7 +173,6 @@ async function generateWithLiveLLM(params: {
         const content = parsed.choices?.[0]?.message?.content?.trim();
         if (content) return content;
       } catch {
-        // If the endpoint returned plain text directly
         if (raw.trim().length > 0 && !raw.trim().startsWith("<!DOCTYPE")) {
           return raw.trim();
         }
@@ -160,7 +180,7 @@ async function generateWithLiveLLM(params: {
     } catch (err) {
       clearTimeout(timeout);
       console.warn(
-        `[AI] Live LLM endpoint (${endpoint.url}) failed:`,
+        `[AI] Live LLM endpoint (${endpoint.url} / ${endpoint.model}) failed:`,
         err instanceof Error ? err.message : err,
       );
     }
