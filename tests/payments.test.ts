@@ -44,10 +44,12 @@ vi.mock("../src/server/supabase", () => {
 });
 import { validSignature, verifyPayment, webhook } from "../src/server/payments";
 import {
+  buildStudentNurtureSequence,
   buildSubscriptionReminderContent,
   formatEmailSender,
   getSubscriptionReminderStage,
   sendDonationThankYouEmail,
+  sendStudentWelcomeEmail,
 } from "../src/server/communications";
 const user: AcademyUser = {
   id: "student",
@@ -349,8 +351,77 @@ describe("payment verification and ledger integrity", () => {
       "EA Academy <noreply@ea-academy.org>",
     );
     expect(formatEmailSender("EA Academy <onboarding@resend.dev>")).toBe(
-      "EA Academy <onboarding@resend.dev>",
+      "EA Academy <hello@cleanbrandagency.com>",
     );
+  });
+
+  it("sends student welcome email and builds a 4-stage WhatsApp community & Premium nurture sequence", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "EA Academy <onboarding@resend.dev>");
+
+    const sentEmails: Array<{
+      from: string;
+      to: string[];
+      subject: string;
+      text: string;
+      html: string;
+    }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        sentEmails.push(JSON.parse(String(init?.body)));
+        return Response.json({ id: "resend_welcome_123" });
+      }),
+    );
+
+    const welcomeRes = await sendStudentWelcomeEmail({
+      studentId: "student_new",
+      studentName: "Chinedu Okafor",
+      studentEmail: "chinedu@example.com",
+      trackName: "Systems & Software Development",
+      whatsappGroupUrl: "https://chat.whatsapp.com/test-community",
+    });
+
+    expect(welcomeRes).toEqual({ sent: true });
+    expect(sentEmails).toHaveLength(1);
+    expect(sentEmails[0].from).toBe("EA Academy <hello@cleanbrandagency.com>");
+    expect(sentEmails[0].to).toEqual(["chinedu@example.com"]);
+    expect(sentEmails[0].subject).toContain("Welcome to EA Academy, Chinedu!");
+    expect(sentEmails[0].text).toContain("Systems & Software Development");
+    expect(sentEmails[0].text).toContain("https://chat.whatsapp.com/test-community");
+    expect(sentEmails[0].text.toLowerCase()).not.toContain("ai mentor");
+    expect(sentEmails[0].text.toLowerCase()).not.toContain("ai tutor");
+
+    const enrolledAt = new Date("2026-09-27T10:00:00.000Z");
+    const sequence = buildStudentNurtureSequence({
+      studentId: "student_new",
+      studentName: "Chinedu Okafor",
+      studentEmail: "chinedu@example.com",
+      trackName: "Systems & Software Development",
+      whatsappGroupUrl: "https://chat.whatsapp.com/test-community",
+      enrolledAt,
+    });
+
+    expect(sequence).toHaveLength(4);
+    expect(sequence.map((s) => s.template_variables.stage)).toEqual([
+      "day2",
+      "day4",
+      "day7",
+      "day10",
+    ]);
+    expect(sequence[0].scheduled_for).toBe("2026-09-29T10:00:00.000Z");
+    expect(sequence[1].scheduled_for).toBe("2026-10-01T10:00:00.000Z");
+    expect(sequence[2].scheduled_for).toBe("2026-10-04T10:00:00.000Z");
+    expect(sequence[3].scheduled_for).toBe("2026-10-07T10:00:00.000Z");
+
+    for (const item of sequence) {
+      expect(item.kind).toBe("nurture");
+      expect(item.message).toContain("WhatsApp");
+      expect(item.message.toLowerCase()).not.toContain("ai mentor");
+      expect(item.message.toLowerCase()).not.toContain("ai tutor");
+    }
+    expect(sequence[2].message).toContain("₦3,000/month");
+    expect(sequence[2].message).toContain("₦100 a day");
   });
 });
 

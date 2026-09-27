@@ -47,9 +47,11 @@ import * as s from "./schemas";
 import { askAI, generateChapterQuiz } from "./ai";
 import { checkout, verifyPayment, manageSubscription } from "./payments";
 import {
+  cancelStudentNurtureSequence,
   createBroadcast,
   listBroadcasts,
   notifyOwnerOfNewStudent,
+  onboardNewStudentCommunications,
   processMessageQueue,
   queueSubscriptionExpiryReminders,
   saveCommunicationPreferences,
@@ -315,6 +317,14 @@ async function ensureProfile(token: AuthToken, p: Payload) {
       trackName,
     }).catch(() => {});
 
+    onboardNewStudentCommunications({
+      studentId: profile.id,
+      studentName: profile.name || token.name || "New student",
+      studentEmail: normalizedEmail || profile.email || "",
+      trackName,
+      isPremium: hasPremium(profile),
+    }).catch(() => {});
+
     void sendTikTokServerEvent({
       event: "CompleteRegistration",
       event_id: `reg_${profile.id}`,
@@ -338,14 +348,12 @@ async function ensureProfile(token: AuthToken, p: Payload) {
 let lastSubscriptionReminderCheckAt = 0;
 function maybeTriggerSubscriptionReminders() {
   if (process.env.NODE_ENV === "test") return;
-  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) return;
+  if (!process.env.RESEND_API_KEY) return;
   const nowMs = Date.now();
   if (nowMs - lastSubscriptionReminderCheckAt < 30 * 60 * 1000) return;
   lastSubscriptionReminderCheckAt = nowMs;
   void queueSubscriptionExpiryReminders()
-    .then((res) => {
-      if (res.queued > 0) return processMessageQueue(20);
-    })
+    .then(() => processMessageQueue(25))
     .catch(() => {});
 }
 
@@ -509,6 +517,9 @@ export async function dispatch(
       // Only this owner-authorized action may correct enrollment. Students cannot change it.
       const { id, ...updates } = input;
       await db().collection("users").doc(id).update(clean(updates));
+      if (input.premiumGranted === true) {
+        cancelStudentNurtureSequence(id).catch(() => {});
+      }
       return { id };
     }
     case "lesson.get":

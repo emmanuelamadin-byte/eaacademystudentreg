@@ -51,7 +51,7 @@ type Delivery = {
   id: string;
   broadcast_id?: string;
   student_id: string;
-  kind: "broadcast" | "birthday" | "subscription_reminder";
+  kind: "broadcast" | "birthday" | "subscription_reminder" | "nurture";
   channel: "email" | "whatsapp";
   recipient: string;
   subject?: string;
@@ -63,8 +63,12 @@ type Delivery = {
   idempotency_key: string;
 };
 
+export const DEFAULT_VERIFIED_SENDER_ADDRESS = "hello@cleanbrandagency.com";
+export const DEFAULT_WHATSAPP_GROUP_URL =
+  "https://chat.whatsapp.com/KwZC1W1Wl6FCEBiYGCbNAo?s=cl&p=i&mlu=4&ilr=4";
+
 const configuration = () => ({
-  email: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
+  email: Boolean(process.env.RESEND_API_KEY && formatEmailSender()),
   whatsapp: Boolean(
     process.env.WHATSAPP_ACCESS_TOKEN &&
     process.env.WHATSAPP_PHONE_NUMBER_ID &&
@@ -347,10 +351,19 @@ export function formatEmailSender(
   rawFrom = process.env.EMAIL_FROM,
 ): string | null {
   const trimmed = rawFrom?.trim();
-  if (!trimmed) return null;
+  if (!trimmed) {
+    return rawFrom === undefined && process.env.RESEND_API_KEY
+      ? `EA Academy <${DEFAULT_VERIFIED_SENDER_ADDRESS}>`
+      : null;
+  }
   const angleMatch = trimmed.match(/<([^<>]+@[^<>]+)>/);
-  const address = (angleMatch ? angleMatch[1] : trimmed).trim();
-  if (!address.includes("@")) return trimmed;
+  const parsedAddress = (angleMatch ? angleMatch[1] : trimmed).trim();
+  if (!parsedAddress.includes("@")) return trimmed;
+  // Resend's sandbox address only delivers to the account owner; upgrade to our verified domain
+  const address =
+    parsedAddress.toLowerCase() === "onboarding@resend.dev"
+      ? DEFAULT_VERIFIED_SENDER_ADDRESS
+      : parsedAddress;
   return `EA Academy <${address}>`;
 }
 
@@ -421,6 +434,63 @@ async function sendEmail(delivery: Delivery) {
     <p style="margin:0 0 12px;color:#334155"><strong>The EA Academy Team</strong></p>
     <p style="margin:0;font-size:12px;color:#94a3b8">
       Manage your subscription or notification settings anytime in your <a href="${escapeHtml(billingUrl)}" style="color:#0284c7;text-decoration:none">EA Academy Billing Dashboard</a>.
+    </p>
+  </div>
+</div>`;
+  } else if (delivery.kind === "nurture") {
+    const vars = delivery.template_variables || {};
+    const stage = vars.stage || "day2";
+    const whatsappUrl = vars.whatsappGroupUrl || DEFAULT_WHATSAPP_GROUP_URL;
+    const ctaLabel = vars.ctaLabel || "Explore EA Academy Premium →";
+    const ctaUrl = vars.ctaPath
+      ? `${appUrl}${vars.ctaPath}`
+      : billingUrl;
+    const badgeLabel =
+      stage === "day2"
+        ? "🤝 Student Community & Support"
+        : stage === "day4"
+          ? "💼 Career & Portfolio Growth"
+          : stage === "day7"
+            ? "🔓 Your All-Access Pass (₦100/day)"
+            : "🎯 A Personal Note from Emmanuel";
+
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px 24px;background-color:#ffffff;color:#1e293b;border-radius:12px;border:1px solid #e2e8f0">
+  <div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #f1f5f9">
+    <div style="display:inline-block;padding:6px 14px;background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:9999px;font-size:12px;font-weight:700;color:#0284c7;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:12px">
+      ${escapeHtml(badgeLabel)}
+    </div>
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#002751;letter-spacing:-0.02em">
+      ${escapeHtml(delivery.subject || "EA Academy")}
+    </h1>
+  </div>
+
+  <div style="padding:24px 0;line-height:1.68;font-size:15px;color:#334155">
+    <p style="margin:0 0 22px">${safeMessage}</p>
+
+    <div style="margin:22px 0;padding:18px 20px;background-color:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0">
+      <div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:6px">
+        💬 Stuck on a lesson or have a question?
+      </div>
+      <p style="margin:0 0 12px;font-size:14px;color:#15803d;line-height:1.55">
+        Our active <strong>WhatsApp Student Community</strong> is here for you. Instructors and fellow students answer questions daily and genuinely care about your progress.
+      </p>
+      <a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:9px 18px;border-radius:6px;text-decoration:none">
+        Join the WhatsApp Community &rarr;
+      </a>
+    </div>
+
+    <div style="text-align:center;margin:28px 0 8px">
+      <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background-color:#002751;color:#ffffff;font-weight:600;font-size:15px;padding:13px 28px;border-radius:8px;text-decoration:none">
+        ${escapeHtml(ctaLabel)}
+      </a>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #f1f5f9;padding-top:20px;font-size:13px;color:#64748b;line-height:1.5">
+    <p style="margin:0 0 4px;font-weight:600;color:#002751">Rooting for your success,</p>
+    <p style="margin:0 0 12px;color:#334155"><strong>Emmanuel Amadin</strong> &amp; The EA Academy Team</p>
+    <p style="margin:0;font-size:12px;color:#94a3b8">
+      Manage your communication preferences anytime in your <a href="${escapeHtml(appUrl)}/app/account" style="color:#0284c7;text-decoration:none">EA Academy Account Settings</a>.
     </p>
   </div>
 </div>`;
@@ -614,6 +684,31 @@ export async function processMessageQueue(maximum = 50) {
     const broadcasts = new Set<string>();
     for (const row of (data || []) as Delivery[]) {
       if (row.broadcast_id) broadcasts.add(row.broadcast_id);
+      if (row.kind === "nurture") {
+        const { data: studentProfile } = await adminClient()
+          .from("profiles")
+          .select(
+            "membership_plan,premium_until,premium_granted,email_notifications_enabled",
+          )
+          .eq("id", row.student_id)
+          .maybeSingle();
+        const isAlreadyPremium =
+          studentProfile?.membership_plan === "Premium" ||
+          studentProfile?.premium_granted === true ||
+          (studentProfile?.premium_until &&
+            Date.parse(String(studentProfile.premium_until)) > Date.now());
+        if (
+          !studentProfile ||
+          studentProfile.email_notifications_enabled === false ||
+          isAlreadyPremium
+        ) {
+          await adminClient()
+            .from("message_deliveries")
+            .delete()
+            .eq("id", row.id);
+          continue;
+        }
+      }
       const configured =
         row.channel === "email"
           ? configuration().email
@@ -1068,4 +1163,341 @@ https://ea-academy.org`;
     return { sent: false, reason: String(err) };
   }
 }
+
+export async function getCommunityWhatsappUrl(): Promise<string> {
+  try {
+    const { data } = await adminClient()
+      .from("community_settings")
+      .select("whatsapp_group_url")
+      .limit(1)
+      .maybeSingle();
+    const url = String(data?.whatsapp_group_url || "").trim();
+    return url || DEFAULT_WHATSAPP_GROUP_URL;
+  } catch {
+    return DEFAULT_WHATSAPP_GROUP_URL;
+  }
+}
+
+export async function sendStudentWelcomeEmail(info: {
+  studentId: string;
+  studentName?: string | null;
+  studentEmail: string;
+  trackName: string;
+  whatsappGroupUrl?: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = formatEmailSender();
+  if (!apiKey || !from) return { sent: false, reason: "missing_credentials" };
+
+  const studentEmail = info.studentEmail?.trim();
+  if (!studentEmail) return { sent: false, reason: "missing_email" };
+
+  const firstName =
+    String(info.studentName || "Student")
+      .trim()
+      .split(/\s+/)[0] || "Student";
+  const safeFirstName = escapeHtml(firstName);
+  const safeTrackName = escapeHtml(info.trackName || "Systems & Software Development");
+  const appUrl = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://ea-academy.org"
+  ).replace(/\/$/, "");
+  const tracksUrl = `${appUrl}/app/tracks`;
+  const communityUrl = `${appUrl}/app/community`;
+  const billingUrl = `${appUrl}/app/billing`;
+  const whatsappUrl =
+    info.whatsappGroupUrl?.trim() || (await getCommunityWhatsappUrl());
+
+  const subject = `🎉 Welcome to EA Academy, ${firstName}! Your ${info.trackName} roadmap is ready`;
+
+  const text = `Hi ${firstName},
+
+Welcome to EA Academy! We are thrilled to have you enrolled in the ${info.trackName} career track.
+
+You didn't join just to watch another set of random online videos — you joined to build real digital skills, gain confidence, and open doors to serious opportunities.
+
+Here is your Day 1 Game Plan (takes 5 minutes):
+
+1. Watch your first intro lesson:
+   Dive straight into your ${info.trackName} curriculum and complete Lesson 1 today: ${tracksUrl}
+
+2. Join our Student WhatsApp Community:
+   Never learn in isolation! Our WhatsApp community is where instructors and fellow students answer your questions, help when you're stuck, and genuinely care about your progress: ${whatsappUrl}
+
+3. Say hello in the Cohort Lounge:
+   Introduce yourself inside the Academy workspace and see what other students are building: ${communityUrl}
+
+Whenever you're ready to unlock all modules across all 3 Career Tracks, Live Group Mentor Sessions, Instructor Assignment Reviews, Selected Academy Courses, and your Verified Learning Transcript, you can upgrade to EA Academy Premium for just ₦3,000/month: ${billingUrl}
+
+We are rooting for your success every step of the way!
+
+Warm regards,
+Emmanuel Amadin & The EA Academy Team
+${appUrl}`;
+
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px 24px;background-color:#ffffff;color:#1e293b;border-radius:12px;border:1px solid #e2e8f0">
+  <div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #f1f5f9">
+    <div style="display:inline-block;padding:6px 14px;background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:9999px;font-size:12px;font-weight:700;color:#0284c7;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px">
+      🎓 Welcome to EA Academy
+    </div>
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#002751;letter-spacing:-0.02em">
+      Your ${safeTrackName} Journey Starts Today!
+    </h1>
+  </div>
+
+  <div style="padding:24px 0;line-height:1.65;font-size:15px;color:#334155">
+    <p style="margin-top:0">Hi <strong>${safeFirstName}</strong>,</p>
+    <p>
+      Welcome to <strong>EA Academy</strong>! We are thrilled to have you enrolled in the <strong>${safeTrackName}</strong> career track.
+    </p>
+    <p>
+      You didn’t join just to watch random videos — you joined to build practical skills, gain real confidence, and unlock career-changing opportunities.
+    </p>
+
+    <div style="margin:22px 0;padding:18px 20px;background-color:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+      <div style="font-size:12px;font-weight:700;color:#002751;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">
+        🚀 Your Day 1 Game Plan
+      </div>
+      <ol style="margin:0;padding-left:20px;color:#334155;font-size:14px;line-height:1.7">
+        <li style="margin-bottom:8px">
+          <strong>Watch your first intro lesson:</strong> Open your <strong>${safeTrackName}</strong> curriculum and complete Lesson 1 today to build instant momentum.
+        </li>
+        <li style="margin-bottom:8px">
+          <strong>Join our WhatsApp Student Community:</strong> Never learn alone — our instructors and fellow students answer your questions daily and genuinely care about your progress.
+        </li>
+        <li>
+          <strong>Introduce yourself in the Cohort Lounge:</strong> Share your goals and connect with peers on the same path.
+        </li>
+      </ol>
+    </div>
+
+    <div style="text-align:center;margin:24px 0">
+      <a href="${escapeHtml(tracksUrl)}" style="display:inline-block;background-color:#002751;color:#ffffff;font-weight:600;font-size:15px;padding:13px 28px;border-radius:8px;text-decoration:none">
+        Start Your First Lesson &rarr;
+      </a>
+    </div>
+
+    <div style="margin:24px 0;padding:18px 20px;background-color:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0">
+      <div style="font-size:14px;font-weight:700;color:#166534;margin-bottom:6px">
+        💬 Join Our Active WhatsApp Community
+      </div>
+      <p style="margin:0 0 14px;font-size:14px;color:#15803d;line-height:1.55">
+        Have a question about your track or want accountability partners who care about your growth? Tap below to join the private EA Academy student WhatsApp group.
+      </p>
+      <a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:10px 18px;border-radius:6px;text-decoration:none">
+        Join the WhatsApp Community &rarr;
+      </a>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #f1f5f9;padding-top:20px;font-size:13px;color:#64748b;line-height:1.5">
+    <p style="margin:0 0 4px;font-weight:600;color:#002751">Rooting for your success,</p>
+    <p style="margin:0 0 12px;color:#334155"><strong>Emmanuel Amadin</strong> &amp; The EA Academy Team</p>
+    <p style="margin:0;font-size:12px;color:#94a3b8">
+      Ready for full access to all 3 Career Tracks, Live Mentor Sessions, and Instructor Reviews? <a href="${escapeHtml(billingUrl)}" style="color:#0284c7;text-decoration:none">Explore EA Academy Premium (₦3,000/mo)</a>.
+    </p>
+  </div>
+</div>`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": `welcome:${info.studentId}:email`,
+      },
+      body: JSON.stringify({
+        from,
+        to: [studentEmail],
+        subject,
+        reply_to: process.env.EMAIL_REPLY_TO || undefined,
+        text,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Resend error sending student welcome email:", errText);
+      return { sent: false, reason: errText };
+    }
+    return { sent: true };
+  } catch (err) {
+    console.error("Exception sending student welcome email:", err);
+    return { sent: false, reason: String(err) };
+  }
+}
+
+export type NurtureStage = "day2" | "day4" | "day7" | "day10";
+
+export function buildStudentNurtureSequence(info: {
+  studentId: string;
+  studentName?: string | null;
+  studentEmail: string;
+  trackName: string;
+  whatsappGroupUrl?: string;
+  enrolledAt?: Date;
+}) {
+  const firstName =
+    String(info.studentName || "Student")
+      .trim()
+      .split(/\s+/)[0] || "Student";
+  const trackName = info.trackName || "Systems & Software Development";
+  const whatsappGroupUrl =
+    info.whatsappGroupUrl?.trim() || DEFAULT_WHATSAPP_GROUP_URL;
+  const baseMs = (info.enrolledAt || new Date()).getTime();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  const stages: Array<{
+    stage: NurtureStage;
+    daysOffset: number;
+    subject: string;
+    message: string;
+    ctaLabel: string;
+    ctaPath: string;
+  }> = [
+    {
+      stage: "day2",
+      daysOffset: 2,
+      subject: `How is your ${trackName} journey going, ${firstName}? (Don't learn alone 🤝)`,
+      message: `Hi ${firstName},\n\nYou enrolled in ${trackName} a couple of days ago, and I wanted to check in on you.\n\nDo you know the #1 reason most self-taught learners give up? It isn't a lack of talent — it's learning in isolation and getting stuck with nobody to ask.\n\nAt EA Academy, we do things differently because we genuinely care about your progress:\n• In our active WhatsApp Student Community, fellow learners and instructors answer your questions daily and keep you moving forward.\n• And when you're ready for deeper mentorship, EA Academy Premium unlocks Live Group Mentor Sessions, session recordings, and direct Instructor Assignment Reviews so an expert checks your work step by step.\n\nIf you haven't joined our WhatsApp community yet, hop in today and introduce yourself — and check out your upcoming lessons in your workspace!`,
+      ctaLabel: "Continue Learning in My Workspace →",
+      ctaPath: "/app/tracks",
+    },
+    {
+      stage: "day4",
+      daysOffset: 4,
+      subject: `Don't just watch tutorials, ${firstName} — build a portfolio that gets you hired 💼`,
+      message: `Hi ${firstName},\n\nWatching free tutorials feels productive, but employers and clients don't pay for videos you've watched — they pay for what you can build and prove.\n\nThat's why we designed EA Academy Premium to bridge the gap between "watching lessons" and landing real opportunities.\n\nWhen you upgrade to Premium, you unlock:\n• Full access to all 3 Career Tracks (Systems & Software Development, Creative Media, and Business Growth)\n• Direct Instructor Grading & Feedback on your practical assignments\n• Monthly Portfolio Critique to make your work stand out\n• A Verified Learning Transcript with a unique public verification link for your CV and LinkedIn\n\nMeanwhile, remember our WhatsApp community is always open whenever you have a question or want feedback from peers who care about your growth.`,
+      ctaLabel: "See Everything Inside Premium →",
+      ctaPath: "/app/billing",
+    },
+    {
+      stage: "day7",
+      daysOffset: 7,
+      subject: `Unlock all EA Academy tracks & selected courses for ₦100/day 🔓`,
+      message: `Hi ${firstName},\n\nHappy 1-week anniversary at EA Academy! 🎉\n\nIf you've enjoyed your starter lessons and our supportive WhatsApp community, imagine how fast you'll grow when you remove every limit on your account.\n\nEA Academy Premium is just ₦3,000/month — that works out to ₦100 a day (less than a bottle of soda or a short bus ride).\n\nHere is what your ₦3,000/month All-Access Pass unlocks immediately:\n• Every module and lesson across all 3 Career Tracks\n• Free access to EA Academy Selected Courses in the Shop\n• Live Group Mentor Sessions & full session recordings\n• Direct Instructor Reviews on your assignments + 1 Monthly Portfolio Critique\n• Ad-Free Classroom experience & your Verified Learning Record\n\nInvest in your next chapter today and unlock the full EA Academy experience.`,
+      ctaLabel: "Upgrade to Premium (₦3,000/mo) →",
+      ctaPath: "/app/billing",
+    },
+    {
+      stage: "day10",
+      daysOffset: 10,
+      subject: `A personal note from Emmanuel about your ${trackName} goals 🎯`,
+      message: `Hi ${firstName},\n\nIt's been 10 days since you joined EA Academy for ${trackName}, and I wanted to send you a personal note.\n\nWhether you've already completed several lessons or life got busy this week, please remember this: consistency beats perfection every single time.\n\nYou don't have to figure everything out by yourself. Our WhatsApp community is filled with people who answer your questions and genuinely care about your progress — and our instructors are ready to review your assignments, host live mentor sessions, and guide your portfolio inside EA Academy Premium.\n\nIf anything is holding you back, simply reply to this email and tell me what you're working on — I read every reply. Or if you're ready to go all-in on your skills today, click below to activate your Premium All-Access Pass.`,
+      ctaLabel: "Activate Your All-Access Pass →",
+      ctaPath: "/app/billing",
+    },
+  ];
+
+  return stages.map((item) => ({
+    student_id: info.studentId,
+    kind: "nurture" as const,
+    channel: "email" as const,
+    recipient: info.studentEmail.trim(),
+    subject: item.subject,
+    message: item.message,
+    template_variables: {
+      stage: item.stage,
+      firstName,
+      trackName,
+      whatsappGroupUrl,
+      ctaLabel: item.ctaLabel,
+      ctaPath: item.ctaPath,
+    },
+    scheduled_for: new Date(baseMs + item.daysOffset * dayMs).toISOString(),
+    idempotency_key: `nurture:${item.stage}:${info.studentId}:email`,
+  }));
+}
+
+export async function queueStudentNurtureSequence(info: {
+  studentId: string;
+  studentName?: string | null;
+  studentEmail: string;
+  trackName: string;
+  whatsappGroupUrl?: string;
+  enrolledAt?: Date;
+}) {
+  if (
+    !info.studentId ||
+    !info.studentEmail?.trim() ||
+    !process.env.SUPABASE_SECRET_KEY
+  ) {
+    return { queued: 0 };
+  }
+  try {
+    const whatsappGroupUrl =
+      info.whatsappGroupUrl?.trim() || (await getCommunityWhatsappUrl());
+    const rows = buildStudentNurtureSequence({
+      ...info,
+      whatsappGroupUrl,
+    });
+    const { data: inserted, error } = await adminClient()
+      .from("message_deliveries")
+      .upsert(rows, { onConflict: "idempotency_key", ignoreDuplicates: true })
+      .select("id");
+    if (error) {
+      console.warn("queueStudentNurtureSequence warning:", error.message);
+      return { queued: 0 };
+    }
+    return { queued: inserted?.length || 0 };
+  } catch (err) {
+    console.warn("queueStudentNurtureSequence exception:", err);
+    return { queued: 0 };
+  }
+}
+
+export async function cancelStudentNurtureSequence(studentId: string) {
+  if (!studentId || !process.env.SUPABASE_SECRET_KEY) return;
+  try {
+    await adminClient()
+      .from("message_deliveries")
+      .delete()
+      .eq("student_id", studentId)
+      .eq("kind", "nurture")
+      .in("status", ["queued", "failed"]);
+  } catch (err) {
+    console.warn("cancelStudentNurtureSequence warning:", err);
+  }
+}
+
+export async function onboardNewStudentCommunications(info: {
+  studentId: string;
+  studentName?: string | null;
+  studentEmail: string;
+  trackName: string;
+  isPremium?: boolean;
+}) {
+  if (!info.studentEmail?.trim()) return;
+  const whatsappGroupUrl = await getCommunityWhatsappUrl();
+  await sendStudentWelcomeEmail({
+    studentId: info.studentId,
+    studentName: info.studentName,
+    studentEmail: info.studentEmail,
+    trackName: info.trackName,
+    whatsappGroupUrl,
+  });
+  if (!info.isPremium) {
+    await queueStudentNurtureSequence({
+      studentId: info.studentId,
+      studentName: info.studentName,
+      studentEmail: info.studentEmail,
+      trackName: info.trackName,
+      whatsappGroupUrl,
+    });
+  }
+}
+
+let lastBackgroundQueueRunMs = 0;
+
+export function triggerBackgroundMessageQueue() {
+  if (!process.env.RESEND_API_KEY || !process.env.SUPABASE_SECRET_KEY) return;
+  const nowMs = Date.now();
+  if (nowMs - lastBackgroundQueueRunMs < 5 * 60 * 1000) return;
+  lastBackgroundQueueRunMs = nowMs;
+  void processMessageQueue(15).catch(() => {});
+}
+
+
 

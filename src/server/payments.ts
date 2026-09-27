@@ -4,7 +4,10 @@ import { z } from "zod";
 import type { AcademyUser } from "@/lib/types";
 import { db, limit } from "./supabase";
 import { ApiError, extendPremiumUntil, premiumAmountKobo } from "./policy";
-import { sendDonationThankYouEmail } from "./communications";
+import {
+  cancelStudentNurtureSequence,
+  sendDonationThankYouEmail,
+} from "./communications";
 import { sendTikTokServerEvent } from "./tiktok";
 
 type PaystackTransaction = {
@@ -475,6 +478,12 @@ async function applyPayment(
       properties: eventProps,
       user: eventUser,
     }).catch(() => {});
+  }
+
+  if (newlyFulfilled && intent.kind === "premium") {
+    void cancelStudentNurtureSequence(String(intent.studentId)).catch(
+      () => {},
+    );
   }
 
   if (newlyFulfilled && donationReceipt) {
