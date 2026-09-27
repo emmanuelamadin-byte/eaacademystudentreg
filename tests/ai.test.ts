@@ -66,17 +66,40 @@ describe("EA AI Mentor and learning assistant boundaries", () => {
     process.env.GEMINI_API_KEY = "test-gemini-key";
   });
 
-  it("throws 503 when GEMINI_API_KEY is not configured", async () => {
+  it("serves curriculum-grounded fallback response when GEMINI_API_KEY is not configured", async () => {
     delete process.env.GEMINI_API_KEY;
-    await expect(
-      askAI(premiumStudent, {
-        mode: "mentor",
-        prompt: "Help me learn React",
-      }),
-    ).rejects.toMatchObject({
-      status: 503,
-      message: "The AI learning assistant has not been configured yet.",
+    const result = await askAI(premiumStudent, {
+      mode: "tutor",
+      lessonId: "lesson-1",
+      prompt: "Explain the main concept of this lesson",
     });
+    expect(result).toHaveProperty("text");
+    expect((result as { text: string }).text).toContain("Intro Lesson");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+  });
+
+  it("allows limited lesson AI tutor (mode=tutor) for free tier students with 5/day limit", async () => {
+    const { limit } = await import("../src/server/supabase");
+    mockGenerateContent.mockResolvedValueOnce({
+      text: "Here is a helpful explanation of the intro lesson.",
+    });
+
+    const result = await askAI(freeStudent, {
+      mode: "tutor",
+      lessonId: "lesson-1",
+      prompt: "Can you explain this lesson?",
+    });
+
+    expect(result).toEqual({
+      text: "Here is a helpful explanation of the intro lesson.",
+    });
+    expect(limit).toHaveBeenCalledWith(
+      freeStudent.id,
+      "ai-day",
+      5,
+      86400,
+      expect.stringContaining("5"),
+    );
   });
 
   it("rejects AI Mentor requests for free tier students", async () => {
@@ -124,7 +147,7 @@ describe("EA AI Mentor and learning assistant boundaries", () => {
     });
   });
 
-  it("allows AI Mentor for Premium students with conversation history", async () => {
+  it("allows AI Mentor for Premium students with conversation history and sanitizes consecutive user turns", async () => {
     mockGenerateContent.mockResolvedValueOnce({
       text: "Here is your mentor guidance for System Development.",
     });
@@ -136,6 +159,7 @@ describe("EA AI Mentor and learning assistant boundaries", () => {
       history: [
         { role: "user", text: "Hi mentor" },
         { role: "model", text: "Hello! What are you working on today?" },
+        { role: "user", text: "Orphaned retry message" },
       ],
     });
 
@@ -217,7 +241,7 @@ describe("EA AI Mentor and learning assistant boundaries", () => {
   });
 
   it("rejects oversized prompt inputs to prevent high token usage", async () => {
-    const hugePrompt = "a".repeat(3000);
+    const hugePrompt = "a".repeat(15000);
     await expect(
       askAI(premiumStudent, {
         mode: "mentor",

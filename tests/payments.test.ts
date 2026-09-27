@@ -354,5 +354,225 @@ describe("payment verification and ledger integrity", () => {
   });
 });
 
+import { summarizeRevenueAnalytics } from "../src/lib/revenue";
+
+describe("admin 4-stream revenue analytics", () => {
+  it("breaks down revenue into courses, digital products, premium memberships, and donations without double counting", () => {
+    const nowMs = Date.parse("2026-09-27T12:00:00.000Z");
+
+    const summary = summarizeRevenueAnalytics({
+      nowMs,
+      period: "all",
+      payments: [
+        {
+          id: "ref_course_1",
+          reference: "ref_course_1",
+          studentId: "s1",
+          amount: 15000,
+          kind: "shop_item",
+          status: "success",
+          createdAt: "2026-09-26T10:00:00.000Z",
+        },
+        {
+          id: "ref_product_1",
+          reference: "ref_product_1",
+          studentId: "s1",
+          amount: 5000,
+          kind: "shop_item",
+          status: "success",
+          createdAt: "2026-09-25T10:00:00.000Z",
+        },
+        {
+          id: "ref_premium_1",
+          reference: "ref_premium_1",
+          studentId: "s2",
+          amount: 3000,
+          kind: "premium",
+          status: "success",
+          createdAt: "2026-09-20T10:00:00.000Z",
+        },
+        {
+          id: "ref_donation_1",
+          reference: "ref_donation_1",
+          studentId: "s3",
+          amount: 10000,
+          kind: "donation",
+          status: "success",
+          createdAt: "2026-08-01T10:00:00.000Z",
+        },
+      ],
+      shopPurchases: [
+        {
+          id: "s1_course_1",
+          studentId: "s1",
+          studentEmail: "ada@example.com",
+          studentName: "Ada Lovelace",
+          itemId: "course_1",
+          itemSlug: "ai-masterclass",
+          itemTitle: "AI Engineering Masterclass",
+          itemType: "course",
+          amount: 15000,
+          paymentReference: "ref_course_1",
+          purchasedAt: "2026-09-26T10:00:00.000Z",
+        },
+        {
+          id: "s1_prod_1",
+          studentId: "s1",
+          studentEmail: "ada@example.com",
+          studentName: "Ada Lovelace",
+          itemId: "prod_1",
+          itemSlug: "design-handbook",
+          itemTitle: "System Design Handbook PDF",
+          itemType: "digital_product",
+          amount: 5000,
+          paymentReference: "ref_product_1",
+          purchasedAt: "2026-09-25T10:00:00.000Z",
+        },
+      ],
+      donations: [
+        {
+          id: "ref_donation_1",
+          donorName: "Chidi Supporter",
+          amount: 10000,
+          anonymous: false,
+          createdAt: "2026-08-01T10:00:00.000Z",
+        },
+      ],
+      users: [
+        {
+          id: "s1",
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+          role: "Student",
+          enrolledClassId: "system-dev",
+          membershipPlan: "Free",
+          enrolledAt: "2026-01-01",
+        },
+        {
+          id: "s2",
+          name: "Grace Hopper",
+          email: "grace@example.com",
+          role: "Student",
+          enrolledClassId: "system-dev",
+          membershipPlan: "Premium",
+          premiumUntil: "2026-10-20T10:00:00.000Z",
+          subscriptionCode: "SUB_123",
+          enrolledAt: "2026-01-01",
+        },
+      ],
+      shopItems: [
+        {
+          id: "course_1",
+          slug: "ai-masterclass",
+          type: "course",
+          title: "AI Engineering Masterclass",
+          subtitle: "",
+          description: "",
+          price: 15000,
+          category: "Systems & Development",
+          tags: [],
+          thumbnailUrl: "",
+          whatYouWillLearn: [],
+          published: true,
+          createdAt: "2026-01-01",
+          updatedAt: "2026-01-01",
+        },
+        {
+          id: "prod_1",
+          slug: "design-handbook",
+          type: "digital_product",
+          title: "System Design Handbook PDF",
+          subtitle: "",
+          description: "",
+          price: 5000,
+          category: "Systems & Development",
+          tags: [],
+          thumbnailUrl: "",
+          whatYouWillLearn: [],
+          published: true,
+          createdAt: "2026-01-01",
+          updatedAt: "2026-01-01",
+        },
+      ],
+      settings: {
+        scholarshipGoal: 50000,
+        scholarshipCost: 3000,
+      },
+    });
+
+    expect(summary.totalRevenue).toBe(33000);
+    expect(summary.storeRevenue).toBe(20000);
+    expect(summary.streams.course.revenue).toBe(15000);
+    expect(summary.streams.course.count).toBe(1);
+    expect(summary.streams.digital_product.revenue).toBe(5000);
+    expect(summary.streams.digital_product.count).toBe(1);
+    expect(summary.streams.premium.revenue).toBe(3000);
+    expect(summary.streams.premium.count).toBe(1);
+    expect(summary.streams.donation.revenue).toBe(10000);
+    expect(summary.streams.donation.count).toBe(1);
+    expect(summary.metrics.activePaidMembersCount).toBe(1);
+    expect(summary.metrics.recurringSubscribersCount).toBe(1);
+    expect(summary.metrics.scholarshipGoalPercent).toBe(20);
+    expect(summary.itemPerformance).toHaveLength(2);
+    expect(summary.itemPerformance[0].title).toBe("AI Engineering Masterclass");
+    expect(summary.itemPerformance[0].periodRevenue).toBe(15000);
+
+    // Filter to 7 days (excludes the August donation and Sept 20 premium payment)
+    const last7d = summarizeRevenueAnalytics({
+      nowMs,
+      period: "7d",
+      payments: summary.allTransactions.map((t) => ({
+        id: t.id,
+        reference: t.reference,
+        studentId: t.studentId || "s1",
+        amount: t.amount,
+        kind:
+          t.stream === "premium"
+            ? "premium"
+            : t.stream === "donation"
+              ? "donation"
+              : "shop_item",
+        status: "success",
+        createdAt: t.createdAt,
+      })),
+      shopPurchases: [
+        {
+          id: "s1_course_1",
+          studentId: "s1",
+          studentEmail: "ada@example.com",
+          studentName: "Ada Lovelace",
+          itemId: "course_1",
+          itemSlug: "ai-masterclass",
+          itemTitle: "AI Engineering Masterclass",
+          itemType: "course",
+          amount: 15000,
+          paymentReference: "ref_course_1",
+          purchasedAt: "2026-09-26T10:00:00.000Z",
+        },
+        {
+          id: "s1_prod_1",
+          studentId: "s1",
+          studentEmail: "ada@example.com",
+          studentName: "Ada Lovelace",
+          itemId: "prod_1",
+          itemSlug: "design-handbook",
+          itemTitle: "System Design Handbook PDF",
+          itemType: "digital_product",
+          amount: 5000,
+          paymentReference: "ref_product_1",
+          purchasedAt: "2026-09-25T10:00:00.000Z",
+        },
+      ],
+    });
+    expect(last7d.totalRevenue).toBe(20000);
+    expect(last7d.allTimeRevenue).toBe(33000);
+    expect(last7d.streams.course.revenue).toBe(15000);
+    expect(last7d.streams.digital_product.revenue).toBe(5000);
+    expect(last7d.streams.premium.revenue).toBe(0);
+    expect(last7d.streams.donation.revenue).toBe(0);
+  });
+});
+
+
 
 

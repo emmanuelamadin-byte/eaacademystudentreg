@@ -411,6 +411,199 @@
   background: #002751;
   border-radius: 8px;
 }
+.revenue-section-stack {
+  display: grid;
+  gap: 24px;
+}
+.revenue-period-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.revenue-pill {
+  border: 1px solid #d5dde7;
+  background: #fff;
+  color: #334155;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.revenue-pill:hover {
+  border-color: #94a3b8;
+  color: #002751;
+}
+.revenue-pill.active {
+  background: #002751;
+  border-color: #002751;
+  color: #fff;
+}
+.revenue-streams-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.revenue-stream-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 4px solid #002751;
+}
+.revenue-stream-card.stream-course {
+  border-top-color: #002751;
+}
+.revenue-stream-card.stream-digital_product {
+  border-top-color: #0284c7;
+}
+.revenue-stream-card.stream-premium {
+  border-top-color: #d97706;
+}
+.revenue-stream-card.stream-donation {
+  border-top-color: #059669;
+}
+.revenue-stream-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.stream-course .revenue-stream-icon {
+  background: #eaf0f8;
+  color: #002751;
+}
+.stream-digital_product .revenue-stream-icon {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+.stream-premium .revenue-stream-icon {
+  background: #fef3c7;
+  color: #b45309;
+}
+.stream-donation .revenue-stream-icon {
+  background: #d1fae5;
+  color: #047857;
+}
+.revenue-stream-card .metric {
+  font-size: 30px;
+  margin: 4px 0;
+}
+.revenue-stream-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #475569;
+}
+.revenue-stream-footer {
+  border-top: 1px solid #edf1f5;
+  padding-top: 10px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+.revenue-stacked-bar {
+  height: 12px;
+  background: #edf1f5;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+  gap: 2px;
+  margin: 14px 0;
+}
+.revenue-stacked-segment {
+  height: 100%;
+  transition: width 0.25s ease;
+}
+.revenue-stacked-segment.stream-course,
+.workspace-chart-bar > span.stream-course {
+  background: #002751;
+}
+.revenue-stacked-segment.stream-digital_product,
+.workspace-chart-bar > span.stream-digital_product {
+  background: #0284c7;
+}
+.revenue-stacked-segment.stream-premium,
+.workspace-chart-bar > span.stream-premium {
+  background: #d97706;
+}
+.revenue-stacked-segment.stream-donation,
+.workspace-chart-bar > span.stream-donation {
+  background: #059669;
+}
+.revenue-chart-row {
+  display: grid;
+  grid-template-columns: 185px 1fr 140px;
+  gap: 14px;
+  align-items: center;
+  font-size: 13px;
+}
+.revenue-chart-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.revenue-stream-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.revenue-stream-badge.stream-course {
+  background: #eaf0f8;
+  color: #002751;
+}
+.revenue-stream-badge.stream-digital_product {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.revenue-stream-badge.stream-premium {
+  background: #fef3c7;
+  color: #b45309;
+}
+.revenue-stream-badge.stream-donation {
+  background: #d1fae5;
+  color: #047857;
+}
+.revenue-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.revenue-summary-stat {
+  display: grid;
+  gap: 2px;
+}
+.revenue-summary-stat small {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  font-weight: 700;
+}
+.revenue-summary-stat strong {
+  font-size: 20px;
+  color: #002751;
+}
+@media (max-width: 1100px) {
+  .revenue-streams-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (max-width: 700px) {
   .workspace-dialog {
     padding: 10px;
@@ -431,6 +624,12 @@
   .workspace-chart-row {
     grid-template-columns: 100px 1fr 35px;
   }
+  .revenue-streams-grid {
+    grid-template-columns: 1fr;
+  }
+  .revenue-chart-row {
+    grid-template-columns: 120px 1fr 100px;
+  }
   .session-item {
     gap: 12px;
   }
@@ -438,3 +637,4 @@
     padding: 18px;
   }
 }
+

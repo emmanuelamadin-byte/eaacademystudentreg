@@ -76,19 +76,74 @@ export function AIMentor() {
   const trackId = user?.enrolledClassId || "system-dev";
   const track = TRACKS.find((t) => t.id === trackId);
 
-  // Fetch uploaded video lessons from the academy
+  // Fetch uploaded video lessons from the academy (both Track classroom & Shop courses)
   useEffect(() => {
     if (!user) return;
     let active = true;
     setLoadingLessons(true);
-    api<Lesson[]>("classroom.list")
-      .then((items) => {
-        if (active && Array.isArray(items)) {
-          setUploadedLessons(items);
+    Promise.allSettled([
+      api<Lesson[]>("classroom.list"),
+      api<
+        Array<{
+          id: string;
+          type?: string;
+          title?: string;
+          curriculum?: Array<{
+            id: string;
+            title: string;
+            lessons?: Array<{
+              id: string;
+              title: string;
+              duration?: string;
+              videoUrl?: string;
+              content?: string;
+              order?: number;
+            }>;
+          }>;
+        }>
+      >("shop.public.list"),
+    ])
+      .then(([classroomRes, shopRes]) => {
+        if (!active) return;
+        const combined: Lesson[] = [];
+        const seenIds = new Set<string>();
+        if (
+          classroomRes.status === "fulfilled" &&
+          Array.isArray(classroomRes.value)
+        ) {
+          for (const item of classroomRes.value) {
+            if (item?.id && !seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              combined.push(item);
+            }
+          }
         }
-      })
-      .catch((err) => {
-        console.warn("Could not load classroom lessons for AI:", err);
+        if (shopRes.status === "fulfilled" && Array.isArray(shopRes.value)) {
+          for (const course of shopRes.value) {
+            if (course.type !== "course" || !Array.isArray(course.curriculum))
+              continue;
+            for (const mod of course.curriculum) {
+              for (const les of mod.lessons || []) {
+                if (les?.id && !seenIds.has(les.id)) {
+                  seenIds.add(les.id);
+                  combined.push({
+                    id: les.id,
+                    moduleId: mod.id,
+                    classId: trackId,
+                    title: les.title,
+                    duration: les.duration || "Self-paced",
+                    videoUrl: les.videoUrl || "",
+                    content: les.content || "",
+                    order: les.order || 0,
+                    published: true,
+                    free: false,
+                  });
+                }
+              }
+            }
+          }
+        }
+        setUploadedLessons(combined);
       })
       .finally(() => {
         if (active) setLoadingLessons(false);
@@ -96,7 +151,7 @@ export function AIMentor() {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, trackId]);
 
   // Lessons relevant to the student's track
   const trackLessons = uploadedLessons.filter(
@@ -250,7 +305,8 @@ export function AIMentor() {
       timestamp: new Date().toISOString(),
     };
 
-    const nextMessages = [...messages, newMessage];
+    const priorMessages = messages;
+    const nextMessages = [...priorMessages, newMessage];
     setMessages(nextMessages);
     setInput("");
     const attachedCode = codeSnippet.trim();
@@ -260,7 +316,7 @@ export function AIMentor() {
     setError("");
 
     try {
-      const history = nextMessages.slice(-8, -1).map((m) => ({
+      const history = priorMessages.slice(-8).map((m) => ({
         role: m.role,
         text: m.text,
       }));
@@ -268,6 +324,9 @@ export function AIMentor() {
       const lessonIdToPass =
         targetLessonId ||
         (selectedLessonId !== "all" ? selectedLessonId : undefined);
+      const selectedLesson = lessonIdToPass
+        ? availableLessons.find((l) => l.id === lessonIdToPass)
+        : undefined;
 
       const response = await api<{ text: string }>("ai.ask", {
         mode: "mentor",
@@ -275,6 +334,8 @@ export function AIMentor() {
         code: attachedCode || undefined,
         trackId,
         lessonId: lessonIdToPass,
+        lessonTitle: selectedLesson?.title,
+        lessonContent: selectedLesson?.content,
         history,
       });
 
@@ -286,6 +347,14 @@ export function AIMentor() {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
+      setMessages(priorMessages);
+      if (!customPrompt) {
+        setInput(promptToSend);
+      }
+      if (attachedCode) {
+        setCodeSnippet(attachedCode);
+        setShowCodeInput(true);
+      }
       setError(
         err instanceof Error
           ? err.message

@@ -48,6 +48,7 @@ export default function Page({
   if (
     [
       "admin",
+      "revenue",
       "users",
       "courses",
       "submissions",

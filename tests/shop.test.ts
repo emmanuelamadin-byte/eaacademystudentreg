@@ -426,6 +426,45 @@ describe("Paystack One-Time Shop Purchases", () => {
     expect(purchaseDoc!.studentId).toBe("student-123");
     expect(purchaseDoc!.itemId).toBe("course-ai-101");
     expect(purchaseDoc!.amount).toBe(15000);
+    expect(state.documents.get("shopItems/course-ai-101")?.salesCount).toBe(1);
+
+    // Second student purchase increments salesCount to 2 (not reset to 1)
+    const ref2 = "ea_shop_completed_2";
+    state.documents.set("users/student-456", {
+      ...testStudent,
+      id: "student-456",
+      email: "bob@example.com",
+    });
+    state.documents.set(`billingIntents/${ref2}`, {
+      reference: ref2,
+      studentId: "student-456",
+      email: "bob@example.com",
+      kind: "shop_item",
+      itemId: "course-ai-101",
+      itemTitle: "AI 101 Masterclass",
+      itemType: "course",
+      amount: 1500000,
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: true,
+        data: {
+          reference: ref2,
+          status: "success",
+          amount: 1500000,
+          currency: "NGN",
+          paid_at: "2026-09-11T12:00:00.000Z",
+          customer: { email: "bob@example.com" },
+        },
+      }),
+    }) as unknown as typeof fetch;
+
+    await verifyPayment(
+      { ...testStudent, id: "student-456", email: "bob@example.com" },
+      ref2,
+    );
+    expect(state.documents.get("shopItems/course-ai-101")?.salesCount).toBe(2);
 
     global.fetch = originalFetch;
   });

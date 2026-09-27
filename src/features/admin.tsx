@@ -7,7 +7,12 @@ import {
   BookOpen,
   Check,
   ClipboardCheck,
+  Crown,
+  Heart,
+  Package,
   Plus,
+  Receipt,
+  Store,
   Users,
   Wallet,
 } from "lucide-react";
@@ -20,12 +25,21 @@ import type {
   Assignment,
   AssignmentSubmission,
   CourseModule,
+  Donation,
   Lesson,
   PlatformSettings,
   Payment,
   Progress,
   CareerPathClassId,
+  ShopItem,
+  ShopPurchase,
 } from "@/lib/types";
+import {
+  summarizeRevenueAnalytics,
+  STREAM_LABELS,
+  type RevenuePeriod,
+  type RevenueStream,
+} from "@/lib/revenue";
 import {
   ActionMessage,
   Empty,
@@ -54,6 +68,10 @@ export default function Admin({ section }: { section: string; id?: string }) {
     admin: [
       "Academy overview",
       "A clear view of your academy, your students, and their progress.",
+    ],
+    revenue: [
+      "Revenue & sales",
+      "Track earnings across courses, digital products, premium memberships, and scholarship donations.",
     ],
     users: [
       "People & permissions",
@@ -86,7 +104,9 @@ export default function Admin({ section }: { section: string; id?: string }) {
         <h1>{title}</h1>
         <p className="muted">{description}</p>
       </header>
-      {section === "users" ? (
+      {section === "revenue" ? (
+        <RevenuePanel />
+      ) : section === "users" ? (
         <UsersPanel />
       ) : section === "courses" ? (
         <CoursesPanel user={user} />
@@ -108,6 +128,10 @@ function Overview() {
   const users = useRecords<AcademyUser>("users");
   const submissions = useRecords<AssignmentSubmission>("submissions");
   const payments = useRecords<Payment>("payments");
+  const shopPurchases = useRecords<ShopPurchase>("shopPurchases");
+  const shopItems = useRecords<ShopItem>("shopItems");
+  const donations = useRecords<Donation>("donations");
+  const settings = useRecord<PlatformSettings>("settings", "public");
   const progress = useRecords<Progress>("progress");
   const modules = useRecords<CourseModule>("modules");
   const students = users.data.filter((item) => item.role === "Student");
@@ -118,8 +142,17 @@ function Overview() {
   const pending = submissions.data.filter(
     (item) => item.status === "submitted" || item.status === "under-review",
   );
-  const successful = payments.data.filter((item) => item.status === "success");
-  const revenue = successful.reduce((sum, item) => sum + item.amount, 0);
+  const revenueSummary = summarizeRevenueAnalytics({
+    payments: payments.data,
+    shopPurchases: shopPurchases.data,
+    donations: donations.data,
+    users: users.data,
+    shopItems: shopItems.data,
+    settings: settings.data,
+    period: "all",
+    nowMs: now,
+  });
+  const revenue = revenueSummary.allTimeRevenue;
   const publishedLessons = modules.data
     .filter((item) => item.published)
     .flatMap((item) =>
@@ -203,7 +236,7 @@ function Overview() {
             <p className="metric">{loading ? "—" : metric.value}</p>
             <span className="muted">
               {metric.label === "Total received"
-                ? "Successful payments and donations"
+                ? "Courses, digital products, memberships & donations"
                 : "Live academy records"}
             </span>
           </div>
@@ -251,6 +284,9 @@ function Overview() {
             <Link className="btn btn-secondary" href="/app/courses">
               <BookOpen size={17} /> Open course studio <ArrowRight size={16} />
             </Link>
+            <Link className="btn btn-secondary" href="/app/shop-studio">
+              <Store size={17} /> Manage store & courses <ArrowRight size={16} />
+            </Link>
             <Link className="btn btn-secondary" href="/app/submissions">
               <ClipboardCheck size={17} /> Review student work{" "}
               <ArrowRight size={16} />
@@ -258,28 +294,550 @@ function Overview() {
           </div>
         </section>
       </div>
+      <RevenueAnalyticsSection
+        now={now}
+        payments={payments.data}
+        shopPurchases={shopPurchases.data}
+        donations={donations.data}
+        users={users.data}
+        shopItems={shopItems.data}
+        settings={settings.data}
+        loading={
+          payments.loading ||
+          shopPurchases.loading ||
+          donations.loading ||
+          shopItems.loading
+        }
+      />
+    </>
+  );
+}
+
+function RevenuePanel() {
+  const [now] = useState(() => Date.now());
+  const users = useRecords<AcademyUser>("users");
+  const payments = useRecords<Payment>("payments");
+  const shopPurchases = useRecords<ShopPurchase>("shopPurchases");
+  const shopItems = useRecords<ShopItem>("shopItems");
+  const donations = useRecords<Donation>("donations");
+  const settings = useRecord<PlatformSettings>("settings", "public");
+  const error =
+    payments.error ||
+    shopPurchases.error ||
+    donations.error ||
+    shopItems.error ||
+    users.error;
+
+  return (
+    <>
+      {error && (
+        <p role="alert" className="alert">
+          {String(error)}
+        </p>
+      )}
+      <RevenueAnalyticsSection
+        now={now}
+        payments={payments.data}
+        shopPurchases={shopPurchases.data}
+        donations={donations.data}
+        users={users.data}
+        shopItems={shopItems.data}
+        settings={settings.data}
+        loading={
+          payments.loading ||
+          shopPurchases.loading ||
+          donations.loading ||
+          shopItems.loading ||
+          users.loading
+        }
+      />
+    </>
+  );
+}
+
+const PERIOD_OPTIONS: Array<{ value: RevenuePeriod; label: string }> = [
+  { value: "all", label: "All time" },
+  { value: "today", label: "Today" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "month", label: "This month" },
+  { value: "year", label: "This year" },
+];
+
+function RevenueAnalyticsSection({
+  now,
+  payments,
+  shopPurchases,
+  donations,
+  users,
+  shopItems,
+  settings,
+  loading,
+}: {
+  now: number;
+  payments: Payment[];
+  shopPurchases: ShopPurchase[];
+  donations: Donation[];
+  users: AcademyUser[];
+  shopItems: ShopItem[];
+  settings: PlatformSettings | null;
+  loading: boolean;
+}) {
+  const [period, setPeriod] = useState<RevenuePeriod>("all");
+  const [itemFilter, setItemFilter] = useState<
+    "all" | "course" | "digital_product"
+  >("all");
+  const [streamFilter, setStreamFilter] = useState<RevenueStream | "all">(
+    "all",
+  );
+  const [ledgerQuery, setLedgerQuery] = useState("");
+  const [ledgerPage, setLedgerPage] = useState(0);
+
+  const summary = summarizeRevenueAnalytics({
+    payments,
+    shopPurchases,
+    donations,
+    users,
+    shopItems,
+    settings,
+    period,
+    nowMs: now,
+  });
+
+  const { streams, metrics } = summary;
+
+  const streamCards = [
+    {
+      key: "course" as const,
+      title: "Courses",
+      icon: BookOpen,
+      data: streams.course,
+      detail: `${streams.course.count.toLocaleString()} ${streams.course.count === 1 ? "sale" : "sales"} · Avg ₦${streams.course.averageAmount.toLocaleString()}`,
+      footer: `${metrics.publishedCoursesCount} live of ${metrics.totalCoursesCount} courses in catalog`,
+    },
+    {
+      key: "digital_product" as const,
+      title: "Digital products",
+      icon: Package,
+      data: streams.digital_product,
+      detail: `${streams.digital_product.count.toLocaleString()} ${streams.digital_product.count === 1 ? "sale" : "sales"} · Avg ₦${streams.digital_product.averageAmount.toLocaleString()}`,
+      footer: `${metrics.publishedProductsCount} live of ${metrics.totalProductsCount} materials in catalog`,
+    },
+    {
+      key: "premium" as const,
+      title: "Premium memberships",
+      icon: Crown,
+      data: streams.premium,
+      detail: `${streams.premium.count.toLocaleString()} ${streams.premium.count === 1 ? "payment" : "payments"} · ₦${PREMIUM_PRICE.toLocaleString()}/mo`,
+      footer: `${metrics.activePaidMembersCount} active paid · ${metrics.recurringSubscribersCount} auto-renew · ${metrics.complimentaryMembersCount} sponsored`,
+    },
+    {
+      key: "donation" as const,
+      title: "Scholarship donations",
+      icon: Heart,
+      data: streams.donation,
+      detail: `${streams.donation.count.toLocaleString()} ${streams.donation.count === 1 ? "contribution" : "contributions"} · Avg ₦${streams.donation.averageAmount.toLocaleString()}`,
+      footer:
+        metrics.scholarshipGoal > 0
+          ? `${metrics.scholarshipGoalPercent}% of ₦${metrics.scholarshipGoal.toLocaleString()} scholarship goal`
+          : `${metrics.scholarsSupportedCount} scholar months funded`,
+    },
+  ];
+
+  const filteredItems = summary.itemPerformance.filter(
+    (item) => itemFilter === "all" || item.type === itemFilter,
+  );
+
+  const filteredTransactions = summary.transactions.filter((tx) => {
+    if (streamFilter !== "all" && tx.stream !== streamFilter) return false;
+    if (!ledgerQuery.trim()) return true;
+    const q = ledgerQuery.toLowerCase();
+    return `${tx.customerName} ${tx.customerEmail} ${tx.itemTitle} ${tx.reference} ${STREAM_LABELS[tx.stream]}`
+      .toLowerCase()
+      .includes(q);
+  });
+
+  const pageSize = 10;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredTransactions.length / pageSize),
+  );
+  const currentPage = Math.min(ledgerPage, totalPages - 1);
+
+  return (
+    <div className="revenue-section-stack">
       <section className="card">
-        <h2>Revenue breakdown</h2>
-        <div className="grid-2">
-          {(["premium", "donation"] as const).map((kind) => (
-            <div key={kind}>
-              <p className="muted">
-                {kind === "premium"
-                  ? "Premium memberships"
-                  : "Scholarship donations"}
-              </p>
-              <p className="metric">
-                ₦
-                {successful
-                  .filter((item) => item.kind === kind)
-                  .reduce((sum, item) => sum + item.amount, 0)
-                  .toLocaleString()}
-              </p>
+        <div className="workspace-toolbar">
+          <div>
+            <h2>Revenue breakdown</h2>
+            <p className="muted">
+              Earnings across standalone courses, digital products, premium
+              memberships, and scholarship donations.
+            </p>
+          </div>
+          <div
+            className="revenue-period-pills"
+            role="group"
+            aria-label="Filter revenue by time period"
+          >
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`revenue-pill ${period === opt.value ? "active" : ""}`}
+                onClick={() => {
+                  setPeriod(opt.value);
+                  setLedgerPage(0);
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="revenue-summary-strip" style={{ marginTop: "16px" }}>
+          <div className="revenue-summary-stat">
+            <small>
+              {PERIOD_OPTIONS.find((o) => o.value === period)?.label ||
+                "Selected period"}{" "}
+              revenue
+            </small>
+            <strong>
+              {loading ? "—" : `₦${summary.totalRevenue.toLocaleString()}`}
+            </strong>
+          </div>
+          <div className="revenue-summary-stat">
+            <small>Store sales (Courses + Digital)</small>
+            <strong>
+              {loading ? "—" : `₦${summary.storeRevenue.toLocaleString()}`}
+            </strong>
+          </div>
+          <div className="revenue-summary-stat">
+            <small>Completed transactions</small>
+            <strong>
+              {loading ? "—" : summary.totalTransactions.toLocaleString()}
+            </strong>
+          </div>
+          {period !== "all" && (
+            <div className="revenue-summary-stat">
+              <small>All-time total received</small>
+              <strong>
+                {loading ? "—" : `₦${summary.allTimeRevenue.toLocaleString()}`}
+              </strong>
+            </div>
+          )}
+        </div>
+
+        <div className="revenue-streams-grid" style={{ marginTop: "20px" }}>
+          {streamCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={card.key}
+                className={`card revenue-stream-card stream-${card.key}`}
+              >
+                <div>
+                  <div className="workspace-toolbar">
+                    <span className="muted">{card.title}</span>
+                    <span className="revenue-stream-icon">
+                      <Icon size={18} />
+                    </span>
+                  </div>
+                  <p className="metric">
+                    {loading ? "—" : `₦${card.data.revenue.toLocaleString()}`}
+                  </p>
+                  <div className="revenue-stream-meta">
+                    <span>{card.detail}</span>
+                    <strong>{card.data.sharePercent}%</strong>
+                  </div>
+                  <div
+                    className="workspace-chart-bar"
+                    style={{ marginTop: "8px" }}
+                  >
+                    <span
+                      className={`stream-${card.key}`}
+                      style={{ width: `${card.data.sharePercent}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="revenue-stream-footer">{card.footer}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <hr className="workspace-divider" />
+
+        <h3>Revenue share by stream</h3>
+        {summary.totalRevenue > 0 && (
+          <div
+            className="revenue-stacked-bar"
+            aria-label="Revenue proportion bar"
+          >
+            {summary.streamList.map((st) =>
+              st.revenue > 0 ? (
+                <span
+                  key={st.stream}
+                  className={`revenue-stacked-segment stream-${st.stream}`}
+                  style={{
+                    width: `${Math.max(2, (st.revenue / summary.totalRevenue) * 100)}%`,
+                  }}
+                  title={`${st.label}: ₦${st.revenue.toLocaleString()} (${st.sharePercent}%)`}
+                />
+              ) : null,
+            )}
+          </div>
+        )}
+        <div className="workspace-stack">
+          {summary.streamList.map((st) => (
+            <div key={st.stream} className="revenue-chart-row">
+              <span>
+                <strong>{st.label}</strong>{" "}
+                <small className="muted">({st.count})</small>
+              </span>
+              <div className="workspace-chart-bar">
+                <span
+                  className={`stream-${st.stream}`}
+                  style={{ width: `${st.sharePercent}%` }}
+                />
+              </div>
+              <strong className="revenue-chart-amount">
+                ₦{st.revenue.toLocaleString()} ({st.sharePercent}%)
+              </strong>
             </div>
           ))}
         </div>
       </section>
-    </>
+
+      <section className="card">
+        <div className="workspace-toolbar">
+          <div>
+            <h2>Course & digital product performance</h2>
+            <p className="muted">
+              Unit sales and revenue generated by each standalone course and
+              downloadable digital product.
+            </p>
+          </div>
+          <div className="workspace-inline">
+            <div className="revenue-period-pills">
+              {[
+                { value: "all" as const, label: "All store items" },
+                { value: "course" as const, label: "Courses" },
+                { value: "digital_product" as const, label: "Digital products" },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`revenue-pill ${itemFilter === tab.value ? "active" : ""}`}
+                  onClick={() => setItemFilter(tab.value)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <Link className="btn btn-secondary btn-small" href="/app/shop-studio">
+              <Store size={15} /> Shop studio
+            </Link>
+          </div>
+        </div>
+        {filteredItems.length > 0 ? (
+          <div className="table-wrap" style={{ marginTop: "14px" }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Type</th>
+                  <th>Price</th>
+                  <th>Units sold</th>
+                  <th>Revenue earned</th>
+                  <th>Store share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <strong>{item.title}</strong>
+                      <small>
+                        {item.category} · {item.published ? "Live" : "Draft"}
+                        {item.includedInPremium ? " · Included in Premium" : ""}
+                      </small>
+                    </td>
+                    <td>
+                      <span
+                        className={`revenue-stream-badge stream-${item.type}`}
+                      >
+                        {item.type === "digital_product"
+                          ? "Digital product"
+                          : "Course"}
+                      </span>
+                    </td>
+                    <td>₦{item.price.toLocaleString()}</td>
+                    <td>
+                      <strong>{item.periodSales.toLocaleString()}</strong>
+                      {period !== "all" && (
+                        <small>
+                          {item.allTimeSales.toLocaleString()} all-time
+                        </small>
+                      )}
+                    </td>
+                    <td>
+                      <strong>₦{item.periodRevenue.toLocaleString()}</strong>
+                      {period !== "all" && (
+                        <small>
+                          ₦{item.allTimeRevenue.toLocaleString()} all-time
+                        </small>
+                      )}
+                    </td>
+                    <td>{item.shareOfStoreRevenue}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty
+            title={
+              loading
+                ? "Loading catalog performance…"
+                : "No courses or digital products yet"
+            }
+          >
+            Create courses or digital materials in Shop Studio to track per-item
+            sales and revenue here.
+          </Empty>
+        )}
+      </section>
+
+      <section className="card">
+        <div className="workspace-toolbar">
+          <div>
+            <h2>Transaction ledger</h2>
+            <p className="muted">
+              Complete record of payments across courses, digital products,
+              memberships, and donations.
+            </p>
+          </div>
+          <Receipt size={20} />
+        </div>
+        <div className="workspace-toolbar" style={{ marginTop: "14px" }}>
+          <input
+            aria-label="Search transactions"
+            placeholder="Search by student, donor, email, item title, or reference…"
+            value={ledgerQuery}
+            onChange={(event) => {
+              setLedgerQuery(event.target.value);
+              setLedgerPage(0);
+            }}
+          />
+          <select
+            aria-label="Filter by revenue stream"
+            value={streamFilter}
+            onChange={(event) => {
+              setStreamFilter(event.target.value as RevenueStream | "all");
+              setLedgerPage(0);
+            }}
+          >
+            <option value="all">All revenue streams</option>
+            <option value="course">Courses</option>
+            <option value="digital_product">Digital products</option>
+            <option value="premium">Premium memberships</option>
+            <option value="donation">Scholarship donations</option>
+          </select>
+          <span className="muted">
+            {filteredTransactions.length}{" "}
+            {filteredTransactions.length === 1 ? "transaction" : "transactions"}
+          </span>
+        </div>
+
+        {filteredTransactions.length > 0 ? (
+          <>
+            <div className="table-wrap" style={{ marginTop: "14px" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Customer / Donor</th>
+                    <th>Stream</th>
+                    <th>Item / Description</th>
+                    <th>Amount</th>
+                    <th>Reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransactions
+                    .slice(
+                      currentPage * pageSize,
+                      currentPage * pageSize + pageSize,
+                    )
+                    .map((tx) => (
+                      <tr key={tx.id}>
+                        <td>{dateLabel(tx.createdAt)}</td>
+                        <td>
+                          <strong>{tx.customerName}</strong>
+                          {tx.customerEmail && <small>{tx.customerEmail}</small>}
+                        </td>
+                        <td>
+                          <span
+                            className={`revenue-stream-badge stream-${tx.stream}`}
+                          >
+                            {STREAM_LABELS[tx.stream]}
+                          </span>
+                        </td>
+                        <td>{tx.itemTitle}</td>
+                        <td>
+                          <strong>₦{tx.amount.toLocaleString()}</strong>
+                        </td>
+                        <td>
+                          <small>{tx.reference}</small>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+            {totalPages > 1 && (
+              <div
+                className="workspace-pagination"
+                style={{ marginTop: "16px" }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-small"
+                  disabled={currentPage === 0}
+                  onClick={() => setLedgerPage(currentPage - 1)}
+                >
+                  Previous
+                </button>
+                <span className="muted">
+                  Page {currentPage + 1} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-small"
+                  disabled={currentPage + 1 >= totalPages}
+                  onClick={() => setLedgerPage(currentPage + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <Empty
+            title={
+              loading
+                ? "Loading transactions…"
+                : "No matching transactions found"
+            }
+          >
+            Completed course purchases, digital product sales, premium
+            subscriptions, and scholarship donations will appear here.
+          </Empty>
+        )}
+      </section>
+    </div>
   );
 }
 

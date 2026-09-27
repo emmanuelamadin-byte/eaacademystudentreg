@@ -56,6 +56,7 @@ const communityLinks = [
 ];
 const adminLinks = [
   { href: "/app/admin", label: "Command center", icon: Shield },
+  { href: "/app/revenue", label: "Revenue & sales", icon: Wallet },
   { href: "/app/shop-studio", label: "Shop studio", icon: Store },
   { href: "/app/ads", label: "Ad manager", icon: Tv },
   { href: "/app/users", label: "People", icon: Users },
@@ -479,13 +480,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span>Tracks</span>
         </Link>
         <Link
-          href="/app/assignments"
+          href="/shop"
           scroll={true}
           onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-          className={`mobile-tab ${pathname.startsWith("/app/assignments") ? "active" : ""}`}
+          className={`mobile-tab ${pathname.startsWith("/shop") ? "active" : ""}`}
         >
-          <ClipboardList size={20} />
-          <span>Tasks</span>
+          <Store size={20} />
+          <span>Shop</span>
         </Link>
         <button
           type="button"

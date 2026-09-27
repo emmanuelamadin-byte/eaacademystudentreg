@@ -21,6 +21,7 @@ import {
   type Payment,
   type Donation,
   type PlatformSettings,
+  type ShopPurchase,
 } from "@/lib/types";
 import { trackTikTokEvent } from "@/lib/tiktok";
 
@@ -260,6 +261,11 @@ export default function Billing() {
     [["studentId", "==", user?.id || ""]],
     !!user,
   );
+  const { data: purchases } = useRecords<ShopPurchase>(
+    "shopPurchases",
+    [["studentId", "==", user?.id || ""]],
+    !!user,
+  );
   const runVerification = (ref: string) => {
     setMessage("Confirming your payment with Paystack…");
     setError("");
@@ -418,23 +424,33 @@ export default function Billing() {
               <tbody>
                 {[...payments]
                   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                  .map((p) => (
-                    <tr key={p.id}>
-                      <td>{new Date(p.createdAt).toLocaleDateString()}</td>
-                      <td>
-                        {p.kind === "premium"
-                          ? "Premium membership"
-                          : "Scholarship donation"}
-                      </td>
-                      <td>{formatNaira(p.amount)}</td>
-                      <td>
-                        <span className="badge">{p.status}</span>
-                      </td>
-                      <td>
-                        <small>{p.reference || p.id}</small>
-                      </td>
-                    </tr>
-                  ))}
+                  .map((p) => {
+                    const ref = p.reference || p.id;
+                    const purchase = purchases.find(
+                      (sp) => sp.paymentReference === ref,
+                    );
+                    const description =
+                      p.kind === "premium"
+                        ? "Premium membership"
+                        : p.kind === "shop_item"
+                          ? purchase
+                            ? `${purchase.itemType === "digital_product" ? "Digital product" : "Course"}: ${purchase.itemTitle}`
+                            : p.itemTitle || "Store purchase"
+                          : "Scholarship donation";
+                    return (
+                      <tr key={p.id}>
+                        <td>{new Date(p.createdAt).toLocaleDateString()}</td>
+                        <td>{description}</td>
+                        <td>{formatNaira(p.amount)}</td>
+                        <td>
+                          <span className="badge">{p.status}</span>
+                        </td>
+                        <td>
+                          <small>{ref}</small>
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>

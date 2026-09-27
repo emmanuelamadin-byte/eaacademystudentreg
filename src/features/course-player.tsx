@@ -23,7 +23,11 @@ import {
   Lock,
   Sparkles,
   RefreshCw,
+  MessageCircle,
+  Send,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api, downloadAttachment } from "@/lib/api";
 import { AdVideoPlayer } from "@/components/ad-video-player";
 import type {
@@ -51,8 +55,16 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
     null,
   );
   const [openModuleIds, setOpenModuleIds] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<"notes" | "resources">("notes");
+  const [activeTab, setActiveTab] = useState<"notes" | "resources" | "tutor">(
+    "notes",
+  );
   const [updatingProgress, setUpdatingProgress] = useState(false);
+  const [tutorPrompt, setTutorPrompt] = useState("");
+  const [tutorMessages, setTutorMessages] = useState<
+    { role: "You" | "AI tutor"; text: string }[]
+  >([]);
+  const [tutorBusy, setTutorBusy] = useState(false);
+  const [tutorError, setTutorError] = useState<string | null>(null);
 
   // Chapter Quiz State
   const [quizAnswers, setQuizAnswers] = useState<
@@ -1029,6 +1041,14 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                     <Paperclip size={15} />
                     Resources & Materials ({currentLesson?.resources?.length || 0})
                   </button>
+                  <button
+                    type="button"
+                    className={`classroom-tab ${activeTab === "tutor" ? "active" : ""}`}
+                    onClick={() => setActiveTab("tutor")}
+                  >
+                    <MessageCircle size={15} />
+                    AI Tutor
+                  </button>
                 </div>
 
                 <div className="classroom-tab-content">
@@ -1041,7 +1061,7 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                         </p>
                       )}
                     </div>
-                  ) : (
+                  ) : activeTab === "resources" ? (
                     <div className="classroom-resources-body">
                       {!currentLesson?.resources ||
                       currentLesson.resources.length === 0 ? (
@@ -1080,6 +1100,185 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                           ))}
                         </div>
                       )}
+                    </div>
+                  ) : (
+                    <div className="classroom-tutor-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+                        <div>
+                          <h3 style={{ margin: "0 0 0.25rem 0", fontSize: "1.05rem" }}>
+                            AI Lesson Tutor — {currentLesson?.title || course.title}
+                          </h3>
+                          <p className="text-muted" style={{ margin: 0, fontSize: "0.88rem" }}>
+                            Ask for a summary, a practical example, or a quiz on this lesson.
+                          </p>
+                        </div>
+                        {tutorMessages.length > 0 && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-small"
+                            onClick={() => {
+                              setTutorMessages([]);
+                              setTutorError(null);
+                            }}
+                          >
+                            Clear chat
+                          </button>
+                        )}
+                      </div>
+
+                      {tutorMessages.length === 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                          {[
+                            `Summarize the key takeaways from "${currentLesson?.title || "this lesson"}"`,
+                            `Give me a practical step-by-step example for "${currentLesson?.title || "this lesson"}"`,
+                            `What common mistakes should I avoid here?`,
+                            `Quiz me with 3 questions on "${currentLesson?.title || "this lesson"}"`,
+                          ].map((q) => (
+                            <button
+                              key={q}
+                              type="button"
+                              className="btn btn-secondary btn-small"
+                              disabled={tutorBusy}
+                              onClick={async () => {
+                                if (tutorBusy) return;
+                                setTutorBusy(true);
+                                setTutorError(null);
+                                const prior = tutorMessages;
+                                setTutorMessages([...prior, { role: "You", text: q }]);
+                                try {
+                                  const res = await api<{ text: string }>("ai.ask", {
+                                    mode: "tutor",
+                                    courseId: course.id,
+                                    lessonId: currentLesson?.id,
+                                    lessonTitle: currentLesson?.title || course.title,
+                                    lessonContent: currentLesson?.content || course.description,
+                                    prompt: q,
+                                    history: prior.slice(-8).map((m) => ({
+                                      role: m.role === "You" ? ("user" as const) : ("model" as const),
+                                      text: m.text,
+                                    })),
+                                  });
+                                  setTutorMessages((prev) => [
+                                    ...prev,
+                                    { role: "AI tutor", text: res.text },
+                                  ]);
+                                } catch (err) {
+                                  setTutorMessages(prior);
+                                  setTutorError(
+                                    err instanceof Error ? err.message : "Could not reach AI Tutor.",
+                                  );
+                                } finally {
+                                  setTutorBusy(false);
+                                }
+                              }}
+                              style={{ fontSize: "0.8rem" }}
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {tutorMessages.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxHeight: "420px", overflowY: "auto", paddingRight: "0.25rem" }}>
+                          {tutorMessages.map((item, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: "0.85rem 1rem",
+                                borderRadius: "10px",
+                                background:
+                                  item.role === "You"
+                                    ? "rgba(56, 189, 248, 0.12)"
+                                    : "rgba(255, 255, 255, 0.04)",
+                                border:
+                                  item.role === "You"
+                                    ? "1px solid rgba(56, 189, 248, 0.3)"
+                                    : "1px solid rgba(255, 255, 255, 0.1)",
+                              }}
+                            >
+                              <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.75, marginBottom: "0.35rem" }}>
+                                {item.role}
+                              </div>
+                              <div className="prose" style={{ fontSize: "0.92rem", lineHeight: 1.6 }}>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {item.text}
+                                </ReactMarkdown>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {tutorError && (
+                        <p className="alert" style={{ margin: 0 }}>
+                          {tutorError}
+                        </p>
+                      )}
+
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const question = tutorPrompt.trim();
+                          if (!question || tutorBusy) return;
+                          setTutorBusy(true);
+                          setTutorError(null);
+                          const prior = tutorMessages;
+                          setTutorMessages([...prior, { role: "You", text: question }]);
+                          setTutorPrompt("");
+                          try {
+                            const res = await api<{ text: string }>("ai.ask", {
+                              mode: "tutor",
+                              courseId: course.id,
+                              lessonId: currentLesson?.id,
+                              lessonTitle: currentLesson?.title || course.title,
+                              lessonContent: currentLesson?.content || course.description,
+                              prompt: question,
+                              history: prior.slice(-8).map((m) => ({
+                                role: m.role === "You" ? ("user" as const) : ("model" as const),
+                                text: m.text,
+                              })),
+                            });
+                            setTutorMessages((prev) => [
+                              ...prev,
+                              { role: "AI tutor", text: res.text },
+                            ]);
+                          } catch (err) {
+                            setTutorMessages(prior);
+                            setTutorPrompt(question);
+                            setTutorError(
+                              err instanceof Error ? err.message : "Could not reach AI Tutor.",
+                            );
+                          } finally {
+                            setTutorBusy(false);
+                          }
+                        }}
+                        style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
+                      >
+                        <textarea
+                          rows={3}
+                          className="input"
+                          value={tutorPrompt}
+                          onChange={(e) => setTutorPrompt(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              e.currentTarget.form?.requestSubmit();
+                            }
+                          }}
+                          placeholder={`Ask a question about "${currentLesson?.title || "this lesson"}"...`}
+                        />
+                        <div>
+                          <button
+                            type="submit"
+                            className="btn btn-primary btn-small"
+                            disabled={tutorBusy || !tutorPrompt.trim()}
+                          >
+                            <Send size={15} />
+                            {tutorBusy ? "Thinking…" : "Ask AI Tutor"}
+                          </button>
+                        </div>
+                      </form>
                     </div>
                   )}
                 </div>

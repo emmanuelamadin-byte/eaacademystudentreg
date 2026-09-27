@@ -1756,7 +1756,7 @@ function LessonPlayer({ id }: { id?: string }) {
             </div>
           )}
           {tab === "discussion" && <LessonDiscussion lesson={lesson} />}
-          {tab === "tutor" && <Tutor lessonId={lesson.id} />}
+          {tab === "tutor" && <Tutor lesson={lesson} />}
         </div>
       </div>
       <div className="lesson-footer">
@@ -1856,49 +1856,117 @@ function LessonDiscussion({ lesson }: { lesson: Lesson }) {
     </section>
   );
 }
-function Tutor({ lessonId }: { lessonId: string }) {
+function Tutor({ lesson }: { lesson: Lesson }) {
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState<{ role: string; text: string }[]>(
     [],
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const send = async () => {
-    const question = prompt.trim();
-    if (!question) return;
+
+  const send = async (customPrompt?: string) => {
+    const question = (customPrompt ?? prompt).trim();
+    if (!question || busy) return;
     setBusy(true);
     setError("");
-    setMessages((previous) => [...previous, { role: "You", text: question }]);
-    setPrompt("");
+    const priorMessages = messages;
+    const history = priorMessages.slice(-8).map((item) => ({
+      role: item.role === "You" ? ("user" as const) : ("model" as const),
+      text: item.text,
+    }));
+    setMessages([...priorMessages, { role: "You", text: question }]);
+    if (!customPrompt) setPrompt("");
     try {
       const response = await api<{ text: string }>("ai.ask", {
         mode: "tutor",
-        lessonId,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        lessonContent: lesson.content,
+        trackId: lesson.classId,
         prompt: question,
+        history,
       });
       setMessages((previous) => [
         ...previous,
         { role: "AI tutor", text: response.text },
       ]);
     } catch (err) {
+      setMessages(priorMessages);
       setError(errorMessage(err));
-      setPrompt(question);
+      if (!customPrompt) setPrompt(question);
     } finally {
       setBusy(false);
     }
   };
+
+  const quickPrompts = [
+    `Summarize the key takeaways from "${lesson.title}"`,
+    `Explain "${lesson.title}" with a practical step-by-step example`,
+    `What common mistakes should I avoid in this lesson?`,
+    `Quiz me with 3 questions on "${lesson.title}"`,
+  ];
+
   return (
     <section className="tutor">
-      <div className="tutor-intro">
-        <MessageCircle size={25} />
-        <div>
-          <h3>A little help, right when you need it.</h3>
-          <p className="muted">
-            Ask for an explanation, an example, or a hint. AI guidance may be
-            imperfect; your instructor makes final grading decisions.
-          </p>
+      <div
+        className="tutor-intro"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+          <MessageCircle size={25} />
+          <div>
+            <h3>A little help, right when you need it.</h3>
+            <p className="muted">
+              Ask for an explanation, an example, or a hint about{" "}
+              <strong>{lesson.title}</strong>. AI guidance is advisory; your
+              instructor makes final grading decisions.
+            </p>
+          </div>
         </div>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              setMessages([]);
+              setError("");
+            }}
+          >
+            Clear chat
+          </button>
+        )}
       </div>
+
+      {messages.length === 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            marginBottom: "1rem",
+          }}
+        >
+          {quickPrompts.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={busy}
+              onClick={() => void send(suggestion)}
+              style={{ fontSize: "0.82rem" }}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="tutor-messages" aria-live="polite">
         {messages.map((item, index) => (
           <div
@@ -1907,7 +1975,9 @@ function Tutor({ lessonId }: { lessonId: string }) {
           >
             <p className="eyebrow">{item.role}</p>
             <div className="prose">
-              <ReactMarkdown>{item.text}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {item.text}
+              </ReactMarkdown>
             </div>
           </div>
         ))}
@@ -1925,6 +1995,12 @@ function Tutor({ lessonId }: { lessonId: string }) {
             rows={3}
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void send();
+              }
+            }}
             placeholder="Can you explain this lesson with a practical example?"
           />
         </label>

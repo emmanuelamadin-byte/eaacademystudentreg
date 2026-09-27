@@ -400,12 +400,14 @@ async function applyPayment(
       });
       if (intent!.itemId) {
         const itemRef = store.collection("shopItems").doc(String(intent!.itemId));
-        tx.update(itemRef, {
-          salesCount: (itemRef as unknown as { salesCount?: number })?.salesCount
-            ? Number((itemRef as unknown as { salesCount?: number }).salesCount) + 1
-            : 1,
-          updatedAt: paidAt,
-        });
+        const itemSnap = await tx.get(itemRef);
+        if (itemSnap.exists) {
+          const currentSales = Number(itemSnap.data()?.salesCount || 0);
+          tx.update(itemRef, {
+            salesCount: currentSales + 1,
+            updatedAt: paidAt,
+          });
+        }
       }
     } else {
       tx.create(store.collection("donations").doc(transaction.reference), {
