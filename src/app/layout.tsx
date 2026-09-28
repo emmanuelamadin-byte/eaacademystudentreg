@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AcademyProvider } from "@/components/academy-provider";
 import { PwaTools } from "@/components/pwa-tools";
 import { NavigationScrollHandler } from "@/components/navigation-scroll-handler";
@@ -133,6 +134,7 @@ export default function RootLayout({
           <div id="main-content">{children}</div>
           <PwaTools />
         </AcademyProvider>
+        <Analytics />
       </body>
     </html>
   );
