@@ -219,6 +219,52 @@ describe("server action boundaries", () => {
       enrolledClassId: "creative-media",
     });
   });
+  it("triggers owner alert and welcome email when a pre-created skeleton profile completes onboarding", async () => {
+    const comms = await import("../src/server/communications");
+    const ownerSpy = vi
+      .spyOn(comms, "notifyOwnerOfNewStudent")
+      .mockResolvedValue({ sent: true });
+    const welcomeSpy = vi
+      .spyOn(comms, "onboardNewStudentCommunications")
+      .mockResolvedValue();
+
+    // Simulate Supabase auth trigger creating a skeleton row with enrolledClassId = null
+    state.documents.set("users/new-student", {
+      id: "new-student",
+      name: "Skeleton Student",
+      email: "student@example.com",
+      role: "Student",
+      enrolledClassId: null,
+      membershipPlan: "Free",
+    });
+
+    await dispatch(newGoogleToken, "profile.ensure", {
+      name: "Skeleton Student",
+      enrolledClassId: "system-dev",
+      countryCode: "NG",
+      phoneNumber: "0801 234 5678",
+      birthday: { month: 5, day: 10 },
+    });
+
+    expect(ownerSpy).toHaveBeenCalledTimes(1);
+    expect(ownerSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerEmail: "emmanuelamadin@gmail.com",
+        studentId: "new-student",
+        studentName: "Skeleton Student",
+        studentEmail: "student@example.com",
+      }),
+    );
+    expect(welcomeSpy).toHaveBeenCalledTimes(1);
+
+    // Subsequent profile.ensure calls should not re-trigger notifications
+    await dispatch(newGoogleToken, "profile.ensure", {});
+    expect(ownerSpy).toHaveBeenCalledTimes(1);
+    expect(welcomeSpy).toHaveBeenCalledTimes(1);
+
+    ownerSpy.mockRestore();
+    welcomeSpy.mockRestore();
+  });
   it("claims a verified legacy roster entry without asking for onboarding again", async () => {
     state.documents.set("studentRoster/legacy@example.com", {
       email: "legacy@example.com",

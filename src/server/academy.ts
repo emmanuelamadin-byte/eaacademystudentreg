@@ -193,7 +193,7 @@ async function ensureProfile(token: AuthToken, p: Payload) {
       tx.update(ref, updates);
       return;
     }
-    isNewUser = !previous.exists;
+    isNewUser = !prevData?.enrolledClassId && role !== "Admin";
     if (token.provider !== "google")
       throw new ApiError(403, "Use Google to create an EA Academy account.");
     const settings = await tx.get(db().collection("settings").doc("public"));
@@ -299,7 +299,7 @@ async function ensureProfile(token: AuthToken, p: Payload) {
     );
   });
   const profile = await actor(token);
-  // Fire-and-forget owner notification — only for genuinely new students
+  // Owner notification + student welcome/nurture — awaited so serverless functions don't freeze mid-flight
   if (isNewUser && (input.enrolledClassId || rosterCanBeClaimed)) {
     const { TRACKS } = await import("@/lib/types");
     const enrolledId =
@@ -310,38 +310,49 @@ async function ensureProfile(token: AuthToken, p: Payload) {
       (TRACKS as { id: string; name: string }[]).find(
         (t) => t.id === enrolledId,
       )?.name || enrolledId;
-    notifyOwnerOfNewStudent({
-      ownerEmail: OWNER_EMAIL,
-      studentName: profile.name || token.name || "New student",
-      studentEmail: normalizedEmail || "",
-      trackName,
-    }).catch(() => {});
+    const studentName =
+      (rosterCanBeClaimed && String(rosterData?.name || "").trim()) ||
+      input.name ||
+      profile.name ||
+      token.name ||
+      "New student";
+    const studentEmail = normalizedEmail || profile.email || "";
+    const studentPhone = profile.phoneNumber;
 
-    onboardNewStudentCommunications({
-      studentId: profile.id,
-      studentName: profile.name || token.name || "New student",
-      studentEmail: normalizedEmail || profile.email || "",
-      trackName,
-      isPremium: hasPremium(profile),
-    }).catch(() => {});
-
-    void sendTikTokServerEvent({
-      event: "CompleteRegistration",
-      event_id: `reg_${profile.id}`,
-      properties: {
-        value: 0,
-        currency: "NGN",
-        content_id: String(enrolledId),
-        content_type: "product",
-        content_name: String(trackName),
-        content_category: "Career Track Enrollment",
-      },
-      user: {
-        email: normalizedEmail || profile.email,
-        phone_number: profile.phoneNumber,
-        external_id: profile.id,
-      },
-    }).catch(() => {});
+    await Promise.allSettled([
+      notifyOwnerOfNewStudent({
+        ownerEmail: OWNER_EMAIL,
+        studentId: token.uid,
+        studentName,
+        studentEmail,
+        phoneNumber: studentPhone,
+        trackName,
+      }),
+      onboardNewStudentCommunications({
+        studentId: token.uid,
+        studentName,
+        studentEmail,
+        trackName,
+        isPremium: hasPremium(profile),
+      }),
+      sendTikTokServerEvent({
+        event: "CompleteRegistration",
+        event_id: `reg_${token.uid}`,
+        properties: {
+          value: 0,
+          currency: "NGN",
+          content_id: String(enrolledId),
+          content_type: "product",
+          content_name: String(trackName),
+          content_category: "Career Track Enrollment",
+        },
+        user: {
+          email: studentEmail,
+          phone_number: studentPhone,
+          external_id: token.uid,
+        },
+      }),
+    ]);
   }
   return profile;
 }

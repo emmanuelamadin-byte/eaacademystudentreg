@@ -1014,33 +1014,62 @@ export async function updateDeliveryStatus(
 
 export async function notifyOwnerOfNewStudent(info: {
   ownerEmail: string;
+  studentId?: string;
   studentName: string;
   studentEmail: string;
+  phoneNumber?: string;
   trackName: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = formatEmailSender();
-  if (!apiKey || !from) return;
-  const { ownerEmail, studentName, studentEmail, trackName } = info;
+  if (!apiKey || !from) return { sent: false, reason: "missing_credentials" };
+  const { ownerEmail, studentId, studentName, studentEmail, phoneNumber, trackName } = info;
+  const safeName = escapeHtml(studentName || "New student");
+  const safeEmail = escapeHtml(studentEmail || "—");
+  const safePhone = phoneNumber ? escapeHtml(phoneNumber) : "";
+  const safeTrack = escapeHtml(trackName || "—");
   const subject = `🎉 New student: ${studentName}`;
-  const text = `A new student just enrolled in EA Academy.\n\nName: ${studentName}\nEmail: ${studentEmail}\nCareer Path: ${trackName}\n\nLog in to the admin dashboard to view their profile.`;
+  const text = `A new student just enrolled in EA Academy.\n\nName: ${studentName}\nEmail: ${studentEmail}${phoneNumber ? `\nPhone: ${phoneNumber}` : ""}\nCareer Path: ${trackName}\n\nLog in to the admin dashboard to view their profile.`;
   const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#10233f">
 <h2 style="font-size:20px;margin-bottom:4px">🎉 New student enrolled!</h2>
 <p style="font-size:15px;margin:0 0 18px;color:#475569">Someone just joined EA Academy.</p>
 <table style="width:100%;border-collapse:collapse;font-size:15px">
-<tr><td style="padding:10px 14px;background:#f1f5f9;border-radius:6px 6px 0 0;font-weight:600;color:#002751">Name</td><td style="padding:10px 14px;background:#f8fafc">${studentName}</td></tr>
-<tr><td style="padding:10px 14px;background:#f1f5f9;font-weight:600;color:#002751">Email</td><td style="padding:10px 14px;background:#f8fafc">${studentEmail}</td></tr>
-<tr><td style="padding:10px 14px;background:#f1f5f9;border-radius:0 0 6px 6px;font-weight:600;color:#002751">Career Path</td><td style="padding:10px 14px;background:#f8fafc">${trackName}</td></tr>
+<tr><td style="padding:10px 14px;background:#f1f5f9;border-radius:6px 6px 0 0;font-weight:600;color:#002751">Name</td><td style="padding:10px 14px;background:#f8fafc">${safeName}</td></tr>
+<tr><td style="padding:10px 14px;background:#f1f5f9;font-weight:600;color:#002751">Email</td><td style="padding:10px 14px;background:#f8fafc">${safeEmail}</td></tr>
+${safePhone ? `<tr><td style="padding:10px 14px;background:#f1f5f9;font-weight:600;color:#002751">Phone</td><td style="padding:10px 14px;background:#f8fafc">${safePhone}</td></tr>` : ""}
+<tr><td style="padding:10px 14px;background:#f1f5f9;border-radius:0 0 6px 6px;font-weight:600;color:#002751">Career Path</td><td style="padding:10px 14px;background:#f8fafc">${safeTrack}</td></tr>
 </table>
 </div>`;
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
+  try {
+    const headers: Record<string, string> = {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to: [ownerEmail], subject, text, html }),
-  });
+    };
+    if (studentId) {
+      headers["Idempotency-Key"] = `owner-new-student:${studentId}:email`;
+    }
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        from,
+        to: [ownerEmail],
+        reply_to: studentEmail || process.env.EMAIL_REPLY_TO || undefined,
+        subject,
+        text,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Resend error sending owner new-student alert:", errText);
+      return { sent: false, reason: errText };
+    }
+    return { sent: true };
+  } catch (err) {
+    console.error("Exception sending owner new-student alert:", err);
+    return { sent: false, reason: String(err) };
+  }
 }
 
 export async function sendDonationThankYouEmail(info: {
