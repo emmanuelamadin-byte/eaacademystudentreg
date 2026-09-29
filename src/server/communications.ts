@@ -51,7 +51,12 @@ type Delivery = {
   id: string;
   broadcast_id?: string;
   student_id: string;
-  kind: "broadcast" | "birthday" | "subscription_reminder" | "nurture";
+  kind:
+    | "broadcast"
+    | "birthday"
+    | "subscription_reminder"
+    | "nurture"
+    | "abandoned_checkout";
   channel: "email" | "whatsapp";
   recipient: string;
   subject?: string;
@@ -494,6 +499,93 @@ async function sendEmail(delivery: Delivery) {
     </p>
   </div>
 </div>`;
+  } else if (delivery.kind === "abandoned_checkout") {
+    const vars = delivery.template_variables || {};
+    const itemType = vars.itemType || "course";
+    const itemTitle = vars.itemTitle || "EA Academy Course";
+    const amountFormatted = vars.amountFormatted || "₦3,000";
+    const whatsappUrl = vars.whatsappGroupUrl || DEFAULT_WHATSAPP_GROUP_URL;
+    const ctaLabel =
+      vars.ctaLabel ||
+      (itemType === "digital_product"
+        ? "Complete My Order & Download →"
+        : itemType === "premium"
+          ? "Complete My Premium Upgrade →"
+          : "Complete My Course Enrollment →");
+    const ctaUrl = vars.ctaPath ? `${appUrl}${vars.ctaPath}` : billingUrl;
+    const badgeLabel =
+      itemType === "digital_product"
+        ? "🛒 Complete Your Order"
+        : itemType === "premium"
+          ? "🔓 Complete Your Upgrade"
+          : "🎓 Complete Your Enrollment";
+    const itemTypeLabel =
+      itemType === "digital_product"
+        ? "Digital Product & Instant Download"
+        : itemType === "premium"
+          ? "EA Academy Premium Membership"
+          : "Self-Paced Online Course";
+
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px 24px;background-color:#ffffff;color:#1e293b;border-radius:12px;border:1px solid #e2e8f0">
+  <div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #f1f5f9">
+    <div style="display:inline-block;padding:6px 14px;background-color:#fffbeb;border:1px solid #fde68a;border-radius:9999px;font-size:12px;font-weight:700;color:#d97706;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:12px">
+      ${escapeHtml(badgeLabel)}
+    </div>
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#002751;letter-spacing:-0.02em">
+      ${escapeHtml(delivery.subject || `Complete your order for ${itemTitle}`)}
+    </h1>
+  </div>
+
+  <div style="padding:24px 0;line-height:1.68;font-size:15px;color:#334155">
+    <p style="margin:0 0 22px">${safeMessage}</p>
+
+    <div style="margin:24px 0;padding:18px 20px;background-color:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">
+        Saved Checkout Summary
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Item:</td>
+          <td style="padding:6px 0;text-align:right;font-weight:700;color:#002751">${escapeHtml(itemTitle)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Format:</td>
+          <td style="padding:6px 0;text-align:right;color:#334155">${escapeHtml(itemTypeLabel)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Price:</td>
+          <td style="padding:6px 0;text-align:right;font-weight:700;color:#002751;font-size:15px">${escapeHtml(amountFormatted)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="text-align:center;margin:28px 0 22px">
+      <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background-color:#002751;color:#ffffff;font-weight:600;font-size:15px;padding:13px 28px;border-radius:8px;text-decoration:none">
+        ${escapeHtml(ctaLabel)}
+      </a>
+    </div>
+
+    <div style="margin:22px 0 0;padding:16px 18px;background-color:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0">
+      <div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:6px">
+        💬 Had trouble with payment or have a question?
+      </div>
+      <p style="margin:0 0 12px;font-size:13.5px;color:#15803d;line-height:1.55">
+        If Paystack, your card, or bank transfer gave you any hiccup, simply reply to this email or reach out in our WhatsApp community and we will help you get set up right away.
+      </p>
+      <a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:8px 16px;border-radius:6px;text-decoration:none">
+        Chat with Us on WhatsApp &rarr;
+      </a>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #f1f5f9;padding-top:20px;font-size:13px;color:#64748b;line-height:1.5">
+    <p style="margin:0 0 4px;font-weight:600;color:#002751">Rooting for your success,</p>
+    <p style="margin:0 0 12px;color:#334155"><strong>Emmanuel Amadin</strong> &amp; The EA Academy Team</p>
+    <p style="margin:0;font-size:12px;color:#94a3b8">
+      Manage your communication preferences anytime in your <a href="${escapeHtml(appUrl)}/app/account" style="color:#0284c7;text-decoration:none">EA Academy Account Settings</a>.
+    </p>
+  </div>
+</div>`;
   }
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -684,7 +776,7 @@ export async function processMessageQueue(maximum = 50) {
     const broadcasts = new Set<string>();
     for (const row of (data || []) as Delivery[]) {
       if (row.broadcast_id) broadcasts.add(row.broadcast_id);
-      if (row.kind === "nurture") {
+      if (row.kind === "nurture" || row.kind === "abandoned_checkout") {
         const { data: studentProfile } = await adminClient()
           .from("profiles")
           .select(
@@ -699,14 +791,59 @@ export async function processMessageQueue(maximum = 50) {
             Date.parse(String(studentProfile.premium_until)) > Date.now());
         if (
           !studentProfile ||
-          studentProfile.email_notifications_enabled === false ||
-          isAlreadyPremium
+          studentProfile.email_notifications_enabled === false
         ) {
           await adminClient()
             .from("message_deliveries")
             .delete()
             .eq("id", row.id);
           continue;
+        }
+        if (row.kind === "nurture" && isAlreadyPremium) {
+          await adminClient()
+            .from("message_deliveries")
+            .delete()
+            .eq("id", row.id);
+          continue;
+        }
+        if (row.kind === "abandoned_checkout") {
+          const vars = row.template_variables || {};
+          if (vars.intentKind === "premium" && isAlreadyPremium) {
+            await adminClient()
+              .from("message_deliveries")
+              .delete()
+              .eq("id", row.id);
+            continue;
+          }
+          if (vars.intentKind === "shop_item" && vars.itemId) {
+            const { data: existingPurchase } = await adminClient()
+              .from("shop_purchases")
+              .select("id")
+              .eq("student_id", row.student_id)
+              .eq("item_id", vars.itemId)
+              .maybeSingle();
+            if (existingPurchase) {
+              await adminClient()
+                .from("message_deliveries")
+                .delete()
+                .eq("id", row.id);
+              continue;
+            }
+          }
+          if (vars.reference) {
+            const { data: intentRow } = await adminClient()
+              .from("billing_intents")
+              .select("status")
+              .eq("reference", vars.reference)
+              .maybeSingle();
+            if (intentRow?.status === "success") {
+              await adminClient()
+                .from("message_deliveries")
+                .delete()
+                .eq("id", row.id);
+              continue;
+            }
+          }
         }
       }
       const configured =
@@ -1526,6 +1663,537 @@ export function triggerBackgroundMessageQueue() {
   if (nowMs - lastBackgroundQueueRunMs < 5 * 60 * 1000) return;
   lastBackgroundQueueRunMs = nowMs;
   void processMessageQueue(15).catch(() => {});
+}
+
+export async function sendShopPurchaseConfirmationEmail(info: {
+  studentId?: string;
+  studentEmail: string;
+  studentName?: string | null;
+  itemId: string;
+  itemTitle: string;
+  itemType: "course" | "digital_product";
+  itemSlug?: string | null;
+  amount: number;
+  reference: string;
+  whatsappGroupUrl?: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = formatEmailSender();
+  if (!apiKey || !from) return { sent: false, reason: "missing_credentials" };
+
+  const studentEmail = info.studentEmail?.trim();
+  if (!studentEmail) return { sent: false, reason: "missing_email" };
+
+  const firstName =
+    String(info.studentName || "Student")
+      .trim()
+      .split(/\s+/)[0] || "Student";
+  const safeFirstName = escapeHtml(firstName);
+  const isDigitalProduct = info.itemType === "digital_product";
+  const itemTitle =
+    info.itemTitle?.trim() ||
+    (isDigitalProduct ? "EA Academy Digital Product" : "EA Academy Course");
+  const safeItemTitle = escapeHtml(itemTitle);
+  const safeReference = escapeHtml(info.reference);
+  const formattedAmount = `₦${Math.round(info.amount).toLocaleString("en-NG")}`;
+  const dateStr = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const appUrl = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://ea-academy.org"
+  ).replace(/\/$/, "");
+  const libraryUrl = `${appUrl}/app/library`;
+  const primaryActionUrl = isDigitalProduct
+    ? `${appUrl}/app/library?purchased=${encodeURIComponent(info.itemId)}`
+    : `${appUrl}/app/learn-course/${encodeURIComponent(info.itemId)}`;
+  const primaryActionLabel = isDigitalProduct
+    ? "Access & Download in My Library →"
+    : "Start Learning Now →";
+  const whatsappUrl =
+    info.whatsappGroupUrl?.trim() || (await getCommunityWhatsappUrl());
+
+  const subject = isDigitalProduct
+    ? `📦 Your Download Is Ready: ${itemTitle}`
+    : `🎉 Course Unlocked: ${itemTitle} — Start Learning Now`;
+
+  const badgeLabel = isDigitalProduct
+    ? "📦 Digital Product Unlocked"
+    : "🎓 Course Enrollment Confirmed";
+
+  const headline = isDigitalProduct
+    ? "Your Digital Download Is Ready!"
+    : `You're Enrolled in ${itemTitle}!`;
+
+  const itemTypeLabel = isDigitalProduct
+    ? "Digital Product & Download"
+    : "Self-Paced Online Course";
+
+  const accessSummary = isDigitalProduct
+    ? "Instant & Permanent Download in Library"
+    : "Immediate & Lifetime Classroom Access";
+
+  const text = isDigitalProduct
+    ? `Hi ${firstName},
+
+Thank you for your purchase! Your payment of ${formattedAmount} for "${itemTitle}" has been confirmed, and your digital product is ready for immediate download inside your EA Academy Digital Library.
+
+Order Receipt Summary:
+- Item: ${itemTitle}
+- Type: ${itemTypeLabel}
+- Amount Paid: ${formattedAmount}
+- Reference: ${info.reference}
+- Date: ${dateStr}
+
+Access & Download Your Product Now:
+${primaryActionUrl}
+
+You can re-download your files anytime from your EA Academy Digital Library (${libraryUrl}).
+
+Need help or want to connect with fellow builders? Join our active WhatsApp Student Community:
+${whatsappUrl}
+
+Warm regards,
+Emmanuel Amadin & The EA Academy Team
+${appUrl}`
+    : `Hi ${firstName},
+
+Congratulations and welcome! Your payment of ${formattedAmount} for "${itemTitle}" has been confirmed, and full lifetime access to your course classroom is now unlocked.
+
+Order & Enrollment Receipt Summary:
+- Course: ${itemTitle}
+- Type: ${itemTypeLabel}
+- Amount Paid: ${formattedAmount}
+- Reference: ${info.reference}
+- Date: ${dateStr}
+
+Start Learning Right Away:
+1. Open your Course Classroom & watch Lesson 1: ${primaryActionUrl}
+2. Complete chapter lessons & assessments at your own pace to unlock your verifiable EA Academy Certificate.
+3. Access all your courses anytime in your Digital Library: ${libraryUrl}
+
+Join our active WhatsApp Student Community to ask questions and connect with instructors and peers:
+${whatsappUrl}
+
+Rooting for your success,
+Emmanuel Amadin & The EA Academy Team
+${appUrl}`;
+
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px 24px;background-color:#ffffff;color:#1e293b;border-radius:12px;border:1px solid #e2e8f0">
+  <div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #f1f5f9">
+    <div style="display:inline-block;padding:6px 14px;background-color:#ecfdf5;border:1px solid #a7f3d0;border-radius:9999px;font-size:12px;font-weight:700;color:#059669;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px">
+      ${escapeHtml(badgeLabel)}
+    </div>
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#002751;letter-spacing:-0.02em">
+      ${escapeHtml(headline)}
+    </h1>
+  </div>
+
+  <div style="padding:24px 0;line-height:1.65;font-size:15px;color:#334155">
+    <p style="margin-top:0">Hi <strong>${safeFirstName}</strong>,</p>
+    <p>
+      ${
+        isDigitalProduct
+          ? `Thank you for your order! Your payment of <strong>${formattedAmount}</strong> has been confirmed, and <strong>${safeItemTitle}</strong> is now unlocked in your EA Academy Digital Library for immediate download.`
+          : `Congratulations! Your payment of <strong>${formattedAmount}</strong> has been confirmed, and you now have full, permanent access to <strong>${safeItemTitle}</strong>.`
+      }
+    </p>
+
+    <div style="margin:24px 0;padding:18px 20px;background-color:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">
+        Order Receipt Summary
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Item:</td>
+          <td style="padding:6px 0;text-align:right;font-weight:700;color:#002751">${safeItemTitle}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Format:</td>
+          <td style="padding:6px 0;text-align:right;color:#334155">${escapeHtml(itemTypeLabel)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Amount Paid:</td>
+          <td style="padding:6px 0;text-align:right;font-weight:700;color:#059669;font-size:16px">${formattedAmount}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Reference Code:</td>
+          <td style="padding:6px 0;text-align:right;font-family:monospace;color:#334155">${safeReference}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Date:</td>
+          <td style="padding:6px 0;text-align:right;color:#334155">${escapeHtml(dateStr)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b">Access:</td>
+          <td style="padding:6px 0;text-align:right;color:#334155">${escapeHtml(accessSummary)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="text-align:center;margin:26px 0 18px">
+      <a href="${escapeHtml(primaryActionUrl)}" style="display:inline-block;background-color:#002751;color:#ffffff;font-weight:600;font-size:15px;padding:13px 28px;border-radius:8px;text-decoration:none">
+        ${escapeHtml(primaryActionLabel)}
+      </a>
+    </div>
+
+    <p style="font-size:13.5px;color:#475569;text-align:center;margin:0 0 24px">
+      You can also access all your purchased courses, certificates, and downloads anytime in your <a href="${escapeHtml(libraryUrl)}" style="color:#0284c7;font-weight:600;text-decoration:none">EA Academy Digital Library</a>.
+    </p>
+
+    <div style="margin:24px 0 0;padding:18px 20px;background-color:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0">
+      <div style="font-size:14px;font-weight:700;color:#166534;margin-bottom:6px">
+        💬 Have Questions as You Learn?
+      </div>
+      <p style="margin:0 0 14px;font-size:14px;color:#15803d;line-height:1.55">
+        Join our active <strong>WhatsApp Student Community</strong> where instructors and fellow learners answer questions daily and support your growth.
+      </p>
+      <a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:10px 18px;border-radius:6px;text-decoration:none">
+        Join the WhatsApp Community &rarr;
+      </a>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #f1f5f9;padding-top:20px;font-size:13px;color:#64748b;line-height:1.5">
+    <p style="margin:0 0 4px;font-weight:600;color:#002751">Rooting for your success,</p>
+    <p style="margin:0 0 12px;color:#334155"><strong>Emmanuel Amadin</strong> &amp; The EA Academy Team</p>
+    <p style="margin:0;font-size:12px;color:#94a3b8">
+      EA Academy — Equipping African talent for global opportunities. <a href="${escapeHtml(appUrl)}" style="color:#0284c7;text-decoration:none">${escapeHtml(appUrl.replace(/^https?:\/\//, ""))}</a>
+    </p>
+  </div>
+</div>`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": `shop_purchase:${info.reference}:email`,
+      },
+      body: JSON.stringify({
+        from,
+        to: [studentEmail],
+        subject,
+        reply_to: process.env.EMAIL_REPLY_TO || undefined,
+        text,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Resend error sending shop purchase email:", errText);
+      return { sent: false, reason: errText };
+    }
+    return { sent: true };
+  } catch (err) {
+    console.error("Exception sending shop purchase email:", err);
+    return { sent: false, reason: String(err) };
+  }
+}
+
+export function buildAbandonedCheckoutReminderContent(info: {
+  reference: string;
+  studentId: string;
+  studentName?: string | null;
+  email: string;
+  kind: "shop_item" | "premium";
+  itemId?: string | null;
+  itemTitle?: string | null;
+  itemType?: string | null;
+  itemSlug?: string | null;
+  amountNaira: number;
+  createdAt?: string | Date;
+  scheduledFor?: string | Date;
+  whatsappGroupUrl?: string;
+}) {
+  const firstName =
+    String(info.studentName || "Student")
+      .trim()
+      .split(/\s+/)[0] || "Student";
+  const formattedAmount = `₦${Math.round(info.amountNaira).toLocaleString("en-NG")}`;
+  const createdDate = info.createdAt ? new Date(info.createdAt) : new Date();
+  const dateKey = Number.isFinite(createdDate.getTime())
+    ? createdDate.toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
+  const scheduledDate = info.scheduledFor
+    ? new Date(info.scheduledFor)
+    : new Date(
+        (Number.isFinite(createdDate.getTime())
+          ? createdDate.getTime()
+          : Date.now()) +
+          60 * 60 * 1000,
+      );
+  const whatsappGroupUrl =
+    info.whatsappGroupUrl?.trim() || DEFAULT_WHATSAPP_GROUP_URL;
+
+  if (info.kind === "premium") {
+    const itemTitle = "EA Academy Premium Membership";
+    const ctaPath = "/app/billing";
+    const ctaLabel = "Complete My Premium Upgrade →";
+    const subject = `Complete your EA Academy Premium upgrade, ${firstName} 🔓`;
+    const message = `Hi ${firstName},\n\nWe noticed you started upgrading to EA Academy Premium (${formattedAmount}/month) earlier, but your checkout wasn't completed.\n\nWhen you activate your Premium All-Access Pass, you immediately unlock:\n• Every module and practical lesson across all 3 Career Tracks\n• Free access to EA Academy Selected Courses in the Shop\n• Live Group Mentor Sessions & full session recordings\n• Direct Instructor Grading & Feedback on your assignments + Monthly Portfolio Critique\n• Your Verified Learning Transcript\n\nIf you experienced a network or payment hiccup with Paystack or bank transfer, you can resume and complete your upgrade in under a minute using the button below — or reply to this email if you need any help!`;
+
+    return {
+      student_id: info.studentId,
+      kind: "abandoned_checkout" as const,
+      channel: "email" as const,
+      recipient: info.email.trim(),
+      subject,
+      message,
+      template_variables: {
+        reference: info.reference,
+        intentKind: "premium",
+        itemType: "premium",
+        itemTitle,
+        amountFormatted: `${formattedAmount} / 30 days`,
+        ctaPath,
+        ctaLabel,
+        whatsappGroupUrl,
+      },
+      scheduled_for: scheduledDate.toISOString(),
+      idempotency_key: `abandoned_checkout:premium:${info.studentId}:${dateKey}:email`,
+    };
+  }
+
+  const isDigitalProduct = info.itemType === "digital_product";
+  const itemTitle =
+    info.itemTitle?.trim() ||
+    (isDigitalProduct ? "EA Academy Digital Product" : "EA Academy Course");
+  const itemId = info.itemId?.trim() || "";
+  const itemSlug = info.itemSlug?.trim() || "";
+  const ctaPath = itemSlug
+    ? `/shop/${encodeURIComponent(itemSlug)}${itemId ? `?buy=${encodeURIComponent(itemId)}` : ""}`
+    : "/shop";
+  const ctaLabel = isDigitalProduct
+    ? "Complete My Order & Download →"
+    : "Complete My Course Enrollment →";
+
+  const subject = isDigitalProduct
+    ? `You left "${itemTitle}" in your checkout, ${firstName} 📦`
+    : `Still thinking about "${itemTitle}", ${firstName}? Your spot is waiting 🎓`;
+
+  const message = isDigitalProduct
+    ? `Hi ${firstName},\n\nWe noticed you started checking out "${itemTitle}" (${formattedAmount}) in the EA Academy Shop, but didn't finish completing your order.\n\nWe saved your selection so you can pick up right where you left off. As soon as your payment is confirmed, "${itemTitle}" is unlocked immediately in your EA Academy Digital Library for instant and permanent download.\n\nClick the button below to complete your order in one click — and if you ran into any issue with Paystack, card, or bank transfer, just reply to this email and we'll help you right away.`
+    : `Hi ${firstName},\n\nWe noticed you started enrolling in "${itemTitle}" (${formattedAmount}), but your checkout wasn't completed.\n\nYour spot is still waiting for you! As soon as you complete your enrollment, you unlock immediate, lifetime access to:\n• All HD video lessons and practical walkthroughs in "${itemTitle}"\n• Downloadable course resources and chapter assessments\n• Your verifiable EA Academy Certificate of Completion\n\nClick the button below to resume your enrollment where you left off — or reply directly to this email if you had any trouble with payment.`;
+
+  return {
+    student_id: info.studentId,
+    kind: "abandoned_checkout" as const,
+    channel: "email" as const,
+    recipient: info.email.trim(),
+    subject,
+    message,
+    template_variables: {
+      reference: info.reference,
+      intentKind: "shop_item",
+      itemId,
+      itemSlug,
+      itemType: isDigitalProduct ? "digital_product" : "course",
+      itemTitle,
+      amountFormatted: formattedAmount,
+      ctaPath,
+      ctaLabel,
+      whatsappGroupUrl,
+    },
+    scheduled_for: scheduledDate.toISOString(),
+    idempotency_key: `abandoned_checkout:shop_item:${info.studentId}:${itemId || info.reference}:${dateKey}:email`,
+  };
+}
+
+export async function queueAbandonedCheckoutFollowUp(info: {
+  reference: string;
+  studentId: string;
+  studentName?: string | null;
+  email: string;
+  kind: "shop_item" | "premium";
+  itemId?: string | null;
+  itemTitle?: string | null;
+  itemType?: string | null;
+  itemSlug?: string | null;
+  amountNaira: number;
+  createdAt?: string | Date;
+}) {
+  if (
+    !info.studentId ||
+    !info.email?.trim() ||
+    !process.env.SUPABASE_SECRET_KEY
+  ) {
+    return { queued: 0 };
+  }
+  try {
+    const whatsappGroupUrl = await getCommunityWhatsappUrl();
+    const row = buildAbandonedCheckoutReminderContent({
+      ...info,
+      whatsappGroupUrl,
+    });
+    const { data: inserted, error } = await adminClient()
+      .from("message_deliveries")
+      .upsert([row], {
+        onConflict: "idempotency_key",
+        ignoreDuplicates: true,
+      })
+      .select("id");
+    if (error) {
+      console.warn("queueAbandonedCheckoutFollowUp warning:", error.message);
+      return { queued: 0 };
+    }
+    return { queued: inserted?.length || 0 };
+  } catch (err) {
+    console.warn("queueAbandonedCheckoutFollowUp exception:", err);
+    return { queued: 0 };
+  }
+}
+
+export async function queueAbandonedCheckoutReminders(now = new Date()) {
+  if (!process.env.SUPABASE_SECRET_KEY) return { queued: 0 };
+  const minAgeIso = new Date(now.getTime() - 45 * 60 * 1000).toISOString();
+  const maxAgeIso = new Date(
+    now.getTime() - 72 * 60 * 60 * 1000,
+  ).toISOString();
+
+  try {
+    const { data: intents, error } = await adminClient()
+      .from("billing_intents")
+      .select(
+        "reference,student_id,email,kind,item_id,item_title,item_type,item_slug,amount_kobo,donor_name,created_at,status",
+      )
+      .eq("status", "pending")
+      .in("kind", ["shop_item", "premium"])
+      .gte("created_at", maxAgeIso)
+      .lte("created_at", minAgeIso)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error || !intents?.length) {
+      if (error) {
+        console.warn("queueAbandonedCheckoutReminders query warning:", error.message);
+      }
+      return { queued: 0 };
+    }
+
+    const whatsappGroupUrl = await getCommunityWhatsappUrl();
+    const rows: Record<string, unknown>[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const intent of intents) {
+      const studentId = String(intent.student_id || "");
+      const email = String(intent.email || "").trim();
+      const kind = intent.kind as "shop_item" | "premium";
+      if (!studentId || !email) continue;
+
+      const { data: profile } = await adminClient()
+        .from("profiles")
+        .select(
+          "full_name,membership_plan,premium_until,premium_granted,email_notifications_enabled",
+        )
+        .eq("id", studentId)
+        .maybeSingle();
+
+      if (!profile || profile.email_notifications_enabled === false) continue;
+
+      const isAlreadyPremium =
+        profile.membership_plan === "Premium" ||
+        profile.premium_granted === true ||
+        (profile.premium_until &&
+          Date.parse(String(profile.premium_until)) > now.getTime());
+
+      if (kind === "premium" && isAlreadyPremium) continue;
+
+      if (kind === "shop_item" && intent.item_id) {
+        const { data: existingPurchase } = await adminClient()
+          .from("shop_purchases")
+          .select("id")
+          .eq("student_id", studentId)
+          .eq("item_id", String(intent.item_id))
+          .maybeSingle();
+        if (existingPurchase) continue;
+      }
+
+      const row = buildAbandonedCheckoutReminderContent({
+        reference: String(intent.reference),
+        studentId,
+        studentName: profile.full_name || intent.donor_name,
+        email,
+        kind,
+        itemId: intent.item_id ? String(intent.item_id) : null,
+        itemTitle: intent.item_title ? String(intent.item_title) : null,
+        itemType: intent.item_type ? String(intent.item_type) : null,
+        itemSlug: intent.item_slug ? String(intent.item_slug) : null,
+        amountNaira: Number(intent.amount_kobo || 0) / 100,
+        createdAt: String(intent.created_at || now.toISOString()),
+        scheduledFor: now,
+        whatsappGroupUrl,
+      });
+
+      if (seenKeys.has(row.idempotency_key)) continue;
+      seenKeys.add(row.idempotency_key);
+      rows.push(row);
+    }
+
+    if (!rows.length) return { queued: 0 };
+
+    const { data: inserted, error: insertError } = await adminClient()
+      .from("message_deliveries")
+      .upsert(rows, { onConflict: "idempotency_key", ignoreDuplicates: true })
+      .select("id");
+
+    if (insertError) {
+      console.warn(
+        "queueAbandonedCheckoutReminders insert warning:",
+        insertError.message,
+      );
+      return { queued: 0 };
+    }
+
+    return { queued: inserted?.length || 0 };
+  } catch (err) {
+    console.warn("queueAbandonedCheckoutReminders exception:", err);
+    return { queued: 0 };
+  }
+}
+
+export async function cancelAbandonedCheckoutReminders(
+  studentId: string,
+  target?: { kind?: "shop_item" | "premium"; itemId?: string | null },
+) {
+  if (!studentId || !process.env.SUPABASE_SECRET_KEY) return;
+  try {
+    const { data: rows } = await adminClient()
+      .from("message_deliveries")
+      .select("id,template_variables")
+      .eq("student_id", studentId)
+      .eq("kind", "abandoned_checkout")
+      .in("status", ["queued", "failed"]);
+
+    if (!rows?.length) return;
+
+    const idsToDelete = rows
+      .filter((row) => {
+        if (!target) return true;
+        const vars = (row.template_variables || {}) as Record<string, string>;
+        if (target.kind === "premium") {
+          return vars.intentKind === "premium";
+        }
+        if (target.kind === "shop_item" && target.itemId) {
+          return vars.itemId === target.itemId;
+        }
+        return true;
+      })
+      .map((row) => row.id);
+
+    if (idsToDelete.length > 0) {
+      await adminClient()
+        .from("message_deliveries")
+        .delete()
+        .in("id", idsToDelete);
+    }
+  } catch (err) {
+    console.warn("cancelAbandonedCheckoutReminders warning:", err);
+  }
 }
 
 

@@ -53,6 +53,7 @@ import {
   notifyOwnerOfNewStudent,
   onboardNewStudentCommunications,
   processMessageQueue,
+  queueAbandonedCheckoutReminders,
   queueSubscriptionExpiryReminders,
   saveCommunicationPreferences,
 } from "./communications";
@@ -361,9 +362,12 @@ function maybeTriggerSubscriptionReminders() {
   if (process.env.NODE_ENV === "test") return;
   if (!process.env.RESEND_API_KEY) return;
   const nowMs = Date.now();
-  if (nowMs - lastSubscriptionReminderCheckAt < 30 * 60 * 1000) return;
+  if (nowMs - lastSubscriptionReminderCheckAt < 15 * 60 * 1000) return;
   lastSubscriptionReminderCheckAt = nowMs;
-  void queueSubscriptionExpiryReminders()
+  void Promise.allSettled([
+    queueSubscriptionExpiryReminders(),
+    queueAbandonedCheckoutReminders(),
+  ])
     .then(() => processMessageQueue(25))
     .catch(() => {});
 }
@@ -491,6 +495,7 @@ export async function dispatch(
     case "broadcast.process": {
       requireAdmin(user);
       await queueSubscriptionExpiryReminders();
+      await queueAbandonedCheckoutReminders();
       return processMessageQueue(50);
     }
     case "streak.get": {

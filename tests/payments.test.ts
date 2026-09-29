@@ -44,11 +44,13 @@ vi.mock("../src/server/supabase", () => {
 });
 import { validSignature, verifyPayment, webhook } from "../src/server/payments";
 import {
+  buildAbandonedCheckoutReminderContent,
   buildStudentNurtureSequence,
   buildSubscriptionReminderContent,
   formatEmailSender,
   getSubscriptionReminderStage,
   sendDonationThankYouEmail,
+  sendShopPurchaseConfirmationEmail,
   sendStudentWelcomeEmail,
 } from "../src/server/communications";
 const user: AcademyUser = {
@@ -422,6 +424,176 @@ describe("payment verification and ledger integrity", () => {
     }
     expect(sequence[2].message).toContain("₦3,000/month");
     expect(sequence[2].message).toContain("₦100 a day");
+  });
+
+  it("sends confirmation email when a student buys a course or digital product and does not duplicate on retry", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "EA Academy <onboarding@resend.dev>");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://ea-academy.org");
+
+    const sentEmails: Array<{
+      from: string;
+      to: string[];
+      subject: string;
+      text: string;
+      html: string;
+    }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const urlStr = String(url);
+        if (urlStr.includes("api.resend.com")) {
+          sentEmails.push(JSON.parse(String(init?.body)));
+          return Response.json({ id: "resend_shop_123" });
+        }
+        return Response.json({
+          status: true,
+          data: {
+            ...payment,
+            reference: "ea_shop_course_1",
+            amount: 1500000,
+          },
+        });
+      }),
+    );
+
+    state.documents.set("shopItems/course_ai", {
+      id: "course_ai",
+      slug: "ai-masterclass",
+      type: "course",
+      title: "AI Engineering Masterclass",
+      price: 15000,
+      published: true,
+    });
+    state.documents.set("billingIntents/ea_shop_course_1", {
+      reference: "ea_shop_course_1",
+      studentId: user.id,
+      email: user.email,
+      kind: "shop_item",
+      itemId: "course_ai",
+      itemTitle: "AI Engineering Masterclass",
+      itemType: "course",
+      itemSlug: "ai-masterclass",
+      amount: 1500000,
+      currency: "NGN",
+    });
+
+    await verifyPayment(user, "ea_shop_course_1");
+    await new Promise((resolve) => setTimeout(resolve, 15));
+
+    expect(sentEmails).toHaveLength(1);
+    expect(sentEmails[0].to).toEqual([user.email]);
+    expect(sentEmails[0].subject).toContain(
+      "Course Unlocked: AI Engineering Masterclass",
+    );
+    expect(sentEmails[0].text).toContain("₦15,000");
+    expect(sentEmails[0].text).toContain(
+      "https://ea-academy.org/app/learn-course/course_ai",
+    );
+    expect(sentEmails[0].html).toContain("Start Learning Now");
+
+    // Retry verification must not send a second email
+    await verifyPayment(user, "ea_shop_course_1");
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    expect(sentEmails).toHaveLength(1);
+
+    // Direct test for Digital Product email layout
+    const prodRes = await sendShopPurchaseConfirmationEmail({
+      studentId: user.id,
+      studentEmail: user.email,
+      studentName: "Ada Lovelace",
+      itemId: "prod_handbook",
+      itemTitle: "System Design Handbook PDF",
+      itemType: "digital_product",
+      itemSlug: "system-design-handbook",
+      amount: 8000,
+      reference: "ea_shop_prod_1",
+      whatsappGroupUrl: "https://chat.whatsapp.com/test-community",
+    });
+
+    expect(prodRes).toEqual({ sent: true });
+    expect(sentEmails).toHaveLength(2);
+    expect(sentEmails[1].subject).toContain(
+      "Your Download Is Ready: System Design Handbook PDF",
+    );
+    expect(sentEmails[1].text).toContain("₦8,000");
+    expect(sentEmails[1].text).toContain(
+      "https://ea-academy.org/app/library?purchased=prod_handbook",
+    );
+    expect(sentEmails[1].html).toContain("Access &amp; Download in My Library");
+  });
+
+  it("builds abandoned checkout follow-up reminders with recovery links and deduplicated idempotency keys", () => {
+    const createdAt = "2026-09-29T10:00:00.000Z";
+
+    const courseReminder = buildAbandonedCheckoutReminderContent({
+      reference: "ea_abandoned_1",
+      studentId: "student_1",
+      studentName: "Chinedu Okafor",
+      email: "chinedu@example.com",
+      kind: "shop_item",
+      itemId: "course_ai",
+      itemTitle: "AI Engineering Masterclass",
+      itemType: "course",
+      itemSlug: "ai-masterclass",
+      amountNaira: 15000,
+      createdAt,
+    });
+
+    expect(courseReminder.kind).toBe("abandoned_checkout");
+    expect(courseReminder.subject).toContain(
+      'Still thinking about "AI Engineering Masterclass", Chinedu?',
+    );
+    expect(courseReminder.scheduled_for).toBe("2026-09-29T11:00:00.000Z");
+    expect(courseReminder.template_variables.ctaPath).toBe(
+      "/shop/ai-masterclass?buy=course_ai",
+    );
+    expect(courseReminder.template_variables.amountFormatted).toBe("₦15,000");
+    expect(courseReminder.idempotency_key).toBe(
+      "abandoned_checkout:shop_item:student_1:course_ai:2026-09-29:email",
+    );
+
+    const productReminder = buildAbandonedCheckoutReminderContent({
+      reference: "ea_abandoned_2",
+      studentId: "student_1",
+      studentName: "Chinedu Okafor",
+      email: "chinedu@example.com",
+      kind: "shop_item",
+      itemId: "prod_handbook",
+      itemTitle: "System Design Handbook PDF",
+      itemType: "digital_product",
+      itemSlug: "system-design-handbook",
+      amountNaira: 8000,
+      createdAt,
+    });
+
+    expect(productReminder.subject).toContain(
+      'You left "System Design Handbook PDF" in your checkout, Chinedu',
+    );
+    expect(productReminder.template_variables.ctaPath).toBe(
+      "/shop/system-design-handbook?buy=prod_handbook",
+    );
+    expect(productReminder.template_variables.ctaLabel).toContain(
+      "Complete My Order & Download",
+    );
+
+    const premiumReminder = buildAbandonedCheckoutReminderContent({
+      reference: "ea_abandoned_3",
+      studentId: "student_1",
+      studentName: "Chinedu Okafor",
+      email: "chinedu@example.com",
+      kind: "premium",
+      amountNaira: 3000,
+      createdAt,
+    });
+
+    expect(premiumReminder.subject).toContain(
+      "Complete your EA Academy Premium upgrade, Chinedu",
+    );
+    expect(premiumReminder.template_variables.ctaPath).toBe("/app/billing");
+    expect(premiumReminder.idempotency_key).toBe(
+      "abandoned_checkout:premium:student_1:2026-09-29:email",
+    );
   });
 });
 

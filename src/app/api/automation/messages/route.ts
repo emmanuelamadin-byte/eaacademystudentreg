@@ -1,6 +1,7 @@
 import { ApiError } from "@/server/policy";
 import {
   processMessageQueue,
+  queueAbandonedCheckoutReminders,
   queueBirthdayMessages,
   queueSubscriptionExpiryReminders,
 } from "@/server/communications";
@@ -15,9 +16,10 @@ async function handleAutomation(request: Request) {
       throw new ApiError(401, "Invalid automation credentials.");
     const birthdays = await queueBirthdayMessages();
     const subscriptionReminders = await queueSubscriptionExpiryReminders();
+    const abandonedCheckouts = await queueAbandonedCheckoutReminders();
     const deliveries = await processMessageQueue(50);
     return Response.json(
-      { birthdays, subscriptionReminders, deliveries },
+      { birthdays, subscriptionReminders, abandonedCheckouts, deliveries },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

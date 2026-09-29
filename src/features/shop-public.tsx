@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -558,6 +558,23 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
       setCheckoutError(err instanceof Error ? err.message : "Unable to initiate payment.");
     }
   }
+
+  const autoBuyTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (autoBuyTriggeredRef.current || !user || hasFreePremiumAccess) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const buyItemId = params.get("buy");
+    if (buyItemId && (buyItemId === item.id || buyItemId === item.slug)) {
+      autoBuyTriggeredRef.current = true;
+      if (window.history?.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      void handleBuyNow();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, item.id, item.slug, hasFreePremiumAccess]);
 
   const trailerEmbed = item.previewVideoUrl ? getVideoEmbed(item.previewVideoUrl) : null;
   const previewLessonEmbed = previewLesson?.videoUrl ? getVideoEmbed(previewLesson.videoUrl) : null;

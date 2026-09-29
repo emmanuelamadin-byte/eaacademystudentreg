@@ -5,8 +5,11 @@ import type { AcademyUser } from "@/lib/types";
 import { db, limit } from "./supabase";
 import { ApiError, extendPremiumUntil, premiumAmountKobo } from "./policy";
 import {
+  cancelAbandonedCheckoutReminders,
   cancelStudentNurtureSequence,
+  queueAbandonedCheckoutFollowUp,
   sendDonationThankYouEmail,
+  sendShopPurchaseConfirmationEmail,
 } from "./communications";
 import { sendTikTokServerEvent } from "./tiktok";
 
@@ -160,6 +163,7 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
       );
   }
   const reference = `ea_${randomUUID().replaceAll("-", "")}`;
+  const createdAt = new Date().toISOString();
   await db()
     .collection("billingIntents")
     .doc(reference)
@@ -178,9 +182,25 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
       planCode: plan || null,
       donorName: input.anonymous ? "Anonymous" : input.donorName || user.name,
       anonymous: input.anonymous,
-      createdAt: new Date().toISOString(),
+      createdAt,
       status: "pending",
     });
+
+  if (input.kind === "shop_item" || input.kind === "premium") {
+    void queueAbandonedCheckoutFollowUp({
+      reference,
+      studentId: user.id,
+      studentName: user.name,
+      email: user.email,
+      kind: input.kind,
+      itemId: input.itemId || null,
+      itemTitle: shopItemData?.title ? String(shopItemData.title) : null,
+      itemType: shopItemData?.type ? String(shopItemData.type) : null,
+      itemSlug: shopItemData?.slug ? String(shopItemData.slug) : null,
+      amountNaira: amount / 100,
+      createdAt,
+    }).catch(() => {});
+  }
 
   const callbackUrl =
     input.kind === "shop_item"
@@ -340,6 +360,18 @@ async function applyPayment(
     amount: number;
     reference: string;
   } | null = null;
+  type ShopPurchaseReceipt = {
+    studentId: string;
+    studentEmail: string;
+    studentName: string;
+    itemId: string;
+    itemTitle: string;
+    itemType: "course" | "digital_product";
+    itemSlug: string;
+    amount: number;
+    reference: string;
+  };
+  let shopPurchaseReceipt = null as ShopPurchaseReceipt | null;
 
   await store.runTransaction(async (tx) => {
     const [existing, owner] = await Promise.all([
@@ -387,30 +419,70 @@ async function applyPayment(
       }
     } else if (intent!.kind === "shop_item") {
       const purchaseId = `${intent!.studentId}_${intent!.itemId}`;
-      tx.set(store.collection("shopPurchases").doc(purchaseId), {
-        id: purchaseId,
-        studentId: intent!.studentId,
-        studentEmail: intent!.email,
-        studentName: owner.data()?.name || intent!.donorName || "Student",
-        itemId: intent!.itemId,
-        itemSlug: intent!.itemSlug || "",
-        itemTitle: intent!.itemTitle || "",
-        itemType: intent!.itemType || "course",
-        amount: transaction.amount / 100,
-        paymentReference: transaction.reference,
-        purchasedAt: paidAt,
-        createdAt: paidAt,
-      });
+      const studentName = String(
+        owner.data()?.name || intent!.donorName || "Student",
+      );
+      let resolvedTitle = String(intent!.itemTitle || "");
+      let resolvedType: "course" | "digital_product" =
+        intent!.itemType === "digital_product" ? "digital_product" : "course";
+      let resolvedSlug = String(intent!.itemSlug || "");
+
       if (intent!.itemId) {
         const itemRef = store.collection("shopItems").doc(String(intent!.itemId));
         const itemSnap = await tx.get(itemRef);
         if (itemSnap.exists) {
-          const currentSales = Number(itemSnap.data()?.salesCount || 0);
+          const itemData = itemSnap.data();
+          if (!resolvedTitle && itemData?.title) {
+            resolvedTitle = String(itemData.title);
+          }
+          if (!intent!.itemType && itemData?.type === "digital_product") {
+            resolvedType = "digital_product";
+          }
+          if (!resolvedSlug && itemData?.slug) {
+            resolvedSlug = String(itemData.slug);
+          }
+          const currentSales = Number(itemData?.salesCount || 0);
           tx.update(itemRef, {
             salesCount: currentSales + 1,
             updatedAt: paidAt,
           });
         }
+      }
+
+      tx.set(store.collection("shopPurchases").doc(purchaseId), {
+        id: purchaseId,
+        studentId: intent!.studentId,
+        studentEmail: intent!.email,
+        studentName,
+        itemId: intent!.itemId,
+        itemSlug: resolvedSlug,
+        itemTitle: resolvedTitle,
+        itemType: resolvedType,
+        amount: transaction.amount / 100,
+        paymentReference: transaction.reference,
+        purchasedAt: paidAt,
+        createdAt: paidAt,
+      });
+
+      const studentEmail = String(
+        intent!.email || transaction.customer?.email || "",
+      ).trim();
+      if (studentEmail && intent!.itemId) {
+        shopPurchaseReceipt = {
+          studentId: String(intent!.studentId),
+          studentEmail,
+          studentName,
+          itemId: String(intent!.itemId),
+          itemTitle:
+            resolvedTitle ||
+            (resolvedType === "digital_product"
+              ? "EA Academy Digital Product"
+              : "EA Academy Course"),
+          itemType: resolvedType,
+          itemSlug: resolvedSlug,
+          amount: transaction.amount / 100,
+          reference: transaction.reference,
+        };
       }
     } else {
       tx.create(store.collection("donations").doc(transaction.reference), {
@@ -484,6 +556,19 @@ async function applyPayment(
     void cancelStudentNurtureSequence(String(intent.studentId)).catch(
       () => {},
     );
+    void cancelAbandonedCheckoutReminders(String(intent.studentId), {
+      kind: "premium",
+    }).catch(() => {});
+  }
+
+  if (newlyFulfilled && shopPurchaseReceipt) {
+    void cancelAbandonedCheckoutReminders(shopPurchaseReceipt.studentId, {
+      kind: "shop_item",
+      itemId: shopPurchaseReceipt.itemId,
+    }).catch(() => {});
+    void sendShopPurchaseConfirmationEmail(shopPurchaseReceipt).catch((err) => {
+      console.error("Failed to send shop purchase confirmation email:", err);
+    });
   }
 
   if (newlyFulfilled && donationReceipt) {

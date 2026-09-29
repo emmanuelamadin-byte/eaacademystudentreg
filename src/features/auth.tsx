@@ -91,6 +91,18 @@ export default function AuthPage({
     ? new Date(2024, Number(birthMonth), 0).getDate()
     : 31;
 
+  const redirectParam = search.get("redirect");
+  const buyParam = search.get("buy");
+  const safeRedirectPath = useMemo(() => {
+    if (!redirectParam) return null;
+    if (!redirectParam.startsWith("/") || redirectParam.startsWith("//"))
+      return null;
+    if (buyParam && !redirectParam.includes("?")) {
+      return `${redirectParam}?buy=${encodeURIComponent(buyParam)}`;
+    }
+    return redirectParam;
+  }, [redirectParam, buyParam]);
+
   useEffect(() => {
     const displayName =
       authUser?.user_metadata?.full_name || authUser?.user_metadata?.name;
@@ -101,8 +113,8 @@ export default function AuthPage({
   }, [birthDay, dayCount]);
   useEffect(() => {
     if (user && !onboarding && !createdProfile.current)
-      router.replace("/app/dashboard");
-  }, [user, onboarding, router]);
+      router.replace(safeRedirectPath || "/app/dashboard");
+  }, [user, onboarding, router, safeRedirectPath]);
 
   async function google() {
     setBusy(true);
@@ -161,7 +173,7 @@ export default function AuthPage({
       );
       createdProfile.current = true;
       await refreshProfile();
-      router.replace("/welcome");
+      router.replace(safeRedirectPath || "/welcome");
     } catch (err) {
       setError(authError(err));
     } finally {
