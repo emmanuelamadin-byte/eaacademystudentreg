@@ -1,5 +1,7 @@
 "use client";
 
+import { trackMetaEvent } from "@/lib/meta";
+
 export type TikTokEventName =
   | "ViewContent"
   | "AddToWishlist"
@@ -160,13 +162,14 @@ export function trackTikTokEvent(
     ];
   }
 
-  // 1. Fire client-side TikTok Pixel with event_id for deduplication
+  // 1. Fire client-side TikTok Pixel & Meta Pixel with event_id for deduplication
   window.ttq?.track(event, browserProps, { event_id: eventId });
   if (event === "Purchase") {
     window.ttq?.track("CompletePayment", browserProps, {
       event_id: `${eventId}_cp`,
     });
   }
+  trackMetaEvent(event, { ...params, event_id: eventId });
 
   // 2. Fire server-side TikTok Events API (/open_api/v1.3/event/track/)
   const ttp = user?.ttp || getCookieValue("_ttp");

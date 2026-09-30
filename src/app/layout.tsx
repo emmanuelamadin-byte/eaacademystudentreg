@@ -5,6 +5,7 @@ import { AcademyProvider } from "@/components/academy-provider";
 import { PwaTools } from "@/components/pwa-tools";
 import { NavigationScrollHandler } from "@/components/navigation-scroll-handler";
 import { TikTokPixel } from "@/components/tiktok-pixel";
+import { MetaPixel } from "@/components/meta-pixel";
 import {
   OrganizationSchema,
   WebSiteSchema,
@@ -130,6 +131,7 @@ export default function RootLayout({
         </a>
         <AcademyProvider>
           <TikTokPixel />
+          <MetaPixel />
           <NavigationScrollHandler />
           <div id="main-content">{children}</div>
           <PwaTools />
