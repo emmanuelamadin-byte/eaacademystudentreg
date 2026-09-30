@@ -12,6 +12,7 @@ import {
   sendShopPurchaseConfirmationEmail,
 } from "./communications";
 import { sendTikTokServerEvent } from "./tiktok";
+import { sendMetaServerEvent } from "./meta";
 
 type PaystackTransaction = {
   reference: string;
@@ -550,6 +551,22 @@ async function applyPayment(
       properties: eventProps,
       user: eventUser,
     }).catch(() => {});
+
+    void sendMetaServerEvent({
+      event: "Purchase",
+      event_id: `purchase_${transaction.reference}`,
+      properties: eventProps,
+      user: eventUser,
+    }).catch(() => {});
+
+    if (intent.kind === "premium") {
+      void sendMetaServerEvent({
+        event: "Subscribe",
+        event_id: `purchase_${transaction.reference}_sub`,
+        properties: eventProps,
+        user: eventUser,
+      }).catch(() => {});
+    }
   }
 
   if (newlyFulfilled && intent.kind === "premium") {

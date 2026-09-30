@@ -1,6 +1,6 @@
 "use client";
 
-import { trackMetaEvent } from "@/lib/meta";
+import { identifyMetaUser, trackMetaEvent } from "@/lib/meta";
 
 export type TikTokEventName =
   | "ViewContent"
@@ -126,6 +126,7 @@ export function trackTikTokEvent(
 
   if (user) {
     identifyTikTokUser(user);
+    identifyMetaUser(user);
   }
 
   const browserProps: Record<string, unknown> = {
@@ -169,7 +170,11 @@ export function trackTikTokEvent(
       event_id: `${eventId}_cp`,
     });
   }
-  trackMetaEvent(event, { ...params, event_id: eventId });
+  trackMetaEvent(event, {
+    ...params,
+    event_id: eventId,
+    user_id: user?.external_id || undefined,
+  });
 
   // 2. Fire server-side TikTok Events API (/open_api/v1.3/event/track/)
   const ttp = user?.ttp || getCookieValue("_ttp");
