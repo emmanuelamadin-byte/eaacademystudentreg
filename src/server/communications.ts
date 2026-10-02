@@ -2489,3 +2489,71 @@ export async function deleteBroadcast(broadcastId: string) {
     throw new ApiError(500, "Failed to delete broadcast record.");
   }
 }
+
+export type DeliveryRecipientDetail = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  channel: "email" | "whatsapp";
+  recipient: string;
+  status: string;
+  providerMessageId?: string | null;
+  sentAt?: string | null;
+  deliveredAt?: string | null;
+  readAt?: string | null;
+  lastError?: string | null;
+  createdAt: string;
+};
+
+export async function listBroadcastDeliveries(
+  broadcastId: string,
+): Promise<DeliveryRecipientDetail[]> {
+  if (!broadcastId) throw new ApiError(400, "Broadcast ID is required.");
+  try {
+    const { data: deliveries, error } = await adminClient()
+      .from("message_deliveries")
+      .select(
+        "id,student_id,channel,recipient,status,provider_message_id,sent_at,delivered_at,read_at,last_error,created_at",
+      )
+      .eq("broadcast_id", broadcastId)
+      .order("created_at", { ascending: true })
+      .limit(300);
+
+    if (error) {
+      console.warn("listBroadcastDeliveries query error:", error.message);
+      return [];
+    }
+
+    const studentIds = [
+      ...new Set((deliveries || []).map((d) => d.student_id).filter(Boolean)),
+    ];
+    const studentNameMap = new Map<string, string>();
+    if (studentIds.length > 0) {
+      const { data: students } = await adminClient()
+        .from("profiles")
+        .select("id,full_name")
+        .in("id", studentIds);
+      for (const s of students || []) {
+        studentNameMap.set(s.id, s.full_name || "Student");
+      }
+    }
+
+    return (deliveries || []).map((d) => ({
+      id: d.id,
+      studentId: d.student_id,
+      studentName: studentNameMap.get(d.student_id) || "Student",
+      channel: d.channel as "email" | "whatsapp",
+      recipient: d.recipient,
+      status: d.status,
+      providerMessageId: d.provider_message_id,
+      sentAt: d.sent_at,
+      deliveredAt: d.delivered_at,
+      readAt: d.read_at,
+      lastError: d.last_error,
+      createdAt: d.created_at,
+    }));
+  } catch (err) {
+    console.warn("listBroadcastDeliveries exception:", err);
+    return [];
+  }
+}

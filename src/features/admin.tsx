@@ -2463,12 +2463,55 @@ function NotificationsPanel() {
   };
 
   const [deletingBroadcastId, setDeletingBroadcastId] = useState<string | null>(null);
+  const [viewingDeliveriesBroadcastId, setViewingDeliveriesBroadcastId] =
+    useState<string | null>(null);
+  const [deliveriesList, setDeliveriesList] = useState<
+    Array<{
+      id: string;
+      studentId: string;
+      studentName: string;
+      channel: "email" | "whatsapp";
+      recipient: string;
+      status: string;
+      providerMessageId?: string | null;
+      sentAt?: string | null;
+      deliveredAt?: string | null;
+      readAt?: string | null;
+      lastError?: string | null;
+      createdAt: string;
+    }>
+  >([]);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
+  const [recipientFilter, setRecipientFilter] = useState("");
+
+  const toggleViewRecipients = async (broadcastId: string) => {
+    if (viewingDeliveriesBroadcastId === broadcastId) {
+      setViewingDeliveriesBroadcastId(null);
+      return;
+    }
+    setViewingDeliveriesBroadcastId(broadcastId);
+    setLoadingDeliveries(true);
+    setRecipientFilter("");
+    try {
+      const res = await api<typeof deliveriesList>("broadcast.deliveries", {
+        id: broadcastId,
+      });
+      setDeliveriesList(res || []);
+    } catch (err) {
+      console.warn("Could not load recipients:", err);
+    } finally {
+      setLoadingDeliveries(false);
+    }
+  };
 
   const deleteBroadcastItem = async (broadcastId: string) => {
     setDeletingBroadcastId(broadcastId);
     try {
       await api("broadcast.delete", { id: broadcastId });
       setHistory((prev) => prev.filter((item) => item.id !== broadcastId));
+      if (viewingDeliveriesBroadcastId === broadcastId) {
+        setViewingDeliveriesBroadcastId(null);
+      }
     } catch (err) {
       console.warn("Delete broadcast error:", err);
       alert("Failed to delete broadcast. Please try again.");
@@ -3212,6 +3255,29 @@ function NotificationsPanel() {
                       style={{
                         fontSize: "0.75rem",
                         padding: "0.2rem 0.6rem",
+                        borderColor:
+                          viewingDeliveriesBroadcastId === item.id
+                            ? "#3b82f6"
+                            : undefined,
+                        color:
+                          viewingDeliveriesBroadcastId === item.id
+                            ? "#3b82f6"
+                            : undefined,
+                      }}
+                      onClick={() => void toggleViewRecipients(item.id)}
+                      title="View individual recipient delivery status"
+                    >
+                      {viewingDeliveriesBroadcastId === item.id
+                        ? "Hide Recipients"
+                        : "📋 View Recipients"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-small"
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "0.2rem 0.6rem",
                         color: "#ef4444",
                         borderColor: "rgba(239, 68, 68, 0.3)",
                       }}
@@ -3312,6 +3378,159 @@ function NotificationsPanel() {
                       <span>
                         <strong>Meta error:</strong> {item.lastError}
                       </span>
+                    </div>
+                  )}
+
+                  {viewingDeliveriesBroadcastId === item.id && (
+                    <div
+                      style={{
+                        marginTop: "1rem",
+                        padding: "0.85rem",
+                        background: "rgba(0, 0, 0, 0.03)",
+                        borderRadius: "8px",
+                        border: "1px solid rgba(0, 0, 0, 0.08)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "0.65rem",
+                          flexWrap: "wrap",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        <h4
+                          style={{
+                            margin: 0,
+                            fontSize: "0.88rem",
+                            fontWeight: 700,
+                            color: "#111827",
+                          }}
+                        >
+                          📋 Recipient Delivery Breakdown ({deliveriesList.length})
+                        </h4>
+                        <input
+                          type="search"
+                          placeholder="Filter name or phone…"
+                          value={recipientFilter}
+                          onChange={(e) => setRecipientFilter(e.target.value)}
+                          style={{
+                            fontSize: "0.75rem",
+                            padding: "0.25rem 0.6rem",
+                            maxWidth: "200px",
+                            borderRadius: "4px",
+                          }}
+                        />
+                      </div>
+
+                      {loadingDeliveries ? (
+                        <p style={{ fontSize: "0.8rem", color: "#6b7280", margin: "0.5rem 0" }}>
+                          Loading recipient delivery records…
+                        </p>
+                      ) : deliveriesList.length === 0 ? (
+                        <p style={{ fontSize: "0.8rem", color: "#6b7280", margin: "0.5rem 0" }}>
+                          No delivery records found for this broadcast.
+                        </p>
+                      ) : (
+                        <div
+                          style={{
+                            maxHeight: "320px",
+                            overflowY: "auto",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "0.35rem",
+                          }}
+                        >
+                          {deliveriesList
+                            .filter((d) => {
+                              if (!recipientFilter) return true;
+                              const q = recipientFilter.toLowerCase();
+                              return (
+                                d.studentName.toLowerCase().includes(q) ||
+                                d.recipient.toLowerCase().includes(q)
+                              );
+                            })
+                            .map((d) => {
+                              const isDelivered =
+                                d.status === "delivered" || d.status === "read";
+                              const isSent = d.status === "sent";
+                              const isFailed = d.status === "failed";
+                              return (
+                                <div
+                                  key={d.id}
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    padding: "0.45rem 0.65rem",
+                                    background: "#ffffff",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(0, 0, 0, 0.06)",
+                                    fontSize: "0.8rem",
+                                  }}
+                                >
+                                  <div>
+                                    <strong style={{ color: "#111827" }}>
+                                      {d.studentName}
+                                    </strong>
+                                    <span
+                                      style={{
+                                        marginLeft: "0.5rem",
+                                        color: "#6b7280",
+                                        fontSize: "0.75rem",
+                                      }}
+                                    >
+                                      {d.channel === "whatsapp" ? "📱 " : "✉️ "}
+                                      {d.recipient}
+                                    </span>
+                                  </div>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "0.4rem",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        padding: "0.15rem 0.5rem",
+                                        borderRadius: "999px",
+                                        fontSize: "0.72rem",
+                                        fontWeight: 600,
+                                        background: isDelivered
+                                          ? "rgba(16, 185, 129, 0.15)"
+                                          : isSent
+                                            ? "rgba(14, 165, 233, 0.15)"
+                                            : isFailed
+                                              ? "rgba(239, 68, 68, 0.15)"
+                                              : "rgba(245, 158, 11, 0.15)",
+                                        color: isDelivered
+                                          ? "#10b981"
+                                          : isSent
+                                            ? "#0284c7"
+                                            : isFailed
+                                              ? "#ef4444"
+                                              : "#d97706",
+                                      }}
+                                    >
+                                      {d.status === "read"
+                                        ? "👁️ Read"
+                                        : d.status === "delivered"
+                                          ? "📬 Delivered"
+                                          : d.status === "sent"
+                                            ? "✅ Sent"
+                                            : d.status === "failed"
+                                              ? "❌ Failed"
+                                              : "⏳ Queued"}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

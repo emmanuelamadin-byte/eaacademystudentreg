@@ -51,6 +51,7 @@ import {
   createBroadcast,
   deleteBroadcast,
   fetchApprovedWhatsappTemplates,
+  listBroadcastDeliveries,
   listBroadcasts,
   notifyOwnerOfNewStudent,
   onboardNewStudentCommunications,
@@ -512,6 +513,11 @@ export async function dispatch(
       requireAdmin(user);
       const input = z.object({ id: z.string().min(1) }).parse(p);
       return deleteBroadcast(input.id);
+    }
+    case "broadcast.deliveries": {
+      requireAdmin(user);
+      const input = z.object({ id: z.string().min(1) }).parse(p);
+      return listBroadcastDeliveries(input.id);
     }
     case "streak.get": {
       const progress = await db()
