@@ -43,6 +43,7 @@ export type BroadcastSummary = {
   recipientCount: number;
   sentCount: number;
   failedCount: number;
+  lastError?: string | null;
   createdAt: string;
 };
 
@@ -446,6 +447,33 @@ export async function listBroadcasts(): Promise<{
       console.warn("listBroadcasts query warning:", error.message);
       return { broadcasts: [], configuration: configuration(), whatsappTemplates };
     }
+
+    const failedBroadcastIds = (data || [])
+      .filter((item) => (item.failed_count || 0) > 0)
+      .map((item) => item.id);
+
+    const errorMap = new Map<string, string>();
+    if (failedBroadcastIds.length > 0) {
+      try {
+        const { data: errorRows } = await adminClient()
+          .from("message_deliveries")
+          .select("broadcast_id,last_error")
+          .in("broadcast_id", failedBroadcastIds)
+          .eq("status", "failed")
+          .not("last_error", "is", null)
+          .order("updated_at", { ascending: false })
+          .limit(20);
+
+        for (const row of errorRows || []) {
+          if (row.broadcast_id && row.last_error && !errorMap.has(row.broadcast_id)) {
+            errorMap.set(row.broadcast_id, row.last_error);
+          }
+        }
+      } catch (err) {
+        console.warn("Error fetching broadcast last_error:", err);
+      }
+    }
+
     return {
       broadcasts: (data || []).map((item) => ({
         id: item.id,
@@ -457,6 +485,7 @@ export async function listBroadcasts(): Promise<{
         recipientCount: item.recipient_count,
         sentCount: item.sent_count,
         failedCount: item.failed_count,
+        lastError: errorMap.get(item.id) || null,
         createdAt: item.created_at,
       })) as BroadcastSummary[],
       configuration: configuration(),
@@ -773,6 +802,11 @@ async function sendWhatsapp(delivery: Delivery) {
     }
   }
 
+  let toPhone = delivery.recipient.replace(/[^\d+]/g, "").replace(/^\+/, "");
+  if (/^0[789][01]\d{8}$/.test(toPhone)) {
+    toPhone = "234" + toPhone.slice(1);
+  }
+
   const response = await fetch(
     `https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(phoneNumberId)}/messages`,
     {
@@ -783,7 +817,7 @@ async function sendWhatsapp(delivery: Delivery) {
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: delivery.recipient.replace(/^\+/, ""),
+        to: toPhone,
         type: "template",
         template: {
           name: delivery.template_name,
@@ -799,10 +833,21 @@ async function sendWhatsapp(delivery: Delivery) {
   );
   const body = (await response.json().catch(() => ({}))) as {
     messages?: { id: string }[];
-    error?: { message?: string };
+    error?: {
+      message?: string;
+      error_data?: { details?: string };
+      error_user_title?: string;
+      error_user_msg?: string;
+    };
   };
-  if (!response.ok)
-    throw new Error(body.error?.message || "Meta rejected the message.");
+  if (!response.ok) {
+    const errorDetail =
+      body.error?.error_data?.details ||
+      body.error?.error_user_msg ||
+      body.error?.message ||
+      "Meta rejected the message.";
+    throw new Error(errorDetail);
+  }
   return body.messages?.[0]?.id || "accepted";
 }
 

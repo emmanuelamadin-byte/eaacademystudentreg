@@ -2369,6 +2369,7 @@ function NotificationsPanel() {
       recipientCount: number;
       sentCount: number;
       failedCount: number;
+      lastError?: string | null;
       createdAt: string;
     }[]
   >([]);
@@ -3205,11 +3206,11 @@ function NotificationsPanel() {
                     }}
                   >
                     <span>
-                      <strong style={{ color: "var(--foreground, #fff)" }}>
+                      <strong style={{ color: "var(--foreground, #0f172a)" }}>
                         {sent}
                       </strong>{" "}
                       of{" "}
-                      <strong style={{ color: "var(--foreground, #fff)" }}>
+                      <strong style={{ color: "var(--foreground, #0f172a)" }}>
                         {total}
                       </strong>{" "}
                       delivered
@@ -3257,6 +3258,28 @@ function NotificationsPanel() {
                       }}
                     />
                   </div>
+
+                  {item.lastError && (
+                    <div
+                      style={{
+                        marginTop: "0.65rem",
+                        padding: "0.5rem 0.75rem",
+                        borderRadius: "6px",
+                        fontSize: "0.8rem",
+                        background: "rgba(239, 68, 68, 0.08)",
+                        border: "1px solid rgba(239, 68, 68, 0.25)",
+                        color: "#dc2626",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "0.4rem",
+                      }}
+                    >
+                      <span>⚠️</span>
+                      <span>
+                        <strong>Meta error:</strong> {item.lastError}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </article>
             );
