@@ -263,8 +263,7 @@ export async function createBroadcast(
     const rows: Record<string, unknown>[] = [];
     if (
       input.channels.includes("email") &&
-      recipient.email &&
-      recipient.email_notifications_enabled !== false
+      recipient.email
     )
       rows.push({
         broadcast_id: broadcastId,
@@ -280,8 +279,7 @@ export async function createBroadcast(
       });
     if (
       input.channels.includes("whatsapp") &&
-      recipient.phone_number &&
-      recipient.whatsapp_notifications_enabled !== false
+      recipient.phone_number
     ) {
       const studentFirstName = recipient.full_name
         ? recipient.full_name.trim().split(/\s+/)[0]
@@ -336,6 +334,10 @@ export async function createBroadcast(
       console.error("Message deliveries queue error:", insertError.message);
       throw new ApiError(500, `Failed to queue message deliveries: ${insertError.message}`);
     }
+    await adminClient()
+      .from("broadcasts")
+      .update({ recipient_count: deliveries.length })
+      .eq("id", broadcastId);
   } else if (dueNow) {
     try {
       await adminClient()
@@ -917,9 +919,11 @@ async function refreshBroadcastStatus(broadcastId: string) {
           : failed
             ? "failed"
             : "completed";
+    const totalDeliveries = (data || []).length;
     await adminClient()
       .from("broadcasts")
       .update({
+        ...(totalDeliveries > 0 ? { recipient_count: totalDeliveries } : {}),
         sent_count: sent,
         failed_count: failed,
         status,
