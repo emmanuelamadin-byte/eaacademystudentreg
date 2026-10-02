@@ -476,6 +476,7 @@ export async function dispatch(
           whatsappLanguage: z.string().trim().max(10).optional(),
           whatsappVariableCount: z.number().int().min(0).max(10).optional(),
           whatsappParameters: z.array(z.string().max(1000)).max(20).optional(),
+          whatsappHasUrlButton: z.boolean().optional(),
           scheduledFor: s.date.optional(),
         })
         .refine(

@@ -2568,6 +2568,9 @@ function NotificationsPanel() {
                         ...(whatsappParameters.length > 0
                           ? { whatsappParameters }
                           : {}),
+                        ...(activeTemplateObj?.hasUrlButton || effectiveTemplateName === "class_link"
+                          ? { whatsappHasUrlButton: true }
+                          : {}),
                       }
                     : {}),
                 });

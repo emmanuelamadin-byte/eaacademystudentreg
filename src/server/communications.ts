@@ -17,6 +17,7 @@ export type WhatsappTemplateSummary = {
   category?: string;
   bodyText?: string;
   variableCount: number;
+  hasUrlButton?: boolean;
 };
 
 export type BroadcastInput = {
@@ -30,6 +31,7 @@ export type BroadcastInput = {
   whatsappLanguage?: string;
   whatsappVariableCount?: number;
   whatsappParameters?: string[];
+  whatsappHasUrlButton?: boolean;
   scheduledFor?: string;
 };
 
@@ -316,6 +318,9 @@ export async function createBroadcast(
             ? { variableCount: String(input.whatsappVariableCount) }
             : {}),
           ...(resolvedParams ? { customParameters: JSON.stringify(resolvedParams) } : {}),
+          ...(input.whatsappHasUrlButton || input.whatsappTemplate === "class_link"
+            ? { hasButtonUrl: "true" }
+            : {}),
         },
         scheduled_for: scheduledFor,
         idempotency_key: `broadcast:${broadcastId}:${recipient.id}:whatsapp`,
@@ -407,6 +412,18 @@ export async function fetchApprovedWhatsappTemplates(): Promise<WhatsappTemplate
         const matches = bodyText.match(/\{\{\d+\}\}/g);
         const count = matches ? new Set(matches).size : 0;
         templateVariableCache.set(t.name, count);
+
+        const buttonsComp = t.components?.find((c) => c.type === "BUTTONS") as {
+          buttons?: Array<{ type: string; url?: string; text?: string }>;
+        } | undefined;
+        const hasUrlButton =
+          t.name === "class_link" ||
+          Boolean(
+            buttonsComp?.buttons?.some(
+              (b) => b.type === "URL" && b.url && /\{\{\d+\}\}/.test(b.url),
+            ),
+          );
+
         templates.push({
           name: t.name,
           status: t.status,
@@ -414,6 +431,7 @@ export async function fetchApprovedWhatsappTemplates(): Promise<WhatsappTemplate
           category: t.category,
           bodyText,
           variableCount: count,
+          hasUrlButton,
         });
       }
     }
@@ -807,6 +825,30 @@ async function sendWhatsapp(delivery: Delivery) {
     toPhone = "234" + toPhone.slice(1);
   }
 
+  const components: Array<Record<string, unknown>> = [];
+  if (parameters.length > 0) {
+    components.push({ type: "body", parameters });
+  }
+
+  const requiresButtonParam =
+    delivery.template_name === "class_link" ||
+    variables.hasButtonUrl === "true" ||
+    Boolean(variables.buttonParam);
+
+  if (requiresButtonParam) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [
+        {
+          type: "text",
+          text: variables.buttonParam || "?ref=whatsapp",
+        },
+      ],
+    });
+  }
+
   const response = await fetch(
     `https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(phoneNumberId)}/messages`,
     {
@@ -824,9 +866,7 @@ async function sendWhatsapp(delivery: Delivery) {
           language: {
             code: variables.language || process.env.WHATSAPP_TEMPLATE_LANGUAGE || "en",
           },
-          ...(parameters.length > 0
-            ? { components: [{ type: "body", parameters }] }
-            : {}),
+          ...(components.length > 0 ? { components } : {}),
         },
       }),
     },
