@@ -2346,6 +2346,7 @@ function NotificationsPanel() {
       category?: string;
       bodyText?: string;
       variableCount: number;
+      hasUrlButton?: boolean;
     }>
   >([]);
   const [isCustomTemplate, setIsCustomTemplate] = useState(false);
@@ -2880,6 +2881,36 @@ function NotificationsPanel() {
                             );
                           })}
                       </div>
+
+                      {(selected?.hasUrlButton || selected?.name === "class_link") && (
+                        <div
+                          style={{
+                            marginTop: "0.75rem",
+                            paddingTop: "0.6rem",
+                            borderTop: "1px dashed rgba(37, 211, 102, 0.3)",
+                            display: "flex",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.4rem",
+                              background: "#ffffff",
+                              color: "#00a884",
+                              fontWeight: 600,
+                              fontSize: "0.82rem",
+                              padding: "0.35rem 0.9rem",
+                              borderRadius: "6px",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                              border: "1px solid rgba(0, 168, 132, 0.25)",
+                            }}
+                          >
+                            🔗 Academy Website (auto-linked)
+                          </span>
+                        </div>
+                      )}
                     </aside>
 
                     {/* Interactive Input Fields for Variables */}
