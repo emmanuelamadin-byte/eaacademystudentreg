@@ -2701,13 +2701,12 @@ function NotificationsPanel() {
                   (t) => t.name === currentName,
                 );
                 if (!selected?.bodyText) return null;
+                const bodyText = selected.bodyText;
 
-                const placeholders = parseTemplatePlaceholders(
-                  selected.bodyText,
-                );
+                const placeholders = parseTemplatePlaceholders(bodyText);
 
                 const compileText = () =>
-                  selected.bodyText.replace(
+                  bodyText.replace(
                     /\{\{(\d+)\}\}/g,
                     (_, numStr: string) => {
                       const num = parseInt(numStr, 10);
@@ -2715,7 +2714,7 @@ function NotificationsPanel() {
                       if (
                         !val &&
                         num === 1 &&
-                        /hello|hi|dear/i.test(selected.bodyText)
+                        /hello|hi|dear/i.test(bodyText)
                       ) {
                         return "Student";
                       }
@@ -2760,7 +2759,7 @@ function NotificationsPanel() {
                           lineHeight: "1.5",
                         }}
                       >
-                        {selected.bodyText
+                        {bodyText
                           .split(/(\{\{\d+\}\})/g)
                           .map((part, idx) => {
                             const match = part.match(/^\{\{(\d+)\}\}$/);
@@ -2769,7 +2768,7 @@ function NotificationsPanel() {
                             const val = templateParams[num]?.trim();
                             const isGreeting =
                               num === 1 &&
-                              /hello|hi|dear/i.test(selected.bodyText);
+                              /hello|hi|dear/i.test(bodyText);
                             const displayVal =
                               val ||
                               (isGreeting
