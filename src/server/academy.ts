@@ -497,14 +497,14 @@ export async function dispatch(
         .parse(p);
       const result = await createBroadcast(user, input);
       if (!input.scheduledFor || Date.parse(input.scheduledFor) <= Date.now())
-        return { ...result, delivery: await processMessageQueue(20) };
+        return { ...result, delivery: await processMessageQueue(100) };
       return result;
     }
     case "broadcast.process": {
       requireAdmin(user);
       await queueSubscriptionExpiryReminders();
       await queueAbandonedCheckoutReminders();
-      return processMessageQueue(50);
+      return processMessageQueue(100);
     }
     case "streak.get": {
       const progress = await db()

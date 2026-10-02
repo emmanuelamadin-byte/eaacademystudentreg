@@ -2354,6 +2354,10 @@ function NotificationsPanel() {
   const [templateParams, setTemplateParams] = useState<Record<number, string>>(
     {},
   );
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+  const [processingSummary, setProcessingSummary] = useState<string | null>(
+    null,
+  );
   const [history, setHistory] = useState<
     {
       id: string;
@@ -2405,6 +2409,70 @@ function NotificationsPanel() {
       setRefreshingTemplates(false);
     }
   };
+
+  const processQueueAll = async () => {
+    setIsProcessingQueue(true);
+    setProcessingSummary(null);
+    try {
+      let hasMore = true;
+      let iterations = 0;
+      let totalSent = 0;
+      let totalFailed = 0;
+      let lastAwaiting = 0;
+
+      while (hasMore && iterations < 15) {
+        iterations++;
+        const res = await api<{
+          processed: number;
+          sent: number;
+          failed: number;
+          awaitingConfiguration?: number;
+        }>("broadcast.process");
+
+        totalSent += res?.sent || 0;
+        totalFailed += res?.failed || 0;
+        lastAwaiting = res?.awaitingConfiguration || 0;
+
+        await refresh();
+
+        if (
+          !res ||
+          res.processed === 0 ||
+          (res.sent === 0 && res.failed === 0)
+        ) {
+          hasMore = false;
+        }
+      }
+
+      if (lastAwaiting > 0 && totalSent === 0) {
+        setProcessingSummary(
+          `⚠️ ${lastAwaiting} message(s) are queued but waiting for WhatsApp or Resend API keys to be configured in Vercel. Please check your environment variables.`,
+        );
+      } else if (totalSent > 0 || totalFailed > 0) {
+        setProcessingSummary(
+          `Delivered ${totalSent} external message(s)${totalFailed > 0 ? `, ${totalFailed} failed` : ""}.`,
+        );
+      }
+    } catch (err) {
+      console.warn("Queue processing error:", err);
+    } finally {
+      setIsProcessingQueue(false);
+    }
+  };
+
+  useEffect(() => {
+    const hasPending = history.some(
+      (item) => item.status === "queued" || item.status === "processing",
+    );
+    if (!hasPending) return;
+
+    const timer = setInterval(() => {
+      void refresh();
+    }, 3000);
+
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history]);
   useEffect(() => {
     void refresh().catch(() => setLoadingHistory(false));
     // This panel has no changing inputs; it loads once when opened.
@@ -2495,6 +2563,7 @@ function NotificationsPanel() {
                 setCustomTemplateName("");
                 setTemplateParams({});
                 await refresh();
+                void processQueueAll();
               },
               configuration.email || configuration.whatsapp
                 ? "Broadcast queued and available channels are being delivered."
@@ -2942,37 +3011,221 @@ function NotificationsPanel() {
       </section>
       <section className="card">
         <div className="workspace-toolbar">
-          <h2>Broadcast history</h2>
+          <div>
+            <h2>Broadcast history</h2>
+            <p className="workspace-note">
+              Live delivery progress across in-app, email, and WhatsApp.
+            </p>
+          </div>
           <button
             className="btn btn-secondary btn-small"
-            disabled={action.busy}
-            onClick={() =>
-              void action.run(async () => {
-                await api("broadcast.process");
-                await refresh();
-              }, "The queued delivery worker has finished.")
-            }
+            disabled={action.busy || isProcessingQueue}
+            onClick={() => void processQueueAll()}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
           >
-            Process queued messages
+            <RefreshCw
+              size={12}
+              className={isProcessingQueue ? "animate-spin" : ""}
+            />
+            {isProcessingQueue ? "Dispatching messages…" : "Process queued messages"}
           </button>
         </div>
+
+        {processingSummary && (
+          <aside
+            style={{
+              marginBottom: "1rem",
+              padding: "0.75rem 1rem",
+              borderRadius: "6px",
+              fontSize: "0.85rem",
+              background: processingSummary.startsWith("⚠️")
+                ? "rgba(245, 158, 11, 0.12)"
+                : "rgba(16, 185, 129, 0.12)",
+              border: `1px solid ${
+                processingSummary.startsWith("⚠️")
+                  ? "rgba(245, 158, 11, 0.3)"
+                  : "rgba(16, 185, 129, 0.3)"
+              }`,
+              color: processingSummary.startsWith("⚠️") ? "#d97706" : "#10b981",
+            }}
+          >
+            {processingSummary}
+          </aside>
+        )}
+
         <div className="workspace-stack">
-          {history.map((item) => (
-            <article className="workspace-panel" key={item.id}>
-              <div className="workspace-toolbar">
-                <h3>{item.title}</h3>
-                <span className="workspace-status">{item.status}</span>
-              </div>
-              <p className="muted">
-                {item.audience} · {item.channels.join(", ")} ·{" "}
-                {dateLabel(item.scheduledFor)}
-              </p>
-              <p className="workspace-note">
-                {item.recipientCount} recipients · {item.sentCount} external
-                messages sent · {item.failedCount} failed
-              </p>
-            </article>
-          ))}
+          {history.map((item) => {
+            const total = item.recipientCount || 0;
+            const sent = item.sentCount || 0;
+            const failed = item.failedCount || 0;
+            const completed = sent + failed;
+            const pct =
+              total > 0
+                ? Math.min(100, Math.round((completed / total) * 100))
+                : item.status === "completed"
+                  ? 100
+                  : 0;
+            const isDone = item.status === "completed";
+            const isProcessing =
+              item.status === "processing" || (isProcessingQueue && !isDone);
+            const isQueued = item.status === "queued";
+            const isPending = isQueued || isProcessing;
+
+            return (
+              <article
+                className="workspace-panel"
+                key={item.id}
+                style={{
+                  borderRadius: "8px",
+                  border: "1px solid var(--border-color, rgba(255,255,255,0.08))",
+                  padding: "1rem",
+                }}
+              >
+                <div className="workspace-toolbar">
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
+                      {item.title}
+                    </h3>
+                    <p
+                      className="muted"
+                      style={{ margin: "0.25rem 0 0", fontSize: "0.8rem" }}
+                    >
+                      {item.audience} · {item.channels.join(", ")} ·{" "}
+                      {dateLabel(item.scheduledFor)}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding: "0.25rem 0.65rem",
+                        borderRadius: "999px",
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        textTransform: "capitalize",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.35rem",
+                        background: isDone
+                          ? "rgba(16, 185, 129, 0.15)"
+                          : isProcessing
+                            ? "rgba(59, 130, 246, 0.15)"
+                            : "rgba(245, 158, 11, 0.15)",
+                        color: isDone
+                          ? "#10b981"
+                          : isProcessing
+                            ? "#3b82f6"
+                            : "#f59e0b",
+                        border: `1px solid ${
+                          isDone
+                            ? "rgba(16, 185, 129, 0.3)"
+                            : isProcessing
+                              ? "rgba(59, 130, 246, 0.3)"
+                              : "rgba(245, 158, 11, 0.3)"
+                        }`,
+                      }}
+                    >
+                      {isProcessing && (
+                        <RefreshCw size={11} className="animate-spin" />
+                      )}
+                      {isDone
+                        ? "Completed ✅"
+                        : isProcessing
+                          ? `Sending (${pct}%)`
+                          : `Queued (${pct}%)`}
+                    </span>
+
+                    {isPending && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-small"
+                        style={{
+                          fontSize: "0.75rem",
+                          padding: "0.2rem 0.6rem",
+                        }}
+                        disabled={isProcessingQueue}
+                        onClick={() => void processQueueAll()}
+                        title="Process this batch immediately"
+                      >
+                        ⚡ Send Now
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Visual Live Progress Bar */}
+                <div style={{ marginTop: "0.85rem" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: "0.8rem",
+                      marginBottom: "0.35rem",
+                      color: "var(--text-muted, #9ca3af)",
+                    }}
+                  >
+                    <span>
+                      <strong style={{ color: "var(--foreground, #fff)" }}>
+                        {sent}
+                      </strong>{" "}
+                      of{" "}
+                      <strong style={{ color: "var(--foreground, #fff)" }}>
+                        {total}
+                      </strong>{" "}
+                      delivered
+                      {failed > 0 && (
+                        <span
+                          style={{
+                            color: "#ef4444",
+                            marginLeft: "0.5rem",
+                            fontWeight: 600,
+                          }}
+                        >
+                          ({failed} failed)
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: isDone ? "#10b981" : "#3b82f6",
+                      }}
+                    >
+                      {pct}%
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: "9px",
+                      width: "100%",
+                      background: "rgba(255, 255, 255, 0.08)",
+                      borderRadius: "999px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${pct}%`,
+                        background: isDone
+                          ? "#10b981"
+                          : failed > 0 && sent === 0
+                            ? "#ef4444"
+                            : "linear-gradient(90deg, #3b82f6 0%, #10b981 100%)",
+                        transition: "width 0.4s ease-in-out",
+                        borderRadius: "999px",
+                      }}
+                    />
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
         {!history.length && (
           <Empty
