@@ -11,13 +11,20 @@ export async function GET(request: Request) {
   const mode = url.searchParams.get("hub.mode");
   const token = url.searchParams.get("hub.verify_token");
   const challenge = url.searchParams.get("hub.challenge");
+  const expectedToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
+
   if (
     mode === "subscribe" &&
     token &&
-    token === process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN &&
+    expectedToken &&
+    token.trim() === expectedToken &&
     challenge
-  )
-    return new Response(challenge, { status: 200 });
+  ) {
+    return new Response(challenge, {
+      status: 200,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
   return new Response("Forbidden", { status: 403 });
 }
 
