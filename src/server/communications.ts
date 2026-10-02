@@ -10,6 +10,15 @@ import type { AcademyUser, CareerPathClassId } from "@/lib/types";
 export type MessageChannel = "in-app" | "email" | "whatsapp";
 export type BroadcastAudience = "all" | "track" | "free" | "premium";
 
+export type WhatsappTemplateSummary = {
+  name: string;
+  status: string;
+  language: string;
+  category?: string;
+  bodyText?: string;
+  variableCount: number;
+};
+
 export type BroadcastInput = {
   title: string;
   message: string;
@@ -18,6 +27,8 @@ export type BroadcastInput = {
   channels: MessageChannel[];
   actionPath?: string;
   whatsappTemplate?: string;
+  whatsappLanguage?: string;
+  whatsappVariableCount?: number;
   scheduledFor?: string;
 };
 
@@ -280,6 +291,10 @@ export async function createBroadcast(
         template_variables: {
           title: input.title,
           message: input.message,
+          ...(input.whatsappLanguage ? { language: input.whatsappLanguage } : {}),
+          ...(input.whatsappVariableCount !== undefined
+            ? { variableCount: String(input.whatsappVariableCount) }
+            : {}),
         },
         scheduled_for: scheduledFor,
         idempotency_key: `broadcast:${broadcastId}:${recipient.id}:whatsapp`,
@@ -315,10 +330,92 @@ export async function createBroadcast(
   };
 }
 
+const templateVariableCache = new Map<string, number>();
+
+export async function fetchApprovedWhatsappTemplates(): Promise<WhatsappTemplateSummary[]> {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const wabaId = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
+  const version = process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0";
+  const defaultTemplate = process.env.WHATSAPP_BROADCAST_TEMPLATE || "ea_academy_broadcast";
+
+  const fallback: WhatsappTemplateSummary[] = [
+    {
+      name: defaultTemplate,
+      status: "CONFIGURED",
+      language: process.env.WHATSAPP_TEMPLATE_LANGUAGE || "en",
+      bodyText: "Default broadcast template (from environment)",
+      variableCount: 2,
+    },
+  ];
+
+  if (!accessToken || !wabaId) {
+    return fallback;
+  }
+
+  try {
+    const url = `https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(wabaId)}/message_templates?fields=name,status,language,category,components&limit=100`;
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.warn("Could not fetch Meta WhatsApp templates:", err);
+      return fallback;
+    }
+
+    const payload = (await res.json()) as {
+      data?: Array<{
+        name: string;
+        status: string;
+        language: string;
+        category?: string;
+        components?: Array<{
+          type: string;
+          text?: string;
+        }>;
+      }>;
+    };
+
+    const templates: WhatsappTemplateSummary[] = [];
+    for (const t of payload.data || []) {
+      if (t.status === "APPROVED") {
+        const bodyComp = t.components?.find((c) => c.type === "BODY");
+        const bodyText = bodyComp?.text || "";
+        const matches = bodyText.match(/\{\{\d+\}\}/g);
+        const count = matches ? new Set(matches).size : 0;
+        templateVariableCache.set(t.name, count);
+        templates.push({
+          name: t.name,
+          status: t.status,
+          language: t.language,
+          category: t.category,
+          bodyText,
+          variableCount: count,
+        });
+      }
+    }
+
+    if (templates.length === 0) {
+      return fallback;
+    }
+
+    return templates;
+  } catch (err) {
+    console.warn("Exception fetching Meta WhatsApp templates:", err);
+    return fallback;
+  }
+}
+
 export async function listBroadcasts(): Promise<{
   broadcasts: BroadcastSummary[];
   configuration: ReturnType<typeof configuration>;
+  whatsappTemplates: WhatsappTemplateSummary[];
 }> {
+  const whatsappTemplates = await fetchApprovedWhatsappTemplates();
   try {
     const { data, error } = await adminClient()
       .from("broadcasts")
@@ -329,7 +426,7 @@ export async function listBroadcasts(): Promise<{
       .limit(30);
     if (error) {
       console.warn("listBroadcasts query warning:", error.message);
-      return { broadcasts: [], configuration: configuration() };
+      return { broadcasts: [], configuration: configuration(), whatsappTemplates };
     }
     return {
       broadcasts: (data || []).map((item) => ({
@@ -345,10 +442,11 @@ export async function listBroadcasts(): Promise<{
         createdAt: item.created_at,
       })) as BroadcastSummary[],
       configuration: configuration(),
+      whatsappTemplates,
     };
   } catch (err) {
     console.warn("listBroadcasts exception:", err);
-    return { broadcasts: [], configuration: configuration() };
+    return { broadcasts: [], configuration: configuration(), whatsappTemplates };
   }
 }
 
@@ -620,18 +718,30 @@ async function sendEmail(delivery: Delivery) {
 async function sendWhatsapp(delivery: Delivery) {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const version = process.env.WHATSAPP_GRAPH_API_VERSION;
+  const version = process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0";
   if (!accessToken || !phoneNumberId || !version) return null;
   if (!delivery.template_name)
     throw new Error("No approved WhatsApp template is configured.");
   const variables = delivery.template_variables || {};
-  const parameters =
-    delivery.kind === "birthday"
-      ? [{ type: "text", text: variables.firstName || "Student" }]
-      : [
-          { type: "text", text: variables.title || "EA Academy" },
-          { type: "text", text: variables.message || delivery.message },
-        ];
+
+  let parameters: Array<{ type: string; text: string }>;
+  if (delivery.kind === "birthday") {
+    parameters = [{ type: "text", text: variables.firstName || "Student" }];
+  } else {
+    const specifiedCount = variables.variableCount ? Number(variables.variableCount) : undefined;
+    const count = specifiedCount !== undefined ? specifiedCount : (templateVariableCache.get(delivery.template_name) ?? 2);
+    if (count === 0) {
+      parameters = [];
+    } else if (count === 1) {
+      parameters = [{ type: "text", text: variables.message || variables.title || delivery.message }];
+    } else {
+      parameters = [
+        { type: "text", text: variables.title || "EA Academy" },
+        { type: "text", text: variables.message || delivery.message },
+      ];
+    }
+  }
+
   const response = await fetch(
     `https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(phoneNumberId)}/messages`,
     {
@@ -647,9 +757,11 @@ async function sendWhatsapp(delivery: Delivery) {
         template: {
           name: delivery.template_name,
           language: {
-            code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || "en",
+            code: variables.language || process.env.WHATSAPP_TEMPLATE_LANGUAGE || "en",
           },
-          components: [{ type: "body", parameters }],
+          ...(parameters.length > 0
+            ? { components: [{ type: "body", parameters }] }
+            : {}),
         },
       }),
     },

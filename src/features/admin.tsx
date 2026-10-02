@@ -12,6 +12,7 @@ import {
   Package,
   Plus,
   Receipt,
+  RefreshCw,
   Store,
   Users,
   Wallet,
@@ -2279,6 +2280,19 @@ function NotificationsPanel() {
   const [actionScreen, setActionScreen] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
   const [whatsappTemplate, setWhatsappTemplate] = useState("");
+  const [whatsappTemplates, setWhatsappTemplates] = useState<
+    Array<{
+      name: string;
+      status: string;
+      language: string;
+      category?: string;
+      bodyText?: string;
+      variableCount: number;
+    }>
+  >([]);
+  const [isCustomTemplate, setIsCustomTemplate] = useState(false);
+  const [customTemplateName, setCustomTemplateName] = useState("");
+  const [refreshingTemplates, setRefreshingTemplates] = useState(false);
   const [history, setHistory] = useState<
     {
       id: string;
@@ -2304,10 +2318,31 @@ function NotificationsPanel() {
     const result = await api<{
       broadcasts: typeof history;
       configuration: typeof configuration;
+      whatsappTemplates?: typeof whatsappTemplates;
     }>("broadcast.list");
     setHistory(result.broadcasts);
     setConfiguration(result.configuration);
+    if (result.whatsappTemplates?.length) {
+      setWhatsappTemplates(result.whatsappTemplates);
+      setWhatsappTemplate((prev) => prev || result.whatsappTemplates![0].name);
+    }
     setLoadingHistory(false);
+  };
+  const refreshTemplates = async () => {
+    setRefreshingTemplates(true);
+    try {
+      const res = await api<{ templates: typeof whatsappTemplates }>(
+        "whatsapp.templates",
+      );
+      if (res?.templates?.length) {
+        setWhatsappTemplates(res.templates);
+        setWhatsappTemplate((prev) => prev || res.templates[0].name);
+      }
+    } catch (err) {
+      console.warn("Could not refresh WhatsApp templates:", err);
+    } finally {
+      setRefreshingTemplates(false);
+    }
   };
   useEffect(() => {
     void refresh().catch(() => setLoadingHistory(false));
@@ -2347,6 +2382,12 @@ function NotificationsPanel() {
             if (!channels.length) return;
             void action.run(
               async () => {
+                const effectiveTemplateName = isCustomTemplate
+                  ? customTemplateName.trim()
+                  : whatsappTemplate.trim();
+                const activeTemplateObj = whatsappTemplates.find(
+                  (t) => t.name === effectiveTemplateName,
+                );
                 await api("broadcast.send", {
                   title,
                   message,
@@ -2357,12 +2398,27 @@ function NotificationsPanel() {
                   ...(scheduledFor
                     ? { scheduledFor: new Date(scheduledFor).toISOString() }
                     : {}),
-                  ...(whatsappTemplate ? { whatsappTemplate } : {}),
+                  ...(channels.includes("whatsapp") && effectiveTemplateName
+                    ? {
+                        whatsappTemplate: effectiveTemplateName,
+                        ...(activeTemplateObj?.language
+                          ? { whatsappLanguage: activeTemplateObj.language }
+                          : {}),
+                        ...(activeTemplateObj?.variableCount !== undefined
+                          ? {
+                              whatsappVariableCount:
+                                activeTemplateObj.variableCount,
+                            }
+                          : {}),
+                      }
+                    : {}),
                 });
                 setTitle("");
                 setMessage("");
                 setActionScreen("");
                 setScheduledFor("");
+                setIsCustomTemplate(false);
+                setCustomTemplateName("");
                 await refresh();
               },
               configuration.email || configuration.whatsapp
@@ -2467,19 +2523,155 @@ function NotificationsPanel() {
             ))}
           </fieldset>
           {channels.includes("whatsapp") && (
-            <label>
-              Approved WhatsApp template name
-              <input
-                value={whatsappTemplate}
-                onChange={(event) => setWhatsappTemplate(event.target.value)}
-                pattern="[a-z0-9_]+"
-                placeholder="Uses WHATSAPP_BROADCAST_TEMPLATE when empty"
-              />
-              <small>
-                The template body must accept title as variable 1 and message as
-                variable 2.
+            <div className="workspace-field">
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "0.3rem",
+                }}
+              >
+                <label
+                  htmlFor="whatsapp-template-select"
+                  style={{ fontWeight: 600, margin: 0 }}
+                >
+                  Approved WhatsApp message template
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: "0.78rem",
+                    padding: "0.2rem 0.55rem",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                  }}
+                  disabled={refreshingTemplates}
+                  onClick={() => void refreshTemplates()}
+                  title="Pull latest approved templates directly from your Meta Business account"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={refreshingTemplates ? "animate-spin" : ""}
+                  />
+                  {refreshingTemplates ? "Syncing…" : "Sync from Meta"}
+                </button>
+              </div>
+
+              {!isCustomTemplate ? (
+                <select
+                  id="whatsapp-template-select"
+                  value={whatsappTemplate}
+                  onChange={(event) => {
+                    if (event.target.value === "__custom__") {
+                      setIsCustomTemplate(true);
+                    } else {
+                      setWhatsappTemplate(event.target.value);
+                    }
+                  }}
+                >
+                  {whatsappTemplates.length === 0 && (
+                    <option value="">
+                      Uses default (WHATSAPP_BROADCAST_TEMPLATE)
+                    </option>
+                  )}
+                  {whatsappTemplates.map((item) => (
+                    <option
+                      key={`${item.name}-${item.language}`}
+                      value={item.name}
+                    >
+                      {item.name} ({item.language})
+                      {item.category ? ` · ${item.category}` : ""}
+                    </option>
+                  ))}
+                  <option value="__custom__">
+                    + Enter custom template name…
+                  </option>
+                </select>
+              ) : (
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <input
+                    value={customTemplateName}
+                    onChange={(event) =>
+                      setCustomTemplateName(event.target.value)
+                    }
+                    placeholder="Enter Meta template name (e.g. course_launch)"
+                    pattern="[a-z0-9_]+"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setIsCustomTemplate(false);
+                      if (whatsappTemplates[0]) {
+                        setWhatsappTemplate(whatsappTemplates[0].name);
+                      }
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {/* Template text and variables preview */}
+              {(() => {
+                const currentName = isCustomTemplate
+                  ? customTemplateName.trim()
+                  : whatsappTemplate;
+                const selected = whatsappTemplates.find(
+                  (t) => t.name === currentName,
+                );
+                if (!selected?.bodyText) return null;
+                return (
+                  <aside
+                    style={{
+                      marginTop: "0.5rem",
+                      padding: "0.6rem 0.8rem",
+                      fontSize: "0.82rem",
+                      background: "rgba(37, 211, 102, 0.08)",
+                      border: "1px solid rgba(37, 211, 102, 0.25)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      <strong style={{ color: "#128C7E" }}>
+                        Meta Template Text
+                      </strong>
+                      <span style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+                        {selected.variableCount === 0
+                          ? "Fixed text (no variables)"
+                          : selected.variableCount === 1
+                            ? "1 variable (message body)"
+                            : "2 variables (title & message)"}
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        margin: 0,
+                        whiteSpace: "pre-wrap",
+                        fontStyle: "italic",
+                        opacity: 0.9,
+                      }}
+                    >
+                      {selected.bodyText}
+                    </p>
+                  </aside>
+                );
+              })()}
+
+              <small style={{ display: "block", marginTop: "0.35rem" }}>
+                Select an approved template from Meta. You can switch templates anytime without changing code.
               </small>
-            </label>
+            </div>
           )}
           <label>
             Link to academy page (optional)

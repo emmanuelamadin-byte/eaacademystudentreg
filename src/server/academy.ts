@@ -49,6 +49,7 @@ import { checkout, verifyPayment, manageSubscription } from "./payments";
 import {
   cancelStudentNurtureSequence,
   createBroadcast,
+  fetchApprovedWhatsappTemplates,
   listBroadcasts,
   notifyOwnerOfNewStudent,
   onboardNewStudentCommunications,
@@ -445,6 +446,10 @@ export async function dispatch(
       requireAdmin(user);
       return listBroadcasts();
     }
+    case "whatsapp.templates": {
+      requireAdmin(user);
+      return { templates: await fetchApprovedWhatsappTemplates() };
+    }
     case "broadcast.send": {
       requireAdmin(user);
       const input = z
@@ -467,6 +472,8 @@ export async function dispatch(
             .trim()
             .regex(/^[a-z0-9_]{1,512}$/)
             .optional(),
+          whatsappLanguage: z.string().trim().max(10).optional(),
+          whatsappVariableCount: z.number().int().min(0).max(10).optional(),
           scheduledFor: s.date.optional(),
         })
         .refine(
