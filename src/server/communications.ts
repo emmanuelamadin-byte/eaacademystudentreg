@@ -259,34 +259,9 @@ export async function createBroadcast(
     });
   }
 
-  // Check which students already received a broadcast today (past 24h)
-  // so we never send duplicate messages to students who already received it
-  const past24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  let alreadySentKeys = new Set<string>();
-  try {
-    const { data: sentDeliveries } = await adminClient()
-      .from("message_deliveries")
-      .select("student_id,channel")
-      .in("status", ["sent", "delivered", "read"])
-      .gte("sent_at", past24h);
-
-    if (sentDeliveries && sentDeliveries.length > 0) {
-      alreadySentKeys = new Set(
-        sentDeliveries.map((row) => `${row.student_id}:${row.channel}`),
-      );
-    }
-  } catch (err) {
-    console.warn("Could not check duplicate deliveries:", err);
-  }
-
   const deliveries = recipients.flatMap((recipient) => {
     const rows: Record<string, unknown>[] = [];
-    const alreadyReceivedEmail = alreadySentKeys.has(`${recipient.id}:email`);
-    if (
-      input.channels.includes("email") &&
-      recipient.email &&
-      !alreadyReceivedEmail
-    )
+    if (input.channels.includes("email") && recipient.email)
       rows.push({
         broadcast_id: broadcastId,
         student_id: recipient.id,
@@ -300,12 +275,7 @@ export async function createBroadcast(
         idempotency_key: `broadcast:${broadcastId}:${recipient.id}:email`,
       });
 
-    const alreadyReceivedWhatsapp = alreadySentKeys.has(`${recipient.id}:whatsapp`);
-    if (
-      input.channels.includes("whatsapp") &&
-      recipient.phone_number &&
-      !alreadyReceivedWhatsapp
-    ) {
+    if (input.channels.includes("whatsapp") && recipient.phone_number) {
       const studentFirstName = recipient.full_name
         ? recipient.full_name.trim().split(/\s+/)[0]
         : "Student";
