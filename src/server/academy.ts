@@ -49,6 +49,7 @@ import { checkout, verifyPayment, manageSubscription } from "./payments";
 import {
   cancelStudentNurtureSequence,
   createBroadcast,
+  deleteBroadcast,
   fetchApprovedWhatsappTemplates,
   listBroadcasts,
   notifyOwnerOfNewStudent,
@@ -505,6 +506,11 @@ export async function dispatch(
       await queueSubscriptionExpiryReminders();
       await queueAbandonedCheckoutReminders();
       return processMessageQueue(100);
+    }
+    case "broadcast.delete": {
+      requireAdmin(user);
+      const input = z.object({ id: z.string().min(1) }).parse(p);
+      return deleteBroadcast(input.id);
     }
     case "streak.get": {
       const progress = await db()

@@ -2460,6 +2460,21 @@ function NotificationsPanel() {
     }
   };
 
+  const [deletingBroadcastId, setDeletingBroadcastId] = useState<string | null>(null);
+
+  const deleteBroadcastItem = async (broadcastId: string) => {
+    setDeletingBroadcastId(broadcastId);
+    try {
+      await api("broadcast.delete", { id: broadcastId });
+      setHistory((prev) => prev.filter((item) => item.id !== broadcastId));
+    } catch (err) {
+      console.warn("Delete broadcast error:", err);
+      alert("Failed to delete broadcast. Please try again.");
+    } finally {
+      setDeletingBroadcastId(null);
+    }
+  };
+
   useEffect(() => {
     const hasPending = history.some(
       (item) => item.status === "queued" || item.status === "processing",
@@ -3155,6 +3170,26 @@ function NotificationsPanel() {
                         ⚡ Send Now
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-small"
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "0.2rem 0.6rem",
+                        color: "#ef4444",
+                        borderColor: "rgba(239, 68, 68, 0.3)",
+                      }}
+                      disabled={deletingBroadcastId === item.id || isProcessingQueue}
+                      onClick={async () => {
+                        if (window.confirm(`Delete broadcast "${item.title}"?`)) {
+                          await deleteBroadcastItem(item.id);
+                        }
+                      }}
+                      title="Delete this broadcast record"
+                    >
+                      {deletingBroadcastId === item.id ? "Deleting…" : "🗑️ Delete"}
+                    </button>
                   </div>
                 </div>
 

@@ -271,14 +271,14 @@ export async function createBroadcast(
         recipient: recipient.email,
         subject: input.title,
         message: input.message,
+        template_variables: {},
         scheduled_for: scheduledFor,
         idempotency_key: `broadcast:${broadcastId}:${recipient.id}:email`,
       });
     if (
       input.channels.includes("whatsapp") &&
       recipient.phone_number &&
-      recipient.whatsapp_notifications_enabled &&
-      recipient.whatsapp_opted_in_at
+      recipient.whatsapp_notifications_enabled !== false
     ) {
       const studentFirstName = recipient.full_name
         ? recipient.full_name.trim().split(/\s+/)[0]
@@ -323,15 +323,12 @@ export async function createBroadcast(
     return rows;
   });
   if (deliveries.length) {
-    try {
-      const { error } = await adminClient()
-        .from("message_deliveries")
-        .insert(deliveries);
-      if (error) {
-        console.warn("Message deliveries queue warning:", error.message);
-      }
-    } catch (deliveryErr) {
-      console.warn("Message deliveries queue exception:", deliveryErr);
+    const { error: insertError } = await adminClient()
+      .from("message_deliveries")
+      .insert(deliveries);
+    if (insertError) {
+      console.error("Message deliveries queue error:", insertError.message);
+      throw new ApiError(500, `Failed to queue message deliveries: ${insertError.message}`);
     }
   } else if (dueNow) {
     try {
@@ -1090,6 +1087,7 @@ export async function queueBirthdayMessages(now = new Date()) {
         recipient: profile.email,
         subject: `Happy birthday, ${firstName}!`,
         message,
+        template_variables: { firstName },
         idempotency_key: `birthday:${local.year}:${profile.id}:email`,
       });
     if (
@@ -1175,6 +1173,11 @@ export function buildSubscriptionReminderContent(info: {
       recipient: info.email,
       subject: `⚠️ Urgent: Your EA Academy Premium subscription expires in 2 days`,
       message: `Hi ${firstName},\n\nYour EA Academy Premium subscription is expiring in 2 days (on ${expiryDateFormatted}).\n\nTo avoid losing access to all career tracks, the Academy selected courses, live mentor sessions, and your verified learning transcript, please renew your subscription before it expires.\n\nClick the button below to visit your Billing dashboard and renew in under a minute.`,
+      template_variables: {
+        stage: info.stage,
+        firstName,
+        expiryDateFormatted,
+      },
       idempotency_key: `subscription_expiry:2d:${info.studentId}:${expiryDateKey}:email`,
     };
   }
@@ -1186,6 +1189,11 @@ export function buildSubscriptionReminderContent(info: {
     recipient: info.email,
     subject: `⏳ Your EA Academy Premium subscription expires in 7 days`,
     message: `Hi ${firstName},\n\nThis is a friendly reminder that your EA Academy Premium subscription will expire in 7 days (on ${expiryDateFormatted}).\n\nRenewing your membership ensures uninterrupted access to:\n• All career tracks and Premium classroom modules\n• Access to the Academy selected courses.\n• Live mentor sessions, recordings, and your verified learning transcript\n\nYou can renew your Premium membership anytime from your Billing dashboard so you don't lose momentum.`,
+    template_variables: {
+      stage: info.stage,
+      firstName,
+      expiryDateFormatted,
+    },
     idempotency_key: `subscription_expiry:7d:${info.studentId}:${expiryDateKey}:email`,
   };
 }
@@ -2342,5 +2350,28 @@ export async function cancelAbandonedCheckoutReminders(
   }
 }
 
+export async function deleteBroadcast(broadcastId: string) {
+  if (!broadcastId) {
+    throw new ApiError(400, "Broadcast ID is required.");
+  }
+  try {
+    await adminClient()
+      .from("message_deliveries")
+      .delete()
+      .eq("broadcast_id", broadcastId);
 
+    const { error } = await adminClient()
+      .from("broadcasts")
+      .delete()
+      .eq("id", broadcastId);
 
+    if (error) {
+      console.warn("deleteBroadcast warning:", error.message);
+      throw new ApiError(500, `Failed to delete broadcast: ${error.message}`);
+    }
+    return { success: true, deletedId: broadcastId };
+  } catch (err: unknown) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(500, "Failed to delete broadcast record.");
+  }
+}
