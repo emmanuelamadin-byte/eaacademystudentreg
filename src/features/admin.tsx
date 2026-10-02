@@ -2269,6 +2269,64 @@ function ReviewEditor({
   );
 }
 
+type TemplatePlaceholder = {
+  num: number;
+  token: string;
+  label: string;
+  isNameGreeting: boolean;
+  placeholder: string;
+};
+
+function parseTemplatePlaceholders(bodyText: string): TemplatePlaceholder[] {
+  const matches = bodyText.match(/\{\{(\d+)\}\}/g);
+  if (!matches) return [];
+  const nums = Array.from(
+    new Set(matches.map((m) => parseInt(m.replace(/\D/g, ""), 10))),
+  ).sort((a, b) => a - b);
+
+  const lines = bodyText.split("\n");
+  return nums.map((num) => {
+    const token = `{{${num}}}`;
+    const lineIndex = lines.findIndex((l) => l.includes(token));
+    const line = lineIndex >= 0 ? lines[lineIndex] : "";
+    let label = line
+      .replace(token, "")
+      .trim()
+      .replace(/[:,\-–—]+$/, "")
+      .trim();
+
+    if (!label && lineIndex > 0) {
+      const prevLine = lines[lineIndex - 1]
+        .trim()
+        .replace(/[:,\-–—]+$/, "")
+        .trim();
+      if (prevLine && prevLine.length < 40) {
+        label = prevLine;
+      }
+    }
+
+    const isNameGreeting =
+      num === 1 && /hello|hi|dear|welcome/i.test(line || "");
+    if (isNameGreeting) {
+      label = `Student Name ({{${num}}})`;
+    } else if (!label) {
+      label = `Variable {{${num}}}`;
+    } else {
+      label = `${label} ({{${num}}})`;
+    }
+
+    return {
+      num,
+      token,
+      label,
+      isNameGreeting,
+      placeholder: isNameGreeting
+        ? "Student's First Name (automatic)"
+        : `Enter value for ${label.replace(/\s*\(\{\{\d+\}\}\)/, "")}`,
+    };
+  });
+}
+
 function NotificationsPanel() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -2293,6 +2351,9 @@ function NotificationsPanel() {
   const [isCustomTemplate, setIsCustomTemplate] = useState(false);
   const [customTemplateName, setCustomTemplateName] = useState("");
   const [refreshingTemplates, setRefreshingTemplates] = useState(false);
+  const [templateParams, setTemplateParams] = useState<Record<number, string>>(
+    {},
+  );
   const [history, setHistory] = useState<
     {
       id: string;
@@ -2388,6 +2449,16 @@ function NotificationsPanel() {
                 const activeTemplateObj = whatsappTemplates.find(
                   (t) => t.name === effectiveTemplateName,
                 );
+                const currentPlaceholders = activeTemplateObj?.bodyText
+                  ? parseTemplatePlaceholders(activeTemplateObj.bodyText)
+                  : [];
+                const whatsappParameters = currentPlaceholders.map((p) => {
+                  const val = templateParams[p.num]?.trim();
+                  if (!val && p.isNameGreeting) {
+                    return "{name}";
+                  }
+                  return val || "";
+                });
                 await api("broadcast.send", {
                   title,
                   message,
@@ -2410,6 +2481,9 @@ function NotificationsPanel() {
                                 activeTemplateObj.variableCount,
                             }
                           : {}),
+                        ...(whatsappParameters.length > 0
+                          ? { whatsappParameters }
+                          : {}),
                       }
                     : {}),
                 });
@@ -2419,6 +2493,7 @@ function NotificationsPanel() {
                 setScheduledFor("");
                 setIsCustomTemplate(false);
                 setCustomTemplateName("");
+                setTemplateParams({});
                 await refresh();
               },
               configuration.email || configuration.whatsapp
@@ -2569,6 +2644,7 @@ function NotificationsPanel() {
                       setIsCustomTemplate(true);
                     } else {
                       setWhatsappTemplate(event.target.value);
+                      setTemplateParams({});
                     }
                   }}
                 >
@@ -2616,7 +2692,7 @@ function NotificationsPanel() {
                 </div>
               )}
 
-              {/* Template text and variables preview */}
+              {/* Template details, interactive variables, & live preview */}
               {(() => {
                 const currentName = isCustomTemplate
                   ? customTemplateName.trim()
@@ -2625,50 +2701,206 @@ function NotificationsPanel() {
                   (t) => t.name === currentName,
                 );
                 if (!selected?.bodyText) return null;
+
+                const placeholders = parseTemplatePlaceholders(
+                  selected.bodyText,
+                );
+
+                const compileText = () =>
+                  selected.bodyText.replace(
+                    /\{\{(\d+)\}\}/g,
+                    (_, numStr: string) => {
+                      const num = parseInt(numStr, 10);
+                      const val = templateParams[num]?.trim();
+                      if (
+                        !val &&
+                        num === 1 &&
+                        /hello|hi|dear/i.test(selected.bodyText)
+                      ) {
+                        return "Student";
+                      }
+                      return val || `{{${num}}}`;
+                    },
+                  );
+
                 return (
-                  <aside
-                    style={{
-                      marginTop: "0.5rem",
-                      padding: "0.6rem 0.8rem",
-                      fontSize: "0.82rem",
-                      background: "rgba(37, 211, 102, 0.08)",
-                      border: "1px solid rgba(37, 211, 102, 0.25)",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    <div
+                  <div style={{ marginTop: "0.6rem" }}>
+                    {/* Live Highlighted Preview */}
+                    <aside
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: "0.25rem",
+                        padding: "0.75rem 0.9rem",
+                        fontSize: "0.85rem",
+                        background: "rgba(37, 211, 102, 0.08)",
+                        border: "1px solid rgba(37, 211, 102, 0.25)",
+                        borderRadius: "8px",
                       }}
                     >
-                      <strong style={{ color: "#128C7E" }}>
-                        Meta Template Text
-                      </strong>
-                      <span style={{ fontSize: "0.75rem", opacity: 0.85 }}>
-                        {selected.variableCount === 0
-                          ? "Fixed text (no variables)"
-                          : selected.variableCount === 1
-                            ? "1 variable (message body)"
-                            : "2 variables (title & message)"}
-                      </span>
-                    </div>
-                    <p
-                      style={{
-                        margin: 0,
-                        whiteSpace: "pre-wrap",
-                        fontStyle: "italic",
-                        opacity: 0.9,
-                      }}
-                    >
-                      {selected.bodyText}
-                    </p>
-                  </aside>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "0.4rem",
+                        }}
+                      >
+                        <strong style={{ color: "#128C7E", fontSize: "0.88rem" }}>
+                          Live WhatsApp Message Preview
+                        </strong>
+                        <span style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+                          {placeholders.length === 0
+                            ? "Fixed text (no variables)"
+                            : `${placeholders.length} variable${placeholders.length === 1 ? "" : "s"}`}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                          fontSize: "0.86rem",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        {selected.bodyText
+                          .split(/(\{\{\d+\}\})/g)
+                          .map((part, idx) => {
+                            const match = part.match(/^\{\{(\d+)\}\}$/);
+                            if (!match) return part;
+                            const num = parseInt(match[1], 10);
+                            const val = templateParams[num]?.trim();
+                            const isGreeting =
+                              num === 1 &&
+                              /hello|hi|dear/i.test(selected.bodyText);
+                            const displayVal =
+                              val ||
+                              (isGreeting
+                                ? "Student Name (auto)"
+                                : `[${part}]`);
+                            return (
+                              <mark
+                                key={idx}
+                                style={{
+                                  background: val
+                                    ? "rgba(16, 185, 129, 0.25)"
+                                    : "rgba(245, 158, 11, 0.25)",
+                                  color: val ? "#047857" : "#b45309",
+                                  padding: "0.1rem 0.4rem",
+                                  borderRadius: "4px",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {displayVal}
+                              </mark>
+                            );
+                          })}
+                      </div>
+                    </aside>
+
+                    {/* Interactive Input Fields for Variables */}
+                    {placeholders.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: "0.65rem",
+                          padding: "0.85rem 1rem",
+                          background: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          borderRadius: "8px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.65rem",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <strong style={{ fontSize: "0.88rem" }}>
+                            Fill In Template Variables ({placeholders.length})
+                          </strong>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{
+                              fontSize: "0.75rem",
+                              padding: "0.2rem 0.5rem",
+                            }}
+                            onClick={() => {
+                              const compiled = compileText();
+                              setMessage(compiled);
+                              if (!title) {
+                                setTitle(
+                                  selected.name
+                                    .replace(/_/g, " ")
+                                    .replace(/\b\w/g, (c) => c.toUpperCase()),
+                                );
+                              }
+                            }}
+                          >
+                            ✨ Copy to Title & Message
+                          </button>
+                        </div>
+                        <small style={{ opacity: 0.75, fontSize: "0.75rem" }}>
+                          Type your class details, date, time, or link below. The live preview above updates automatically.
+                        </small>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                              "repeat(auto-fit, minmax(240px, 1fr))",
+                            gap: "0.65rem",
+                          }}
+                        >
+                          {placeholders.map((p) => (
+                            <label
+                              key={p.num}
+                              style={{ margin: 0, fontSize: "0.82rem" }}
+                            >
+                              <span
+                                style={{
+                                  fontWeight: 600,
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  marginBottom: "0.25rem",
+                                }}
+                              >
+                                <span>{p.label}</span>
+                                {p.isNameGreeting && (
+                                  <span
+                                    style={{
+                                      fontSize: "0.72rem",
+                                      color: "#10b981",
+                                    }}
+                                  >
+                                    Auto-personalized
+                                  </span>
+                                )}
+                              </span>
+                              <input
+                                type="text"
+                                value={templateParams[p.num] ?? ""}
+                                placeholder={p.placeholder}
+                                onChange={(event) => {
+                                  const val = event.target.value;
+                                  setTemplateParams((prev) => ({
+                                    ...prev,
+                                    [p.num]: val,
+                                  }));
+                                }}
+                                style={{ width: "100%" }}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })()}
 
-              <small style={{ display: "block", marginTop: "0.35rem" }}>
+              <small style={{ display: "block", marginTop: "0.45rem" }}>
                 Select an approved template from Meta. You can switch templates anytime without changing code.
               </small>
             </div>

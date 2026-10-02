@@ -29,6 +29,7 @@ export type BroadcastInput = {
   whatsappTemplate?: string;
   whatsappLanguage?: string;
   whatsappVariableCount?: number;
+  whatsappParameters?: string[];
   scheduledFor?: string;
 };
 
@@ -278,7 +279,24 @@ export async function createBroadcast(
       recipient.phone_number &&
       recipient.whatsapp_notifications_enabled &&
       recipient.whatsapp_opted_in_at
-    )
+    ) {
+      const studentFirstName = recipient.full_name
+        ? recipient.full_name.trim().split(/\s+/)[0]
+        : "Student";
+
+      let resolvedParams: string[] | undefined;
+      if (input.whatsappParameters && input.whatsappParameters.length > 0) {
+        resolvedParams = input.whatsappParameters.map((param, index) => {
+          if (index === 0 && (!param || param === "{name}" || param === "{firstName}")) {
+            return studentFirstName;
+          }
+          if (param === "{name}" || param === "{firstName}") {
+            return studentFirstName;
+          }
+          return param;
+        });
+      }
+
       rows.push({
         broadcast_id: broadcastId,
         student_id: recipient.id,
@@ -291,14 +309,17 @@ export async function createBroadcast(
         template_variables: {
           title: input.title,
           message: input.message,
+          firstName: studentFirstName,
           ...(input.whatsappLanguage ? { language: input.whatsappLanguage } : {}),
           ...(input.whatsappVariableCount !== undefined
             ? { variableCount: String(input.whatsappVariableCount) }
             : {}),
+          ...(resolvedParams ? { customParameters: JSON.stringify(resolvedParams) } : {}),
         },
         scheduled_for: scheduledFor,
         idempotency_key: `broadcast:${broadcastId}:${recipient.id}:whatsapp`,
       });
+    }
     return rows;
   });
   if (deliveries.length) {
@@ -727,6 +748,19 @@ async function sendWhatsapp(delivery: Delivery) {
   let parameters: Array<{ type: string; text: string }>;
   if (delivery.kind === "birthday") {
     parameters = [{ type: "text", text: variables.firstName || "Student" }];
+  } else if (variables.customParameters) {
+    try {
+      const parsed = JSON.parse(variables.customParameters) as string[];
+      parameters = parsed.map((val) => ({
+        type: "text",
+        text: val || "—",
+      }));
+    } catch {
+      parameters = [
+        { type: "text", text: variables.title || "EA Academy" },
+        { type: "text", text: variables.message || delivery.message },
+      ];
+    }
   } else {
     const specifiedCount = variables.variableCount ? Number(variables.variableCount) : undefined;
     const count = specifiedCount !== undefined ? specifiedCount : (templateVariableCache.get(delivery.template_name) ?? 2);
