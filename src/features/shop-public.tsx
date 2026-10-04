@@ -416,7 +416,21 @@ function ShopProductCard({ item }: { item: ShopItem }) {
             <span className="shop-price-current">
               ₦{item.price.toLocaleString("en-NG")}
             </span>
-            {item.compareAtPrice && item.compareAtPrice > item.price && (
+            {isCourse && item.includedInPremium && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  color: "#059669",
+                  display: "block",
+                  lineHeight: 1.2,
+                  marginTop: "2px",
+                }}
+              >
+                Free with Premium
+              </span>
+            )}
+            {item.compareAtPrice && item.compareAtPrice > item.price && !item.includedInPremium && (
               <span className="shop-price-compare">
                 ₦{item.compareAtPrice.toLocaleString("en-NG")}
               </span>
@@ -949,6 +963,182 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                       <ArrowRight size={16} />
                     </Link>
                   </>
+                ) : isIncludedForPremium ? (
+                  <>
+                    {/* Top Offer: Get this course for free as a Premium member */}
+                    <div
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(217, 119, 6, 0.12) 0%, rgba(245, 158, 11, 0.05) 100%)",
+                        border: "1.5px solid rgba(217, 119, 6, 0.35)",
+                        borderRadius: "14px",
+                        padding: "1rem",
+                        marginBottom: "1.25rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          color: "#d97706",
+                          fontWeight: 700,
+                          fontSize: "0.92rem",
+                          marginBottom: "0.35rem",
+                        }}
+                      >
+                        <Crown size={16} />
+                        <span>Included Free with Premium</span>
+                      </div>
+
+                      <div
+                        className="shop-price-wrap"
+                        style={{ margin: "0.4rem 0 0.6rem" }}
+                      >
+                        <div className="shop-price-main">
+                          <span
+                            className="shop-price-big"
+                            style={{ color: "#d97706", fontSize: "1.75rem" }}
+                          >
+                            FREE
+                          </span>
+                          <span className="shop-price-strike">
+                            ₦{item.price.toLocaleString("en-NG")}
+                          </span>
+                        </div>
+                        <span
+                          className="shop-discount-pill"
+                          style={{
+                            background:
+                              "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                            color: "#ffffff",
+                          }}
+                        >
+                          100% OFF with Membership
+                        </span>
+                      </div>
+
+                      <p
+                        style={{
+                          fontSize: "0.82rem",
+                          color: "var(--foreground, #334155)",
+                          margin: "0 0 0.85rem 0",
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Join EA Academy Premium for <strong>₦3,000/mo</strong> and get this complete course, verified certificates, mentor code reviews & all tracks at no extra cost.
+                      </p>
+
+                      <Link
+                        href={
+                          user
+                            ? "/app/billing"
+                            : `/signup?redirect=${encodeURIComponent(
+                                `/shop/${item.slug}`,
+                              )}`
+                        }
+                        className="btn btn-primary shop-buy-btn"
+                        style={{
+                          textDecoration: "none",
+                          justifyContent: "center",
+                          background:
+                            "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                          color: "#ffffff",
+                          boxShadow: "0 4px 14px rgba(217, 119, 6, 0.3)",
+                        }}
+                      >
+                        <Crown size={17} />
+                        Get Free with Premium (₦3,000/mo)
+                        <ArrowRight size={16} />
+                      </Link>
+                    </div>
+
+                    {/* Divider */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        margin: "1rem 0",
+                        color: "var(--muted, #64748b)",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      <div
+                        style={{
+                          flex: 1,
+                          height: "1px",
+                          background: "var(--line, rgba(255, 255, 255, 0.1))",
+                        }}
+                      />
+                      <span style={{ padding: "0 0.65rem" }}>
+                        Or purchase individually
+                      </span>
+                      <div
+                        style={{
+                          flex: 1,
+                          height: "1px",
+                          background: "var(--line, rgba(255, 255, 255, 0.1))",
+                        }}
+                      />
+                    </div>
+
+                    {/* Standalone Buy Now / Enroll */}
+                    <div className="shop-price-wrap">
+                      <div className="shop-price-main">
+                        <span className="shop-price-big">
+                          ₦{item.price.toLocaleString("en-NG")}
+                        </span>
+                        {item.compareAtPrice &&
+                          item.compareAtPrice > item.price && (
+                            <span className="shop-price-strike">
+                              ₦{item.compareAtPrice.toLocaleString("en-NG")}
+                            </span>
+                          )}
+                      </div>
+                      {discountPercent && (
+                        <span className="shop-discount-pill">
+                          Save {discountPercent}%
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="shop-purchase-note">
+                      One-time standalone purchase • Lifetime access to all course materials & updates.
+                    </p>
+
+                    {checkoutError && (
+                      <div className="shop-checkout-error">
+                        <p>{checkoutError}</p>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary shop-buy-btn"
+                      onClick={handleBuyNow}
+                      disabled={buying}
+                      style={{
+                        justifyContent: "center",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {buying
+                        ? "Connecting to Paystack…"
+                        : user
+                        ? `Buy course only for ₦${item.price.toLocaleString("en-NG")}`
+                        : "Enroll & Buy Now"}
+                      <ArrowRight size={16} />
+                    </button>
+
+                    {!user && (
+                      <p className="shop-account-tip">
+                        Purchases are linked to your free student workspace for permanent access & certificates.
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <>
                     <div className="shop-price-wrap">
@@ -971,7 +1161,7 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                     </div>
 
                     <p className="shop-purchase-note">
-                      One-time purchase • Lifetime access to all course materials & updates.
+                      One-time purchase • Lifetime access to all {isCourse ? "course" : "material"} materials & updates.
                     </p>
 
                     {checkoutError && (
@@ -993,63 +1183,6 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                         : "Enroll & Buy Now"}
                       <ArrowRight size={16} />
                     </button>
-
-                    {isIncludedForPremium && (
-                      <div
-                        style={{
-                          marginTop: "1rem",
-                          padding: "0.9rem",
-                          background:
-                            "linear-gradient(135deg, rgba(217, 119, 6, 0.08) 0%, rgba(245, 158, 11, 0.04) 100%)",
-                          borderRadius: "12px",
-                          border: "1px solid rgba(217, 119, 6, 0.25)",
-                          textAlign: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "0.4rem",
-                            color: "#b45309",
-                            fontWeight: 700,
-                            fontSize: "0.88rem",
-                            marginBottom: "0.3rem",
-                          }}
-                        >
-                          <Crown size={15} />
-                          <span>Or Unlock with Premium</span>
-                        </div>
-                        <p
-                          style={{
-                            fontSize: "0.8rem",
-                            color: "#64748b",
-                            margin: "0 0 0.75rem 0",
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          Get this course, mentor code reviews, AI assistant & full academy tracks for <strong>₦3,000/mo</strong>.
-                        </p>
-                        <Link
-                          href={
-                            user
-                              ? "/app/billing"
-                              : `/signup?redirect=${encodeURIComponent(
-                                  `/shop/${item.slug}`,
-                                )}`
-                          }
-                          className="btn btn-secondary btn-small"
-                          style={{
-                            width: "100%",
-                            justifyContent: "center",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Upgrade to Premium (₦3,000/mo)
-                        </Link>
-                      </div>
-                    )}
 
                     {!user && (
                       <p className="shop-account-tip">
