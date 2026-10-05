@@ -86,6 +86,16 @@ type Delivery = {
 export const DEFAULT_VERIFIED_SENDER_ADDRESS = "hello@cleanbrandagency.com";
 export const DEFAULT_WHATSAPP_GROUP_URL =
   "https://chat.whatsapp.com/KwZC1W1Wl6FCEBiYGCbNAo?s=cl&p=i&mlu=4&ilr=4";
+export const DEFAULT_DIRECT_WHATSAPP_PHONE = "2348142417005";
+export const DEFAULT_DIRECT_WHATSAPP_URL = "https://wa.me/2348142417005";
+
+export function getDirectWhatsappUrl(prefilledText?: string): string {
+  const base =
+    process.env.DIRECT_WHATSAPP_URL?.trim() || DEFAULT_DIRECT_WHATSAPP_URL;
+  if (!prefilledText) return base;
+  const separator = base.includes("?") ? "&" : "?";
+  return `${base}${separator}text=${encodeURIComponent(prefilledText)}`;
+}
 
 const configuration = () => ({
   email: Boolean(process.env.RESEND_API_KEY && formatEmailSender()),
@@ -619,6 +629,8 @@ async function sendEmail(delivery: Delivery) {
             ? "🔓 Your All-Access Pass (₦100/day)"
             : "🎯 A Personal Note from Emmanuel";
 
+    const isDirectNurture =
+      whatsappUrl.includes("wa.me") || whatsappUrl.includes("api.whatsapp.com");
     html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px 24px;background-color:#ffffff;color:#1e293b;border-radius:12px;border:1px solid #e2e8f0">
   <div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #f1f5f9">
     <div style="display:inline-block;padding:6px 14px;background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:9999px;font-size:12px;font-weight:700;color:#0284c7;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:12px">
@@ -634,13 +646,17 @@ async function sendEmail(delivery: Delivery) {
 
     <div style="margin:22px 0;padding:18px 20px;background-color:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0">
       <div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:6px">
-        💬 Stuck on a lesson or have a question?
+        💬 ${isDirectNurture ? "Stuck on a lesson or have a question?" : "Stuck on a lesson or have a question?"}
       </div>
       <p style="margin:0 0 12px;font-size:14px;color:#15803d;line-height:1.55">
-        Our active <strong>WhatsApp Student Community</strong> is here for you. Instructors and fellow students answer questions daily and genuinely care about your progress.
+        ${
+          isDirectNurture
+            ? "Need direct guidance or have questions as you learn? Reach out to us directly on WhatsApp."
+            : "Our active <strong>WhatsApp Student Community</strong> is here for you. Instructors and fellow students answer questions daily and genuinely care about your progress."
+        }
       </p>
       <a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:9px 18px;border-radius:6px;text-decoration:none">
-        Join the WhatsApp Community &rarr;
+        ${isDirectNurture ? "Chat on WhatsApp &rarr;" : "Join the WhatsApp Community &rarr;"}
       </a>
     </div>
 
@@ -730,10 +746,10 @@ async function sendEmail(delivery: Delivery) {
         💬 Had trouble with payment or have a question?
       </div>
       <p style="margin:0 0 12px;font-size:13.5px;color:#15803d;line-height:1.55">
-        If Paystack, your card, or bank transfer gave you any hiccup, simply reply to this email or reach out in our WhatsApp community and we will help you get set up right away.
+        If Paystack, your card, or bank transfer gave you any hiccup, simply reply to this email or chat directly with Emmanuel on WhatsApp and we will get you sorted immediately.
       </p>
-      <a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:8px 16px;border-radius:6px;text-decoration:none">
-        Chat with Us on WhatsApp &rarr;
+      <a href="${escapeHtml(getDirectWhatsappUrl("Hello Emmanuel, I encountered an issue completing checkout on EA Academy."))}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:8px 16px;border-radius:6px;text-decoration:none">
+        Chat with Emmanuel on WhatsApp &rarr;
       </a>
     </div>
   </div>
@@ -1615,6 +1631,10 @@ export async function sendStudentWelcomeEmail(info: {
 
   const subject = `🎉 Welcome to EA Academy, ${firstName}! Your ${info.trackName} roadmap is ready`;
 
+  const directWhatsappUrl = getDirectWhatsappUrl(
+    `Hello Emmanuel, I just enrolled in ${info.trackName} at EA Academy and wanted to connect!`,
+  );
+
   const text = `Hi ${firstName},
 
 Welcome to EA Academy! We are thrilled to have you enrolled in the ${info.trackName} career track.
@@ -1629,7 +1649,10 @@ Here is your Day 1 Game Plan (takes 5 minutes):
 2. Join our Student WhatsApp Community:
    Never learn in isolation! Our WhatsApp community is where instructors and fellow students answer your questions, help when you're stuck, and genuinely care about your progress: ${whatsappUrl}
 
-3. Say hello in the Cohort Lounge:
+3. Want to talk to Emmanuel directly?
+   Have questions or need 1-on-1 guidance? Message Emmanuel directly on WhatsApp: ${directWhatsappUrl}
+
+4. Say hello in the Cohort Lounge:
    Introduce yourself inside the Academy workspace and see what other students are building: ${communityUrl}
 
 Whenever you're ready to unlock all modules across all 3 Career Tracks, Live Group Mentor Sessions, Instructor Assignment Reviews, Selected Academy Courses, and your Verified Learning Transcript, you can upgrade to EA Academy Premium for just ₦3,000/month: ${billingUrl}
@@ -1668,7 +1691,10 @@ ${appUrl}`;
           <strong>Watch your first intro lesson:</strong> Open your <strong>${safeTrackName}</strong> curriculum and complete Lesson 1 today to build instant momentum.
         </li>
         <li style="margin-bottom:8px">
-          <strong>Join our WhatsApp Student Community:</strong> Never learn alone — our instructors and fellow students answer your questions daily and genuinely care about your progress.
+          <strong>Join our Student WhatsApp Community:</strong> Never learn alone — our instructors and fellow students answer your questions daily and genuinely care about your progress.
+        </li>
+        <li style="margin-bottom:8px">
+          <strong>Talk to Emmanuel directly:</strong> Have a question or want 1-on-1 guidance? Reach out on his personal WhatsApp.
         </li>
         <li>
           <strong>Introduce yourself in the Cohort Lounge:</strong> Share your goals and connect with peers on the same path.
@@ -1682,15 +1708,27 @@ ${appUrl}`;
       </a>
     </div>
 
-    <div style="margin:24px 0;padding:18px 20px;background-color:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0">
+    <div style="margin:24px 0 16px;padding:18px 20px;background-color:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0">
       <div style="font-size:14px;font-weight:700;color:#166534;margin-bottom:6px">
-        💬 Join Our Active WhatsApp Community
+        👥 Join Our Active WhatsApp Student Group
       </div>
       <p style="margin:0 0 14px;font-size:14px;color:#15803d;line-height:1.55">
         Have a question about your track or want accountability partners who care about your growth? Tap below to join the private EA Academy student WhatsApp group.
       </p>
       <a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:10px 18px;border-radius:6px;text-decoration:none">
-        Join the WhatsApp Community &rarr;
+        Join the Student Group &rarr;
+      </a>
+    </div>
+
+    <div style="margin:0 0 24px;padding:16px 20px;background-color:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+      <div style="font-size:13px;font-weight:700;color:#002751;margin-bottom:4px">
+        💬 Want to talk to Emmanuel directly?
+      </div>
+      <p style="margin:0 0 12px;font-size:13.5px;color:#475569;line-height:1.5">
+        Have questions about your learning path or need 1-on-1 guidance? Chat directly with Emmanuel on WhatsApp.
+      </p>
+      <a href="${escapeHtml(directWhatsappUrl)}" style="display:inline-block;background-color:#002751;color:#ffffff;font-weight:600;font-size:13px;padding:9px 18px;border-radius:6px;text-decoration:none">
+        Chat with Emmanuel on WhatsApp &rarr;
       </a>
     </div>
   </div>
@@ -1789,7 +1827,7 @@ export function buildStudentNurtureSequence(info: {
       stage: "day10",
       daysOffset: 10,
       subject: `A personal note from Emmanuel about your ${trackName} goals 🎯`,
-      message: `Hi ${firstName},\n\nIt's been 10 days since you joined EA Academy for ${trackName}, and I wanted to send you a personal note.\n\nWhether you've already completed several lessons or life got busy this week, please remember this: consistency beats perfection every single time.\n\nYou don't have to figure everything out by yourself. Our WhatsApp community is filled with people who answer your questions and genuinely care about your progress — and our instructors are ready to review your assignments, host live mentor sessions, and guide your portfolio inside EA Academy Premium.\n\nIf anything is holding you back, simply reply to this email and tell me what you're working on — I read every reply. Or if you're ready to go all-in on your skills today, click below to activate your Premium All-Access Pass.`,
+      message: `Hi ${firstName},\n\nIt's been 10 days since you joined EA Academy for ${trackName}, and I wanted to send you a personal note.\n\nWhether you've already completed several lessons or life got busy this week, please remember this: consistency beats perfection every single time.\n\nYou don't have to figure everything out by yourself. Our WhatsApp community is filled with people who answer your questions and genuinely care about your progress — and our instructors are ready to review your assignments, host live mentor sessions, and guide your portfolio inside EA Academy Premium.\n\nIf anything is holding you back, simply reply to this email or chat with me directly on WhatsApp (${getDirectWhatsappUrl("Hello Emmanuel, I wanted to reach out regarding my goals at EA Academy.")}) — I read every message personally. Or if you're ready to go all-in on your skills today, click below to activate your Premium All-Access Pass.`,
       ctaLabel: "Activate Your All-Access Pass →",
       ctaPath: "/app/billing",
     },
@@ -2084,13 +2122,13 @@ ${appUrl}`;
 
     <div style="margin:24px 0 0;padding:18px 20px;background-color:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0">
       <div style="font-size:14px;font-weight:700;color:#166534;margin-bottom:6px">
-        💬 Have Questions as You Learn?
+        💬 Have Questions or Need Help?
       </div>
       <p style="margin:0 0 14px;font-size:14px;color:#15803d;line-height:1.55">
-        Join our active <strong>WhatsApp Student Community</strong> where instructors and fellow learners answer questions daily and support your growth.
+        Need assistance or have questions as you get started? Chat directly with Emmanuel on WhatsApp.
       </p>
-      <a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:10px 18px;border-radius:6px;text-decoration:none">
-        Join the WhatsApp Community &rarr;
+      <a href="${escapeHtml(getDirectWhatsappUrl(`Hello Emmanuel, I have a question regarding my purchase of "${itemTitle}" on EA Academy.`))}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-weight:600;font-size:13px;padding:10px 18px;border-radius:6px;text-decoration:none">
+        Chat with Emmanuel on WhatsApp &rarr;
       </a>
     </div>
   </div>

@@ -52,13 +52,13 @@ export default function Welcome() {
         <span className="eyebrow">REGISTRATION COMPLETE</span>
         <h1>Welcome to EA Academy, {user.name.split(" ")[0]}.</h1>
         <p>
-          Your place in <strong>{track?.name}</strong> is ready. Join the
-          academy WhatsApp group for announcements, class reminders, and
-          community updates.
+          Your place in <strong>{track?.name}</strong> is ready. Connect with
+          us on WhatsApp for announcements, class updates, or to reach out
+          directly.
         </p>
         {!loaded ? (
           <button className="btn btn-secondary" disabled>
-            <LoaderCircle size={18} className="spin" /> Loading group link
+            <LoaderCircle size={18} className="spin" /> Loading WhatsApp link
           </button>
         ) : whatsappGroupUrl ? (
           <a
@@ -67,13 +67,17 @@ export default function Welcome() {
             target="_blank"
             rel="noreferrer"
           >
-            <MessageCircle size={19} /> Join the WhatsApp group{" "}
+            <MessageCircle size={19} />{" "}
+            {whatsappGroupUrl.includes("wa.me") ||
+            whatsappGroupUrl.includes("api.whatsapp.com")
+              ? "Chat on WhatsApp"
+              : "Join the WhatsApp group"}{" "}
             <ArrowRight size={17} />
           </a>
         ) : (
           <div className="alert" role="status">
-            Your account is ready. The admin will add the WhatsApp group invite
-            here shortly.
+            Your account is ready. The WhatsApp contact link will appear here
+            shortly.
           </div>
         )}
         {error && (
@@ -81,6 +85,15 @@ export default function Welcome() {
             {error}
           </div>
         )}
+        <a
+          href="https://wa.me/2348142417005?text=Hello%20Emmanuel%2C%20I%20just%20enrolled%20in%20EA%20Academy%20and%20wanted%20to%20say%20hello!"
+          target="_blank"
+          rel="noreferrer"
+          className="text-link"
+          style={{ marginBottom: "14px", fontSize: "13.5px" }}
+        >
+          Have a question? Chat directly with Emmanuel <ArrowRight size={15} />
+        </a>
         <Link href="/app/dashboard" className="text-link">
           Go to my learning workspace <ArrowRight size={17} />
         </Link>

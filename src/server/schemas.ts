@@ -184,8 +184,11 @@ export const settingsSchema = z.object({
         .url()
         .max(500)
         .refine(
-          (value) => /^https:\/\/chat\.whatsapp\.com\//i.test(value),
-          "Use a WhatsApp group invite link beginning with https://chat.whatsapp.com/.",
+          (value) =>
+            /^https:\/\/(?:chat\.whatsapp\.com|wa\.me|api\.whatsapp\.com)\//i.test(
+              value,
+            ),
+          "Use a valid WhatsApp link (e.g. https://wa.me/234... or https://chat.whatsapp.com/...).",
         ),
       z.literal(""),
     ])

@@ -172,8 +172,15 @@ export function PublicFooter() {
           <Link href="/privacy">Privacy & your data</Link>
           <Link href="/terms">Membership terms</Link>
           {settings?.supportEmail && (
-            <a href={`mailto:${settings.supportEmail}`}>Contact the academy</a>
+            <a href={`mailto:${settings.supportEmail}`}>Email the academy</a>
           )}
+          <a
+            href="https://wa.me/2348142417005?text=Hello%20Emmanuel%2C%20I%20would%20like%20to%20reach%20out%20to%20EA%20Academy."
+            target="_blank"
+            rel="noreferrer"
+          >
+            Chat with Emmanuel on WhatsApp
+          </a>
         </div>
         <div className="footer-note">
           <p>

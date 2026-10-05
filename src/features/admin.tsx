@@ -3632,10 +3632,10 @@ function SettingsForm({ initial }: { initial: PlatformSettings }) {
             />
           </label>
           <label>
-            WhatsApp group invite link
+            WhatsApp contact / community link
             <input
               type="url"
-              placeholder="https://chat.whatsapp.com/..."
+              placeholder="https://wa.me/234... or https://chat.whatsapp.com/..."
               value={settings.whatsappGroupUrl ?? ""}
               onChange={(event) =>
                 setSettings({
@@ -3644,7 +3644,7 @@ function SettingsForm({ initial }: { initial: PlatformSettings }) {
                 })
               }
             />
-            <small>Shown privately to students after registration.</small>
+            <small>Direct WhatsApp chat (wa.me/234...) or group invite link sent in welcome emails & messages.</small>
           </label>
           <label className="check-label">
             <input
