@@ -3,6 +3,14 @@ import { TRACKS, type ShopItem } from "@/lib/types";
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://student.cleanbrandagency.com";
 
+/**
+ * Safely serializes JSON-LD schema objects for inline script tags.
+ * Replaces `<` with `\u003c` to prevent `</script>` tag breakout and XSS.
+ */
+export function safeJsonLd(schema: unknown): string {
+  return JSON.stringify(schema).replace(/</g, "\\u003c");
+}
+
 export function OrganizationSchema() {
   const schema = {
     "@context": "https://schema.org",
@@ -75,7 +83,7 @@ export function OrganizationSchema() {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }
@@ -99,7 +107,7 @@ export function WebSiteSchema() {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }
@@ -154,7 +162,7 @@ export function CourseListSchema() {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }
@@ -181,7 +189,7 @@ export function FaqPageSchema({ faqs }: { faqs: FaqItem[] }) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }
@@ -205,7 +213,7 @@ export function BreadcrumbSchema({
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }
@@ -266,7 +274,7 @@ export function ShopProductSchema({ item }: { item: ShopItem }) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }

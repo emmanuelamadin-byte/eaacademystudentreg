@@ -63,20 +63,13 @@ import Assignments from "./learning/assignments";
 import { queueAction, readQueue } from "./learning/offline";
 import "./learning/learning.css";
 export { LearningSync } from "./learning/offline";
+import { safeResourceUrl } from "@/lib/urls";
 
 const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Something went wrong. Please try again.";
-const safeUrl = (value: string) => {
-  try {
-    const clean = extractVideoUrl(value);
-    const url = new URL(clean);
-    return ["https:", "http:"].includes(url.protocol) ? url.href : "#";
-  } catch {
-    return "#";
-  }
-};
+const safeUrl = (value: string) => safeResourceUrl(value);
 function Empty({ title, body }: { title: string; body: string }) {
   return (
     <div className="empty-state">

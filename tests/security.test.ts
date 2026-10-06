@@ -16,6 +16,13 @@ import {
   submissionSchema,
   url,
 } from "../src/server/schemas";
+import { safeJsonLd } from "../src/components/seo-structured-data";
+import {
+  safeResourceUrl,
+  safeUrl as safeUrlUtil,
+  safeWhatsAppUrl,
+} from "../src/lib/urls";
+import nextConfig from "../next.config";
 
 const student: AcademyUser = {
   id: "student",
@@ -155,5 +162,61 @@ describe("untrusted payload validation", () => {
   it("uses a stable UTC month key for monthly benefit allowances", () => {
     expect(utcMonthKey(new Date("2026-12-31T23:59:59.000Z"))).toBe("2026-12");
     expect(utcMonthKey(new Date("2027-01-01T00:00:00.000Z"))).toBe("2027-01");
+  });
+});
+
+describe("script injection and XSS defenses", () => {
+  it("escapes closing script tags in JSON-LD structured data", () => {
+    const maliciousPayload = {
+      title: 'Course</script><script>alert("xss")</script>',
+      description: 'Breakout test <script src="https://evil.com/x.js"></script>',
+    };
+    const serialized = safeJsonLd(maliciousPayload);
+
+    // Raw < characters must be safely unicode-escaped to prevent script breakout
+    expect(serialized).not.toContain("<");
+    expect(serialized).toContain("\\u003c/script>");
+    expect(serialized).toContain('\\u003cscript>alert(\\"xss\\")\\u003c/script>');
+  });
+
+  it("neutralizes dangerous schemes in resource URLs while preserving safe links", () => {
+    expect(safeResourceUrl("javascript:alert(1)")).toBe("#");
+    expect(safeResourceUrl("data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==")).toBe("#");
+    expect(safeResourceUrl("vbscript:msgbox(1)")).toBe("#");
+    expect(safeResourceUrl("//evil.com/payload.js")).toBe("#");
+
+    // Safe protocols & internal upload paths
+    expect(safeResourceUrl("https://example.com/notes.pdf")).toBe("https://example.com/notes.pdf");
+    expect(safeResourceUrl("http://example.com/guide.pdf")).toBe("http://example.com/guide.pdf");
+    expect(safeResourceUrl("/api/upload?path=uploads%2Ffile.pdf")).toBe("/api/upload?path=uploads%2Ffile.pdf");
+    expect(safeResourceUrl("uploads/user-123/notes.pdf")).toBe("/api/upload?path=uploads%2Fuser-123%2Fnotes.pdf");
+  });
+
+  it("validates external URLs and WhatsApp links strictly", () => {
+    expect(safeUrlUtil("javascript:alert(1)")).toBeUndefined();
+    expect(safeUrlUtil("https://ea.academy/track")).toBe("https://ea.academy/track");
+
+    expect(safeWhatsAppUrl("javascript:alert(1)")).toBe("");
+    expect(safeWhatsAppUrl("https://evil.com")).toBe("");
+    expect(safeWhatsAppUrl("https://wa.me/2348142417005")).toBe("https://wa.me/2348142417005");
+    expect(safeWhatsAppUrl("https://chat.whatsapp.com/invite123")).toBe("https://chat.whatsapp.com/invite123");
+  });
+
+  it("configures a strict Content-Security-Policy header in next.config.ts", async () => {
+    const headersFn = nextConfig.headers;
+    expect(headersFn).toBeDefined();
+    if (headersFn) {
+      const headersList = await headersFn();
+      const allRoutes = headersList.find((h) => h.source === "/(.*)");
+      expect(allRoutes).toBeDefined();
+
+      const cspHeader = allRoutes?.headers.find(
+        (h) => h.key === "Content-Security-Policy",
+      );
+      expect(cspHeader).toBeDefined();
+      expect(cspHeader?.value).toContain("default-src 'self'");
+      expect(cspHeader?.value).toContain("script-src");
+      expect(cspHeader?.value).toContain("frame-ancestors 'self'");
+    }
   });
 });

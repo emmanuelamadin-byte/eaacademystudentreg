@@ -43,15 +43,16 @@ export default async function Page({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  let item;
   try {
-    const item = await getPublicShopItem(slug);
-    return (
-      <>
-        <ShopProductSchema item={item} />
-        <ShopProductDetailPage item={item} />
-      </>
-    );
+    item = await getPublicShopItem(slug);
   } catch {
     notFound();
   }
+  return (
+    <>
+      <ShopProductSchema item={item} />
+      <ShopProductDetailPage item={item} />
+    </>
+  );
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Check, LoaderCircle, MessageCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { TRACKS } from "@/lib/types";
+import { safeWhatsAppUrl } from "@/lib/urls";
 import { useAcademy } from "@/components/academy-provider";
 import { Brand } from "@/components/ui";
 
@@ -60,12 +61,12 @@ export default function Welcome() {
           <button className="btn btn-secondary" disabled>
             <LoaderCircle size={18} className="spin" /> Loading WhatsApp link
           </button>
-        ) : whatsappGroupUrl ? (
+        ) : safeWhatsAppUrl(whatsappGroupUrl) ? (
           <a
             className="btn whatsapp-button"
-            href={whatsappGroupUrl}
+            href={safeWhatsAppUrl(whatsappGroupUrl)}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             <MessageCircle size={19} />{" "}
             {whatsappGroupUrl.includes("wa.me") ||

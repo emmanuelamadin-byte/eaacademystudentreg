@@ -33,6 +33,7 @@ import {
 import { api, uploadFile } from "@/lib/api";
 import { useAction, ActionMessage } from "@/features/admin/shared";
 import { getVideoEmbed } from "@/lib/video";
+import { safeResourceUrl } from "@/lib/urls";
 import type {
   ShopItem,
   ShopCourseModule,
@@ -2334,9 +2335,9 @@ function LessonEditorModal({
                   <span className="resource-title">{res.title}</span>
                   {res.size && <span className="resource-size">{res.size}</span>}
                   <a
-                    href={res.url}
+                    href={safeResourceUrl(res.url)}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="resource-link"
                   >
                     Test Link

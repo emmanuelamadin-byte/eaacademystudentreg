@@ -29,6 +29,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, downloadAttachment } from "@/lib/api";
+import { safeResourceUrl } from "@/lib/urls";
 import { AdVideoPlayer } from "@/components/ad-video-player";
 import type {
   ShopItem,
@@ -1073,9 +1074,9 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                           {currentLesson.resources.map((res, rIdx) => (
                             <a
                               key={rIdx}
-                              href={res.url}
+                              href={safeResourceUrl(res.url)}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               download
                               className="classroom-resource-card"
                               onClick={(e) => {

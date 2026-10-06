@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
 import { api, downloadAttachment } from "@/lib/api";
+import { safeResourceUrl } from "@/lib/urls";
 import { trackTikTokEvent } from "@/lib/tiktok";
 import type {
   ShopItem,
@@ -425,9 +426,9 @@ export function StudentLibrary() {
                         <div className="library-card-actions">
                           {fileUrl ? (
                             <a
-                              href={fileUrl}
+                              href={safeResourceUrl(fileUrl)}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               download
                               className="btn btn-secondary btn-small library-download-btn"
                               onClick={(e) => {
