@@ -217,6 +217,7 @@ describe("script injection and XSS defenses", () => {
       expect(cspHeader?.value).toContain("default-src 'self'");
       expect(cspHeader?.value).toContain("script-src");
       expect(cspHeader?.value).toContain("frame-ancestors 'self'");
+      expect(cspHeader?.value).toContain("https://iframe.mediadelivery.net");
     }
   });
 });
