@@ -58,6 +58,7 @@ describe("Supabase browser selections", () => {
     expect(shopSelection).toContain("title");
     expect(shopSelection).toContain("slug");
     expect(shopSelection).toContain("price");
+    expect(shopSelection).toContain("included_in_premium");
     expect(shopSelection).not.toContain("file_url");
   });
 });

@@ -499,9 +499,6 @@ export function isPremium(user: AcademyUser | null) {
     !!user &&
     (user.role !== "Student" ||
       user.premiumGranted === true ||
-      (!!user.premiumUntil && Date.parse(user.premiumUntil) > Date.now()) ||
-      (user.membershipPlan === "Premium" &&
-        !!user.premiumUntil &&
-        Date.parse(user.premiumUntil) > Date.now()))
+      (!!user.premiumUntil && Date.parse(user.premiumUntil) > Date.now()))
   );
 }

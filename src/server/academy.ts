@@ -62,6 +62,7 @@ import {
 } from "./communications";
 import { savePushToken, removePushToken } from "./push";
 import { sendTikTokServerEvent } from "./tiktok";
+import { signBunnyEmbedUrl, cleanBunnyUrl } from "./bunny";
 import {
   getCountries,
   isValidPhoneNumber,
@@ -117,6 +118,9 @@ export async function getLesson(
     delete lesson.solutionCode;
     lesson.free = lesson.free && courseModule.free === true;
   }
+  if (lesson.videoUrl) {
+    lesson.videoUrl = signBunnyEmbedUrl(lesson.videoUrl);
+  }
   return lesson;
 }
 
@@ -144,6 +148,9 @@ export async function listClassroomLessons(
       return [];
     if (!managesTrack(user, lesson.classId)) delete lesson.solutionCode;
     lesson.free = lesson.free && courseModule.free === true;
+    if (lesson.videoUrl) {
+      lesson.videoUrl = signBunnyEmbedUrl(lesson.videoUrl);
+    }
     return [lesson];
   });
 }
@@ -553,11 +560,21 @@ export async function dispatch(
         );
       // Only this owner-authorized action may correct enrollment. Students cannot change it.
       const { id, ...updates } = input;
-      await db().collection("users").doc(id).update(clean(updates));
+      const patch: Record<string, unknown> = { ...updates };
+      if (input.premiumGranted === true) {
+        patch.membershipPlan = "Premium";
+      } else if (
+        input.premiumGranted === false &&
+        target.membershipPlan === "Premium" &&
+        (!target.premiumUntil || Date.parse(String(target.premiumUntil)) <= Date.now())
+      ) {
+        patch.membershipPlan = "Free";
+      }
+      await db().collection("users").doc(id).update(clean(patch));
       if (input.premiumGranted === true) {
         cancelStudentNurtureSequence(id).catch(() => {});
       }
-      return { id };
+      return { id, ...patch };
     }
     case "lesson.get":
       return getLesson(user, parsedId(p));
@@ -1382,16 +1399,23 @@ function sanitizeCurriculumForStudent(
     const activeQuestions = getActiveModuleQuestions(m);
     return {
       ...m,
-      lessons: (m.lessons || []).map((l) =>
-        stripLessonContent
+      lessons: (m.lessons || []).map((l) => {
+        const rawVideo = stripLessonContent
+          ? (l.isFreePreview ? l.videoUrl : "")
+          : l.videoUrl;
+        const videoUrl = rawVideo ? signBunnyEmbedUrl(rawVideo) : "";
+        return stripLessonContent
           ? {
               ...l,
-              videoUrl: l.isFreePreview ? l.videoUrl : "",
+              videoUrl,
               content: l.isFreePreview ? l.content : "",
               resources: l.isFreePreview ? l.resources : [],
             }
-          : l,
-      ),
+          : {
+              ...l,
+              videoUrl,
+            };
+      }),
       quiz: m.quiz
         ? {
             ...m.quiz,
@@ -1500,6 +1524,9 @@ export async function listPublicShopItems() {
     .map((d) => {
       const data = { ...(d.data() as ShopItem) };
       delete data.fileUrl;
+      if (data.previewVideoUrl) {
+        data.previewVideoUrl = signBunnyEmbedUrl(data.previewVideoUrl);
+      }
       if (data.type === "course" && Array.isArray(data.curriculum)) {
         data.curriculum = sanitizeCurriculumForStudent(data.curriculum, true);
       }
@@ -1519,6 +1546,9 @@ export async function getPublicShopItem(slug: string) {
   const data = { ...(doc.data() as ShopItem) };
   if (!data.published) throw new ApiError(404, "Product or course not found.");
   delete data.fileUrl;
+  if (data.previewVideoUrl) {
+    data.previewVideoUrl = signBunnyEmbedUrl(data.previewVideoUrl);
+  }
   if (data.type === "course" && Array.isArray(data.curriculum)) {
     data.curriculum = sanitizeCurriculumForStudent(data.curriculum, true);
   }
@@ -1565,8 +1595,23 @@ async function saveShopItem(user: AcademyUser, item: unknown) {
     ? db().collection("shopItems").doc(value.id)
     : db().collection("shopItems").doc();
   const existing = value.id ? (await ref.get()).data() : null;
+  const cleanedPreviewVideoUrl = value.previewVideoUrl
+    ? cleanBunnyUrl(value.previewVideoUrl)
+    : "";
+  const cleanedCurriculum = Array.isArray(value.curriculum)
+    ? value.curriculum.map((m) => ({
+        ...m,
+        lessons: (m.lessons || []).map((l) => ({
+          ...l,
+          videoUrl: l.videoUrl ? cleanBunnyUrl(l.videoUrl) : "",
+        })),
+      }))
+    : value.curriculum;
+
   const record = clean({
     ...value,
+    previewVideoUrl: cleanedPreviewVideoUrl,
+    curriculum: cleanedCurriculum,
     id: ref.id,
     includedInPremium:
       value.type === "course" ? Boolean(value.includedInPremium) : false,
@@ -1725,8 +1770,21 @@ async function getStudentLibrary(user: AcademyUser) {
 }
 
 async function getShopCourse(user: AcademyUser, courseId: string) {
-  const courseDoc = await db().collection("shopItems").doc(courseId).get();
-  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
+  let courseDoc = await db().collection("shopItems").doc(courseId).get();
+  let resolvedCourseId = courseId;
+  if (!courseDoc.exists) {
+    const slugSnap = await db()
+      .collection("shopItems")
+      .where("slug", "==", courseId)
+      .limit(1)
+      .get();
+    if (!slugSnap.empty) {
+      courseDoc = slugSnap.docs[0];
+      resolvedCourseId = courseDoc.id;
+    } else {
+      throw new ApiError(404, "Course not found.");
+    }
+  }
   const courseData = courseDoc.data() as ShopItem;
   if (courseData.type !== "course")
     throw new ApiError(400, "This item is not a course.");
@@ -1738,7 +1796,7 @@ async function getShopCourse(user: AcademyUser, courseId: string) {
   if (!isStaff && !isIncludedWithPremium) {
     const purchase = await db()
       .collection("shopPurchases")
-      .doc(`${user.id}_${courseId}`)
+      .doc(`${user.id}_${resolvedCourseId}`)
       .get();
     if (!purchase.exists) {
       throw new ApiError(
@@ -1750,15 +1808,16 @@ async function getShopCourse(user: AcademyUser, courseId: string) {
 
   const progressDoc = await db()
     .collection("shopCourseProgress")
-    .doc(`${user.id}_${courseId}`)
+    .doc(`${user.id}_${resolvedCourseId}`)
     .get();
 
   const sanitizedCourse: ShopItem = {
     ...courseData,
-    id: courseDoc.id || courseId,
-    curriculum: isStaff
-      ? courseData.curriculum
-      : sanitizeCurriculumForStudent(courseData.curriculum, false),
+    id: courseDoc.id || resolvedCourseId,
+    previewVideoUrl: courseData.previewVideoUrl
+      ? signBunnyEmbedUrl(courseData.previewVideoUrl)
+      : "",
+    curriculum: sanitizeCurriculumForStudent(courseData.curriculum, false),
   };
 
   return {
@@ -1771,11 +1830,24 @@ async function getShopCourse(user: AcademyUser, courseId: string) {
 
 async function updateShopProgress(user: AcademyUser, p: Payload) {
   const input = s.shopProgressUpdateSchema.parse(p);
-  const courseDoc = await db()
+  let courseDoc = await db()
     .collection("shopItems")
     .doc(input.courseId)
     .get();
-  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
+  let resolvedCourseId = input.courseId;
+  if (!courseDoc.exists) {
+    const slugSnap = await db()
+      .collection("shopItems")
+      .where("slug", "==", input.courseId)
+      .limit(1)
+      .get();
+    if (!slugSnap.empty) {
+      courseDoc = slugSnap.docs[0];
+      resolvedCourseId = courseDoc.id;
+    } else {
+      throw new ApiError(404, "Course not found.");
+    }
+  }
   const course = courseDoc.data() as ShopItem;
 
   const isStaff = user.role === "Admin" || user.role === "Instructor";
@@ -1785,7 +1857,7 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
   if (!isStaff && !isIncludedWithPremium) {
     const purchase = await db()
       .collection("shopPurchases")
-      .doc(`${user.id}_${input.courseId}`)
+      .doc(`${user.id}_${resolvedCourseId}`)
       .get();
     if (!purchase.exists) {
       throw new ApiError(403, "You have not purchased this course.");
@@ -1794,7 +1866,7 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
 
   const progRef = db()
     .collection("shopCourseProgress")
-    .doc(`${user.id}_${input.courseId}`);
+    .doc(`${user.id}_${resolvedCourseId}`);
   const currentSnap = await progRef.get();
   const currentProg = currentSnap.data() as ShopCourseProgress | undefined;
 
@@ -1979,11 +2051,24 @@ function gradeSingleQuestion(
 
 async function submitShopCourseQuiz(user: AcademyUser, p: Payload) {
   const input = s.shopQuizSubmitSchema.parse(p);
-  const courseDoc = await db()
+  let courseDoc = await db()
     .collection("shopItems")
     .doc(input.courseId)
     .get();
-  if (!courseDoc.exists) throw new ApiError(404, "Course not found.");
+  let resolvedCourseId = input.courseId;
+  if (!courseDoc.exists) {
+    const slugSnap = await db()
+      .collection("shopItems")
+      .where("slug", "==", input.courseId)
+      .limit(1)
+      .get();
+    if (!slugSnap.empty) {
+      courseDoc = slugSnap.docs[0];
+      resolvedCourseId = courseDoc.id;
+    } else {
+      throw new ApiError(404, "Course not found.");
+    }
+  }
   const course = courseDoc.data() as ShopItem;
 
   const isStaff = user.role === "Admin" || user.role === "Instructor";
@@ -1993,7 +2078,7 @@ async function submitShopCourseQuiz(user: AcademyUser, p: Payload) {
   if (!isStaff && !isIncludedWithPremium) {
     const purchase = await db()
       .collection("shopPurchases")
-      .doc(`${user.id}_${input.courseId}`)
+      .doc(`${user.id}_${resolvedCourseId}`)
       .get();
     if (!purchase.exists) {
       throw new ApiError(403, "You have not purchased this course.");
@@ -2014,7 +2099,7 @@ async function submitShopCourseQuiz(user: AcademyUser, p: Payload) {
 
   const progRef = db()
     .collection("shopCourseProgress")
-    .doc(`${user.id}_${input.courseId}`);
+    .doc(`${user.id}_${resolvedCourseId}`);
   const currentSnap = await progRef.get();
   const currentProg = currentSnap.data() as ShopCourseProgress | undefined;
 

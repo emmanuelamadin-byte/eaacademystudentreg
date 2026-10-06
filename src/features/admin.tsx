@@ -876,6 +876,7 @@ function UsersPanel() {
           key={selected.id}
           user={selected}
           close={() => setSelected(null)}
+          onUpdated={() => void records.reload()}
         />
       )}
       <section className="card table-wrap">
@@ -901,7 +902,11 @@ function UsersPanel() {
                 <td>
                   {user.premiumGranted
                     ? "Granted Premium"
-                    : user.membershipPlan}
+                    : user.membershipPlan === "Premium" ||
+                        (!!user.premiumUntil &&
+                          Date.parse(user.premiumUntil) > Date.now())
+                      ? "Active Premium"
+                      : "Free"}
                 </td>
                 <td>
                   {user.role === "Admin" ? (
@@ -950,12 +955,26 @@ function UsersPanel() {
   );
 }
 
-function UserEditor({ user, close }: { user: AcademyUser; close: () => void }) {
+function UserEditor({
+  user,
+  close,
+  onUpdated,
+}: {
+  user: AcademyUser;
+  close: () => void;
+  onUpdated?: () => void;
+}) {
   const [role, setRole] = useState<"Student" | "Instructor">(
     user.role === "Instructor" ? "Instructor" : "Student",
   );
-  const [track, setTrack] = useState(user.enrolledClassId);
-  const [premium, setPremium] = useState(user.premiumGranted ?? false);
+  const [track, setTrack] = useState<CareerPathClassId>(
+    (user.enrolledClassId as CareerPathClassId) || "system-dev",
+  );
+  const [premium, setPremium] = useState(
+    user.premiumGranted === true ||
+      user.membershipPlan === "Premium" ||
+      (!!user.premiumUntil && Date.parse(user.premiumUntil) > Date.now()),
+  );
   const [scopes, setScopes] = useState<CareerPathClassId[]>(
     user.instructorTrackIds ?? [],
   );
@@ -972,15 +991,16 @@ function UserEditor({ user, close }: { user: AcademyUser; close: () => void }) {
         className="workspace-form"
         onSubmit={(event) => {
           event.preventDefault();
-          void action.run(() =>
-            api("users.update", {
+          void action.run(async () => {
+            await api("users.update", {
               id: user.id,
               role,
               enrolledClassId: track,
               premiumGranted: premium,
               instructorTrackIds: role === "Instructor" ? scopes : [],
-            }),
-          );
+            });
+            onUpdated?.();
+          });
         }}
       >
         <div className="grid-2">

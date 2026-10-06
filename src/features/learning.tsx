@@ -366,7 +366,11 @@ function Dashboard() {
           <div className="dashboard-shop-grid">
             {shopItems.data.slice(0, 3).map((item) => {
               const isCourse = item.type === "course";
-              const isOwned = myPurchases.data.some((p) => p.itemId === item.id);
+              const isIncludedWithPremium =
+                isCourse && item.includedInPremium === true && isPremium(user);
+              const isOwned =
+                myPurchases.data.some((p) => p.itemId === item.id) ||
+                isIncludedWithPremium;
               return (
                 <article key={item.id} className="dashboard-shop-card">
                   <Link
@@ -412,9 +416,25 @@ function Dashboard() {
                     <p className="dashboard-shop-card-sub">{item.subtitle}</p>
                     <div className="dashboard-shop-card-footer">
                       <div className="dashboard-shop-card-price">
-                        <strong>₦{item.price.toLocaleString("en-NG")}</strong>
-                        {item.compareAtPrice && item.compareAtPrice > item.price && (
-                          <small>₦{item.compareAtPrice.toLocaleString("en-NG")}</small>
+                        {isIncludedWithPremium ? (
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <strong style={{ color: "#059669", fontSize: "0.95rem" }}>
+                              Included with Premium
+                            </strong>
+                            <span style={{ fontSize: "11px", color: "var(--muted, #64748b)" }}>
+                              <span style={{ textDecoration: "line-through" }}>
+                                ₦{item.price.toLocaleString("en-NG")}
+                              </span>{" "}
+                              · Full Access
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <strong>₦{item.price.toLocaleString("en-NG")}</strong>
+                            {item.compareAtPrice && item.compareAtPrice > item.price && (
+                              <small>₦{item.compareAtPrice.toLocaleString("en-NG")}</small>
+                            )}
+                          </>
                         )}
                       </div>
                       {isOwned ? (
@@ -423,6 +443,16 @@ function Dashboard() {
                           scroll={true}
                           onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
                           className="btn btn-secondary btn-small"
+                          style={
+                            isIncludedWithPremium
+                              ? {
+                                  background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                                  color: "#ffffff",
+                                  border: "none",
+                                  fontWeight: 600,
+                                }
+                              : undefined
+                          }
                         >
                           {isCourse ? "Open classroom" : "Download"}
                         </Link>

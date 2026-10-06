@@ -631,6 +631,53 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                   <span className="shop-instructor-role">Curated by Emmanuel Amadin</span>
                 </div>
               </div>
+
+              {hasFreePremiumAccess && (
+                <div
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(5, 150, 105, 0.08) 100%)",
+                    border: "1.5px solid rgba(16, 185, 129, 0.35)",
+                    borderRadius: "14px",
+                    padding: "0.85rem 1.15rem",
+                    marginTop: "1.25rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "0.75rem",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                    <Crown size={20} style={{ color: "#059669", flexShrink: 0 }} />
+                    <div>
+                      <strong style={{ color: "#065f46", fontSize: "0.95rem", display: "block" }}>
+                        Included with your Premium Membership
+                      </strong>
+                      <span style={{ color: "#047857", fontSize: "0.85rem" }}>
+                        You have full unlocked access to all classroom lessons & certificate.
+                      </span>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/app/learn-course/${item.id}`}
+                    className="btn btn-primary btn-small"
+                    style={{
+                      background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                      color: "#ffffff",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                      gap: "0.4rem",
+                      padding: "0.55rem 1rem",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <PlayCircle size={16} />
+                    Open Classroom
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Trailer preview on mobile if present */}
@@ -737,39 +784,66 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                               <p className="shop-module-desc">{mod.description}</p>
                             )}
                             <div className="shop-lesson-list">
-                              {(mod.lessons || []).map((lesson, lesIdx) => (
-                                <div key={lesson.id} className="shop-lesson-row">
-                                  <div className="shop-lesson-row-left">
-                                    <span className="shop-lesson-idx">
-                                      {lesIdx + 1}
-                                    </span>
-                                    {lesson.isFreePreview ? (
-                                      <PlayCircle size={16} className="lesson-icon-preview" />
-                                    ) : (
-                                      <Lock size={15} className="lesson-icon-lock" />
-                                    )}
-                                    <span className="shop-lesson-title">
-                                      {lesson.title}
-                                    </span>
-                                  </div>
-                                  <div className="shop-lesson-row-right">
-                                    {lesson.isFreePreview && lesson.videoUrl && (
-                                      <button
-                                        type="button"
-                                        className="shop-preview-btn"
-                                        onClick={() => setPreviewLesson(lesson)}
-                                      >
-                                        Free Preview
-                                      </button>
-                                    )}
-                                    {lesson.duration && (
-                                      <span className="shop-lesson-duration">
-                                        {lesson.duration}
+                              {(mod.lessons || []).map((lesson, lesIdx) => {
+                                const isUnlocked =
+                                  hasFreePremiumAccess ||
+                                  lesson.isFreePreview ||
+                                  user?.role === "Admin";
+                                return (
+                                  <div key={lesson.id} className="shop-lesson-row">
+                                    <div className="shop-lesson-row-left">
+                                      <span className="shop-lesson-idx">
+                                        {lesIdx + 1}
                                       </span>
-                                    )}
+                                      {isUnlocked ? (
+                                        <PlayCircle
+                                          size={16}
+                                          className="lesson-icon-preview"
+                                          style={
+                                            hasFreePremiumAccess
+                                              ? { color: "#059669" }
+                                              : undefined
+                                          }
+                                        />
+                                      ) : (
+                                        <Lock size={15} className="lesson-icon-lock" />
+                                      )}
+                                      <span className="shop-lesson-title">
+                                        {lesson.title}
+                                      </span>
+                                    </div>
+                                    <div className="shop-lesson-row-right">
+                                      {hasFreePremiumAccess ? (
+                                        <Link
+                                          href={`/app/learn-course/${item.id}`}
+                                          className="shop-preview-btn"
+                                          style={{
+                                            textDecoration: "none",
+                                            color: "#059669",
+                                            borderColor: "rgba(16, 185, 129, 0.4)",
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          Start Lesson
+                                        </Link>
+                                      ) : lesson.isFreePreview && lesson.videoUrl ? (
+                                        <button
+                                          type="button"
+                                          className="shop-preview-btn"
+                                          onClick={() => setPreviewLesson(lesson)}
+                                        >
+                                          Free Preview
+                                        </button>
+                                      ) : null}
+                                      {lesson.duration && (
+                                        <span className="shop-lesson-duration">
+                                          {lesson.duration}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
