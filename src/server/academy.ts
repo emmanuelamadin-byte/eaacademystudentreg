@@ -1899,7 +1899,7 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
       id: certificateId,
       studentId: user.id,
       studentName: user.name,
-      courseId: input.courseId,
+      courseId: resolvedCourseId,
       courseTitle: course.title,
       issuedAt: now(),
       verificationCode: `EACERT-${certificateId.slice(0, 8).toUpperCase()}`,
@@ -1907,9 +1907,9 @@ async function updateShopProgress(user: AcademyUser, p: Payload) {
   }
 
   const updated: ShopCourseProgress = {
-    id: `${user.id}_${input.courseId}`,
+    id: `${user.id}_${resolvedCourseId}`,
     studentId: user.id,
-    courseId: input.courseId,
+    courseId: resolvedCourseId,
     completedLessonIds: completedIds,
     lastLessonId: input.lessonId,
     completed: evaluation.eligibleForCertificate,
@@ -2202,7 +2202,7 @@ async function submitShopCourseQuiz(user: AcademyUser, p: Payload) {
       id: certificateId,
       studentId: user.id,
       studentName: user.name,
-      courseId: input.courseId,
+      courseId: resolvedCourseId,
       courseTitle: course.title,
       issuedAt: now(),
       verificationCode: `EACERT-${certificateId.slice(0, 8).toUpperCase()}`,
@@ -2210,9 +2210,9 @@ async function submitShopCourseQuiz(user: AcademyUser, p: Payload) {
   }
 
   const updated: ShopCourseProgress = {
-    id: `${user.id}_${input.courseId}`,
+    id: `${user.id}_${resolvedCourseId}`,
     studentId: user.id,
-    courseId: input.courseId,
+    courseId: resolvedCourseId,
     completedLessonIds: completedIds,
     lastLessonId:
       currentProg?.lastLessonId ||
