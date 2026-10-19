@@ -493,7 +493,7 @@ export const TRACKS = [
     icon: "chart",
   },
 ];
-export const PREMIUM_PRICE = 3000;
+export const PREMIUM_PRICE = 10000;
 export function isPremium(user: AcademyUser | null) {
   return (
     !!user &&

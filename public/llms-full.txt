@@ -77,7 +77,7 @@ EA Academy believes financial constraints should never prevent a motivated stude
 
 | Feature | Free Tier | Premium All-Access |
 | :--- | :--- | :--- |
-| **Cost** | ₦0 / Free Forever | ₦3,000 / month (~$2 USD) |
+| **Cost** | ₦0 / Free Forever | ₦10,000 / month (~$6 USD) |
 | **Track Access** | Primary Track Starter Modules | Full Access to All 3 Tracks |
 | **Assignments** | Starter Exercises | Full Capstone & Advanced Submissions |
 | **Selected Courses**| Free Track Modules | Access to EA Academy Selected Courses |

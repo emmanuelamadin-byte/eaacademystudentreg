@@ -29,6 +29,7 @@ import { api } from "@/lib/api";
 import { getVideoEmbed } from "@/lib/video";
 import { type ShopItem, type ShopCourseLesson, isPremium } from "@/lib/types";
 import { trackTikTokEvent } from "@/lib/tiktok";
+import { ViewerWatermark } from "@/components/viewer-watermark";
 
 export function ShopCatalogPage() {
   const [items, setItems] = useState<ShopItem[]>([]);
@@ -1100,7 +1101,7 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                           lineHeight: 1.45,
                         }}
                       >
-                        Join EA Academy Premium for <strong>₦3,000/mo</strong> and get this complete course, verified certificates, mentor code reviews & all tracks at no extra cost.
+                        Join EA Academy Premium for <strong>₦10,000/mo</strong> and get this complete course, verified certificates, mentor code reviews & all tracks at no extra cost.
                       </p>
 
                       <Link
@@ -1122,7 +1123,7 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                         }}
                       >
                         <Crown size={17} />
-                        Get Free with Premium (₦3,000/mo)
+                        Get Free with Premium (₦10,000/mo)
                         <ArrowRight size={16} />
                       </Link>
                     </div>
@@ -1330,7 +1331,7 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                 </button>
               </div>
 
-              <div className="shop-preview-modal-video">
+              <div className="shop-preview-modal-video" style={{ position: "relative", overflow: "hidden" }}>
                 {previewLessonEmbed?.embedUrl ? (
                   previewLessonEmbed.isDirectVideo ? (
                     <video
@@ -1350,6 +1351,9 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
                   )
                 ) : (
                   <div className="shop-no-video">Video preview unavailable.</div>
+                )}
+                {user && (
+                  <ViewerWatermark name={user.name || user.email} />
                 )}
               </div>
 

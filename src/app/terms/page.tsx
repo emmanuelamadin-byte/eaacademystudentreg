@@ -28,7 +28,7 @@ export default function Page() {
         <h2>Free and Premium access</h2>
         <p>
           Free includes published introductory modules, starter assignments,
-          limited AI tutoring, and community access. Premium costs ₦3,000 per month and unlocks
+          limited AI tutoring, and community access. Premium costs ₦10,000 per month and unlocks
           published content across all three tracks, instructor reviews, AI
           assistance, and live mentor sessions as they become available. Check
           the <Link href="/tracks">published curriculum</Link> before

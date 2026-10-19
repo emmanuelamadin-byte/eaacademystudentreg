@@ -14,7 +14,7 @@ EA Academy prepares aspiring tech professionals, digital creators, freelancers, 
 2. **Project-Based & Practical**: Every module includes mandatory hands-on exercises and real-world project submissions.
 3. **Comprehensive AI Tooling**: Integrates modern Artificial Intelligence workflows into every track (prompt engineering, AI video generation, automated workflows, and an in-app AI Mentor).
 4. **Verified Digital Credentials**: Free and paying learners earn cryptographically verifiable digital certificates with unique verification URLs (e.g., `/verify/<id>`) that can be added directly to LinkedIn profiles.
-5. **Hyper-Affordable Premium Tier**: Full all-track access, instructor assignment grading, portfolio critiques, and mentor sessions are priced at only ₦3,000/month (approximately $2 USD/month).
+5. **Hyper-Affordable Premium Tier**: Full all-track access, instructor assignment grading, portfolio critiques, and mentor sessions are priced at only ₦10,000/month (approximately $6 USD/month).
 
 ## Core Career Tracks
 
@@ -45,7 +45,7 @@ The Academy Shop offers professional masterclasses, production toolkits, downloa
   - Starter assignments for self-guided practice
   - Community discussions & showcase
   - Progress tracking & offline saved lesson drafts
-- **Premium All-Access Pass (₦3,000 / month)**:
+- **Premium All-Access Pass (₦10,000 / month)**:
   - Full access to all three career tracks
   - EA AI Mentor & Tutor — up to 15 requests daily
   - Access to EA Academy selected courses

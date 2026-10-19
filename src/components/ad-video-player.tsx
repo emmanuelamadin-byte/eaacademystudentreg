@@ -19,6 +19,7 @@ import {
   isKnownVideoUrl,
 } from "@/lib/video";
 import type { VideoAd } from "@/lib/types";
+import { ViewerWatermark } from "./viewer-watermark";
 
 interface AdVideoPlayerProps {
   videoUrl: string;
@@ -372,6 +373,11 @@ export function AdVideoPlayer({
           <Play size={44} />
           <p>No video attached to this lesson.</p>
         </div>
+      )}
+
+      {/* Non-intrusive viewer watermark overlay (Screen recording deterrence) */}
+      {adPhase === "done" && user && (
+        <ViewerWatermark name={user.name || user.email} />
       )}
 
       {/* Ready-to-Play Gate: Ensures each video only starts its ad when the user clicks to watch it */}

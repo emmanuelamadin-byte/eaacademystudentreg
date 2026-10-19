@@ -59,11 +59,11 @@ export function OrganizationSchema() {
           name: "Premium All-Access Pass",
           description:
             "Full access to all career tracks, unlimited lesson videos, instructor code and portfolio reviews, AI mentor tutor, and verified digital certificates.",
-          price: "3000",
+          price: "10000",
           priceCurrency: "NGN",
           priceSpecification: {
             "@type": "UnitPriceSpecification",
-            price: "3000",
+            price: "10000",
             priceCurrency: "NGN",
             unitText: "MONTH",
           },
@@ -142,7 +142,7 @@ export function CourseListSchema() {
         {
           "@type": "Offer",
           category: "Premium Full Access",
-          price: "3000",
+          price: "10000",
           priceCurrency: "NGN",
         },
       ],

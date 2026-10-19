@@ -62,7 +62,17 @@ import {
 } from "./communications";
 import { savePushToken, removePushToken } from "./push";
 import { sendTikTokServerEvent } from "./tiktok";
-import { signBunnyEmbedUrl, cleanBunnyUrl } from "./bunny";
+import {
+  signBunnyEmbedUrl,
+  cleanBunnyUrl,
+  createBunnyVideo,
+  fetchBunnyVideo,
+  getBunnyDirectUploadSignature,
+  getBunnyVideo,
+  listBunnyVideos,
+  deleteBunnyVideo,
+  getBunnyConfig,
+} from "./bunny";
 import {
   getCountries,
   isValidPhoneNumber,
@@ -1373,6 +1383,93 @@ export async function dispatch(
       return serveLessonAd(user, p);
     case "ad.click":
       return recordAdClick(user, parsedId(p));
+    case "bunny.config": {
+      if (user.role !== "Admin" && user.role !== "Instructor") {
+        throw new ApiError(403, "Instructor or Admin access required.");
+      }
+      const conf = getBunnyConfig();
+      return {
+        configured: conf.isConfigured,
+        libraryId: conf.libraryId || null,
+        hasApiKey: Boolean(conf.apiKey),
+        hasTokenKey: Boolean(conf.tokenKey),
+        hasWebhookSecret: Boolean(conf.webhookSecret),
+        cdnHostname: conf.cdnHostname || null,
+      };
+    }
+    case "bunny.create": {
+      if (user.role !== "Admin" && user.role !== "Instructor") {
+        throw new ApiError(403, "Instructor or Admin access required.");
+      }
+      const input = z
+        .object({
+          title: z.string().trim().min(1).max(200),
+          collectionId: z.string().trim().optional(),
+        })
+        .parse(p);
+      const created = await createBunnyVideo(input.title, {
+        collectionId: input.collectionId,
+      });
+      const directUpload = getBunnyDirectUploadSignature(
+        created.videoId,
+        created.libraryId,
+      );
+      return { ...created, directUpload };
+    }
+    case "bunny.fetch": {
+      if (user.role !== "Admin" && user.role !== "Instructor") {
+        throw new ApiError(403, "Instructor or Admin access required.");
+      }
+      const input = z
+        .object({
+          url: z.string().url(),
+          title: z.string().trim().min(1).max(200),
+          collectionId: z.string().trim().optional(),
+        })
+        .parse(p);
+      return fetchBunnyVideo(input.url, input.title, {
+        collectionId: input.collectionId,
+      });
+    }
+    case "bunny.status": {
+      if (user.role !== "Admin" && user.role !== "Instructor") {
+        throw new ApiError(403, "Instructor or Admin access required.");
+      }
+      const input = z
+        .object({
+          videoId: z.string().trim().min(1),
+          libraryId: z.string().trim().optional(),
+        })
+        .parse(p);
+      return getBunnyVideo(input.videoId, input.libraryId);
+    }
+    case "bunny.list": {
+      if (user.role !== "Admin" && user.role !== "Instructor") {
+        throw new ApiError(403, "Instructor or Admin access required.");
+      }
+      const input = z
+        .object({
+          page: z.number().int().positive().optional(),
+          perPage: z.number().int().positive().max(100).optional(),
+          search: z.string().trim().optional(),
+          collection: z.string().trim().optional(),
+        })
+        .passthrough()
+        .parse(p);
+      return listBunnyVideos(input);
+    }
+    case "bunny.delete": {
+      if (user.role !== "Admin" && user.role !== "Instructor") {
+        throw new ApiError(403, "Instructor or Admin access required.");
+      }
+      const input = z
+        .object({
+          videoId: z.string().trim().min(1),
+          libraryId: z.string().trim().optional(),
+        })
+        .parse(p);
+      return deleteBunnyVideo(input.videoId, input.libraryId);
+    }
     default:
       throw new ApiError(400, "Unknown academy action.");
   }
@@ -2407,7 +2504,7 @@ export const HOUSE_AD: VideoAd = {
   id: "house-premium",
   title: "Unlock 1-on-1 Mentorship & Ad-Free Learning",
   subtitle:
-    "Join EA Academy Premium for ₦3,000/mo. Get unlimited instructor reviews, certificates, and zero interruptions.",
+    "Join EA Academy Premium for ₦10,000/mo. Get unlimited instructor reviews, certificates, and zero interruptions.",
   mediaType: "banner",
   mediaUrl:
     "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=80",

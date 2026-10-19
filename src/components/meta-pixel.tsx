@@ -57,7 +57,7 @@ export function MetaPixel() {
       if (wasSeenAsFree && !hasPremiumBeenTrackedInBrowser(user.id)) {
         trackMetaEvent("Purchase", {
           event_id: `purchase_premium_${user.id}`,
-          value: 3000,
+          value: 10000,
           currency: "NGN",
           content_id: "ea-academy-premium",
           content_type: "product",

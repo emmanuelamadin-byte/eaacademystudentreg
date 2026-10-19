@@ -61,6 +61,7 @@ import type { StreakSummary } from "@/lib/streaks";
 import { isBirthdayToday } from "@/lib/birthdays";
 import Assignments from "./learning/assignments";
 import { queueAction, readQueue } from "./learning/offline";
+import { BunnyStreamModal } from "./bunny-stream-modal";
 import "./learning/learning.css";
 export { LearningSync } from "./learning/offline";
 import { safeResourceUrl } from "@/lib/urls";
@@ -595,7 +596,7 @@ function Dashboard() {
                 <br />
                 One membership.
               </h3>
-              <p>Unlock the full academy for ₦3,000 per month.</p>
+              <p>Unlock the full academy for ₦10,000 per month.</p>
               <Link href="/app/billing" className="btn btn-light btn-small">
                 Explore Premium <ArrowRight size={15} />
               </Link>
@@ -813,6 +814,7 @@ function Classroom() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [bunnyModalOpen, setBunnyModalOpen] = useState(false);
   const refreshFeed = useCallback(async () => {
     if (!user) return;
     try {
@@ -1016,8 +1018,33 @@ function Classroom() {
                 placeholder="Example: Introduction to website design"
               />
             </label>
-            <label>
-              Video link or embed code (YouTube, Vimeo, Loom, Drive, Bunny, direct MP4, or &lt;iframe&gt;)
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "0.35rem",
+                }}
+              >
+                <label style={{ margin: 0, fontWeight: 600 }}>
+                  Video link or embed code (YouTube, Vimeo, Loom, Drive, Bunny, direct MP4, or &lt;iframe&gt;)
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setBunnyModalOpen(true)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    fontSize: "0.78rem",
+                    padding: "0.2rem 0.55rem",
+                  }}
+                >
+                  🐰 Bunny Stream Hub
+                </button>
+              </div>
               <input
                 required
                 type="text"
@@ -1027,7 +1054,7 @@ function Classroom() {
                 }
                 placeholder="https://youtube.com/..., Vimeo, Loom, or paste <iframe> embed code"
               />
-            </label>
+            </div>
             <div className="grid-2">
               <label>
                 Duration
@@ -1096,6 +1123,21 @@ function Classroom() {
               {busy ? "Posting class…" : "Post class now"}
             </button>
           </form>
+          {bunnyModalOpen && (
+            <BunnyStreamModal
+              isOpen={bunnyModalOpen}
+              onClose={() => setBunnyModalOpen(false)}
+              initialTitle={draft.title || "Classroom Video"}
+              onSelectVideo={({ embedUrl, durationFormatted }) => {
+                setDraft((prev) => ({
+                  ...prev,
+                  videoUrl: embedUrl,
+                  duration: durationFormatted || prev.duration || "45 minutes",
+                }));
+                setBunnyModalOpen(false);
+              }}
+            />
+          )}
         </section>
       )}
       {(lessonIndex.error || classLessonsError || progress.error) && (

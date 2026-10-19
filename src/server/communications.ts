@@ -592,7 +592,7 @@ async function sendEmail(delivery: Delivery) {
         </tr>
         <tr>
           <td style="padding:5px 0;color:#64748b">Renewal Rate:</td>
-          <td style="padding:5px 0;text-align:right;font-weight:600;color:#334155">₦3,000 / 30 days</td>
+          <td style="padding:5px 0;text-align:right;font-weight:600;color:#334155">₦10,000 / 30 days</td>
         </tr>
       </table>
     </div>
@@ -679,7 +679,7 @@ async function sendEmail(delivery: Delivery) {
     const vars = delivery.template_variables || {};
     const itemType = vars.itemType || "course";
     const itemTitle = vars.itemTitle || "EA Academy Course";
-    const amountFormatted = vars.amountFormatted || "₦3,000";
+    const amountFormatted = vars.amountFormatted || "₦10,000";
     const whatsappUrl = vars.whatsappGroupUrl || DEFAULT_WHATSAPP_GROUP_URL;
     const ctaLabel =
       vars.ctaLabel ||
@@ -1655,7 +1655,7 @@ Here is your Day 1 Game Plan (takes 5 minutes):
 4. Say hello in the Cohort Lounge:
    Introduce yourself inside the Academy workspace and see what other students are building: ${communityUrl}
 
-Whenever you're ready to unlock all modules across all 3 Career Tracks, Live Group Mentor Sessions, Instructor Assignment Reviews, Selected Academy Courses, and your Verified Learning Transcript, you can upgrade to EA Academy Premium for just ₦3,000/month: ${billingUrl}
+Whenever you're ready to unlock all modules across all 3 Career Tracks, Live Group Mentor Sessions, Instructor Assignment Reviews, Selected Academy Courses, and your Verified Learning Transcript, you can upgrade to EA Academy Premium for just ₦10,000/month: ${billingUrl}
 
 We are rooting for your success every step of the way!
 
@@ -1737,7 +1737,7 @@ ${appUrl}`;
     <p style="margin:0 0 4px;font-weight:600;color:#002751">Rooting for your success,</p>
     <p style="margin:0 0 12px;color:#334155"><strong>Emmanuel Amadin</strong> &amp; The EA Academy Team</p>
     <p style="margin:0;font-size:12px;color:#94a3b8">
-      Ready for full access to all 3 Career Tracks, Live Mentor Sessions, and Instructor Reviews? <a href="${escapeHtml(billingUrl)}" style="color:#0284c7;text-decoration:none">Explore EA Academy Premium (₦3,000/mo)</a>.
+      Ready for full access to all 3 Career Tracks, Live Mentor Sessions, and Instructor Reviews? <a href="${escapeHtml(billingUrl)}" style="color:#0284c7;text-decoration:none">Explore EA Academy Premium (₦10,000/mo)</a>.
     </p>
   </div>
 </div>`;
@@ -1818,9 +1818,9 @@ export function buildStudentNurtureSequence(info: {
     {
       stage: "day7",
       daysOffset: 7,
-      subject: `Unlock all EA Academy tracks & selected courses for ₦100/day 🔓`,
-      message: `Hi ${firstName},\n\nHappy 1-week anniversary at EA Academy! 🎉\n\nIf you've enjoyed your starter lessons and our supportive WhatsApp community, imagine how fast you'll grow when you remove every limit on your account.\n\nEA Academy Premium is just ₦3,000/month — that works out to ₦100 a day (less than a bottle of soda or a short bus ride).\n\nHere is what your ₦3,000/month All-Access Pass unlocks immediately:\n• Every module and lesson across all 3 Career Tracks\n• Free access to EA Academy Selected Courses in the Shop\n• Live Group Mentor Sessions & full session recordings\n• Direct Instructor Reviews on your assignments + 1 Monthly Portfolio Critique\n• Ad-Free Classroom experience & your Verified Learning Record\n\nInvest in your next chapter today and unlock the full EA Academy experience.`,
-      ctaLabel: "Upgrade to Premium (₦3,000/mo) →",
+      subject: `Unlock all EA Academy tracks & selected courses for ~₦330/day 🔓`,
+      message: `Hi ${firstName},\n\nHappy 1-week anniversary at EA Academy! 🎉\n\nIf you've enjoyed your starter lessons and our supportive WhatsApp community, imagine how fast you'll grow when you remove every limit on your account.\n\nEA Academy Premium is just ₦10,000/month — that works out to about ₦330 a day.\n\nHere is what your ₦10,000/month All-Access Pass unlocks immediately:\n• Every module and lesson across all 3 Career Tracks\n• Free access to EA Academy Selected Courses in the Shop\n• Live Group Mentor Sessions & full session recordings\n• Direct Instructor Reviews on your assignments + 1 Monthly Portfolio Critique\n• Ad-Free Classroom experience & your Verified Learning Record\n\nInvest in your next chapter today and unlock the full EA Academy experience.`,
+      ctaLabel: "Upgrade to Premium (₦10,000/mo) →",
       ctaPath: "/app/billing",
     },
     {

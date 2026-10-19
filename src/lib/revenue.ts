@@ -466,7 +466,7 @@ export function summarizeRevenueAnalytics(input: {
   const products = shopItems.filter((i) => i.type === "digital_product");
 
   const scholarshipGoal = Number(settings?.scholarshipGoal || 0);
-  const scholarshipCost = Number(settings?.scholarshipCost || 3000);
+  const scholarshipCost = Number(settings?.scholarshipCost || 10000);
   const donationAllTime = streams.donation.allTimeRevenue;
 
   return {

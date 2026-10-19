@@ -1,6 +1,6 @@
 # EA Academy implementation plan
 
-Build every requested product area from an empty workspace using Next.js App Router, React, TypeScript, Tailwind, Supabase, Paystack, and Gemini. No seed users, invented results, or demo services. Curriculum is authored after setup. Premium is NGN 3,000 monthly. Only the verified owner email may become Admin; instructors are appointed by that owner. Student track choice is immutable. Ratings use 0–100; AI suggestions are advisory.
+Build every requested product area from an empty workspace using Next.js App Router, React, TypeScript, Tailwind, Supabase, Paystack, and Gemini. No seed users, invented results, or demo services. Curriculum is authored after setup. Premium is NGN 10,000 monthly. Only the verified owner email may become Admin; instructors are appointed by that owner. Student track choice is immutable. Ratings use 0–100; AI suggestions are advisory.
 
 ## Architecture and ownership
 - Root: scaffold, shared types, Supabase client/auth/hooks, shared styling, public site, authentication, application shell, billing, donations, PWA, integration validation and documentation.

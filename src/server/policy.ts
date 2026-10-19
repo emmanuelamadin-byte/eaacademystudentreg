@@ -60,7 +60,7 @@ export function initialRole(
     : ("Student" as const);
 }
 export function premiumAmountKobo() {
-  return 300000;
+  return 1000000;
 }
 export function utcMonthKey(at = new Date()) {
   return `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, "0")}`;

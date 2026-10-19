@@ -155,7 +155,7 @@ export async function checkout(user: AcademyUser, p: Record<string, unknown>) {
     )
       throw new ApiError(
         503,
-        "The Paystack plan must be ₦3,000, NGN, billed monthly.",
+        "The Paystack plan must be ₦10,000, NGN, billed monthly.",
       );
     if (user.subscriptionCode)
       throw new ApiError(

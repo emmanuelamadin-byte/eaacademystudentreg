@@ -151,7 +151,7 @@ describe("untrusted payload validation", () => {
     expect(lessonSchema.safeParse({ id: "x" }).success).toBe(false);
   });
   it("keeps Premium pricing server-owned and extends only once per payment at the persistence layer", () => {
-    expect(premiumAmountKobo()).toBe(300000);
+    expect(premiumAmountKobo()).toBe(1000000);
     expect(
       extendPremiumUntil(
         "2026-10-05T00:00:00.000Z",

@@ -556,7 +556,7 @@ export default function AdStudio() {
               }}
             >
               When no custom sponsor ads match a free learner, the system
-              automatically promotes your <strong>Premium Membership (₦3,000/mo)</strong>.
+              automatically promotes your <strong>Premium Membership (₦10,000/mo)</strong>.
             </div>
           </div>
         </div>
@@ -567,7 +567,7 @@ export default function AdStudio() {
               id: "house-premium",
               title: "Unlock 1-on-1 Mentorship & Ad-Free Learning",
               subtitle:
-                "Join EA Academy Premium for ₦3,000/mo. Get unlimited instructor reviews, certificates, and zero interruptions.",
+                "Join EA Academy Premium for ₦10,000/mo. Get unlimited instructor reviews, certificates, and zero interruptions.",
               mediaType: "banner",
               mediaUrl:
                 "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=80",

@@ -157,9 +157,9 @@ export function trackMetaEvent(
       "track",
       "Subscribe",
       {
-        value: typeof params.value === "number" ? params.value : 3000,
+        value: typeof params.value === "number" ? params.value : 10000,
         currency,
-        predicted_ltv: typeof params.value === "number" ? params.value : 3000,
+        predicted_ltv: typeof params.value === "number" ? params.value : 10000,
         content_name: params.content_name || "EA Academy Premium Membership",
         content_ids: ["ea-academy-premium"],
       },

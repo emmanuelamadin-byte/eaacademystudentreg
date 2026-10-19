@@ -34,7 +34,7 @@ The owner appoints instructors and their permitted tracks in People & permission
 ### Paystack
 
 - Set `PAYSTACK_SECRET_KEY` to the test key during verification, then the live key at launch.
-- Create a **monthly, NGN 3,000** plan in Paystack and set `PAYSTACK_MONTHLY_PLAN_CODE`. Paystack amounts are in kobo: **300000**.
+- Create a **monthly, NGN 10,000** plan in Paystack and set `PAYSTACK_MONTHLY_PLAN_CODE`. Paystack amounts are in kobo: **1000000**.
 - Set `NEXT_PUBLIC_APP_URL` to your actual HTTPS website origin for deployed checkout.
 - Configure the webhook as `https://YOUR-DOMAIN/api/paystack/webhook` for the matching test/live environment.
 - Recurring checkout uses cards. The separate one-month payment option supports cards and Paystack bank transfers where enabled on your account. Donations are one-time NGN payments.
@@ -54,6 +54,18 @@ Set `GEMINI_API_KEY` from Google AI Studio. Set `GEMINI_MODEL` to a model enable
 - Invoke `POST https://YOUR-DOMAIN/api/automation/messages` every five minutes with `Authorization: Bearer YOUR_AUTOMATION_SECRET`. The worker publishes scheduled in-app messages, queues birthday wishes during the 9:00 hour in each student's timezone, retries recoverable deliveries, and refuses duplicate birthday sends.
 - WhatsApp remains opt-in only. A stored phone number is not treated as consent. Students control email, birthday, and WhatsApp preferences from Account settings.
 - The private broadcast and delivery tables are inaccessible to browser roles. Only the authenticated Admin API and scheduled worker use the service role.
+
+### Bunny Stream Video Hosting & Webhooks
+
+The platform features full Bunny Stream integration with browser-direct uploads, remote URL ingestion, token-authenticated signed URLs, video library management, and automatic duration/metadata syncing via webhooks.
+
+1. **API Keys**: In your [Bunny.net Dashboard](https://bunny.net/), go to **Stream → Video Libraries → [Your Library] → API Access**. Copy the **API Access Key** into `BUNNY_STREAM_API_KEY` and your numeric Library ID into `BUNNY_STREAM_LIBRARY_ID`.
+2. **Token Security**: Under your Video Library's **Security** tab, enable **Token Authentication** and copy the security key into `BUNNY_STREAM_TOKEN_AUTH_KEY`. Embed URLs and playlists will automatically be signed with SHA256 token expirations to prevent unauthorized hotlinking.
+3. **Webhooks**: Under your Video Library's **Webhooks** tab:
+   - Webhook URL: `https://YOUR-DOMAIN/api/webhooks/bunny` (or `https://YOUR-DOMAIN/api/bunny/webhook`)
+   - Secret key: Set `BUNNY_STREAM_WEBHOOK_SECRET` in `.env.local` and configure Bunny to pass it as the header `X-Bunny-Secret: YOUR_SECRET` or query string `?secret=YOUR_SECRET`.
+   - When transcoding finishes (Status 4), the webhook automatically updates the matching lesson or course item's duration (e.g. `14:35`) and metadata in the database.
+4. **Direct Browser Uploads**: Instructors and admins can upload videos directly to Bunny Stream from the Course Studio and Classroom composer using the **Bunny Stream Hub**. Video binaries stream directly from the browser to Bunny via SHA256 upload signatures, bypassing serverless payload limits.
 
 ## Publish your curriculum
 

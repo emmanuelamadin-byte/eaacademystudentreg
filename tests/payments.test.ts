@@ -65,7 +65,7 @@ const user: AcademyUser = {
 const payment = {
   reference: "ea_payment",
   status: "success",
-  amount: 300000,
+  amount: 1000000,
   currency: "NGN",
   paid_at: "2026-09-05T12:00:00.000Z",
   customer: { customer_code: "CUS_student", email: user.email },
@@ -77,7 +77,7 @@ beforeEach(() => {
     studentId: user.id,
     email: user.email,
     kind: "premium",
-    amount: 300000,
+    amount: 1000000,
     currency: "NGN",
     recurring: false,
   });
@@ -140,7 +140,7 @@ describe("payment verification and ledger integrity", () => {
       studentId: user.id,
       email: user.email,
       kind: "donation",
-      amount: 300000,
+      amount: 1000000,
       currency: "NGN",
       anonymous: true,
       donorName: "Private donor name",
@@ -149,7 +149,7 @@ describe("payment verification and ledger integrity", () => {
     expect(state.documents.get("donations/ea_payment")).toMatchObject({
       anonymous: true,
       donorName: "Anonymous",
-      amount: 3000,
+      amount: 10000,
     });
     expect(state.documents.get("donations/ea_payment")).not.toHaveProperty(
       "email",
@@ -266,7 +266,7 @@ describe("payment verification and ledger integrity", () => {
       studentId: user.id,
       email: user.email,
       kind: "donation",
-      amount: 300000,
+      amount: 1000000,
       currency: "NGN",
       donorName: "Generous Donor",
       anonymous: false,
@@ -278,7 +278,7 @@ describe("payment verification and ledger integrity", () => {
 
     expect(sentEmails).toHaveLength(1);
     expect(sentEmails[0].to).toEqual([user.email]);
-    expect(sentEmails[0].text).toContain("₦3,000");
+    expect(sentEmails[0].text).toContain("₦10,000");
 
     // Retry verification (should be idempotent and not send email again)
     await verifyPayment(user, "ea_payment");
@@ -422,8 +422,8 @@ describe("payment verification and ledger integrity", () => {
       expect(item.message.toLowerCase()).not.toContain("ai mentor");
       expect(item.message.toLowerCase()).not.toContain("ai tutor");
     }
-    expect(sequence[2].message).toContain("₦3,000/month");
-    expect(sequence[2].message).toContain("₦100 a day");
+    expect(sequence[2].message).toContain("₦10,000/month");
+    expect(sequence[2].message).toContain("about ₦330 a day");
   });
 
   it("sends confirmation email when a student buys a course or digital product and does not duplicate on retry", async () => {
@@ -583,7 +583,7 @@ describe("payment verification and ledger integrity", () => {
       studentName: "Chinedu Okafor",
       email: "chinedu@example.com",
       kind: "premium",
-      amountNaira: 3000,
+      amountNaira: 10000,
       createdAt,
     });
 

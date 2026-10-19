@@ -54,3 +54,29 @@ export function verifyAutomationSecret(request: Request) {
     : "";
   return Boolean(expected && supplied && equal(expected, supplied));
 }
+
+export function verifyBunnyWebhook(
+  request: Request,
+  payload?: { VideoLibraryId?: number | string; VideoGuid?: string } | null,
+) {
+  const configuredSecret = process.env.BUNNY_STREAM_WEBHOOK_SECRET;
+  if (configuredSecret) {
+    const url = new URL(request.url);
+    const querySecret = url.searchParams.get("secret");
+    const headerSecret =
+      request.headers.get("x-bunny-secret") ||
+      request.headers.get("x-bunny-webhook-secret") ||
+      request.headers.get("x-webhook-secret");
+    const supplied = querySecret || headerSecret || "";
+    if (!supplied || !equal(configuredSecret, supplied)) {
+      return false;
+    }
+  }
+
+  const configuredLibraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
+  if (configuredLibraryId && payload?.VideoLibraryId) {
+    return String(payload.VideoLibraryId) === String(configuredLibraryId);
+  }
+
+  return true;
+}

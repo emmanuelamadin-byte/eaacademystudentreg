@@ -308,7 +308,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {!isPremium(user) && (
           <div className="sidebar-upgrade">
             <h4>Make room for more.</h4>
-            <p>Every track. ₦3,000 / month.</p>
+            <p>Every track. ₦10,000 / month.</p>
             <Link href="/app/billing">
               Explore Premium <ArrowUpRight size={16} />
             </Link>

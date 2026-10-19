@@ -544,7 +544,7 @@ export function AIMentor() {
           >
             <div>
               <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#fff" }}>
-                ₦3,000
+                ₦10,000
               </span>
               <span style={{ color: "#94a3b8", fontSize: "0.95rem" }}>
                 {" "}

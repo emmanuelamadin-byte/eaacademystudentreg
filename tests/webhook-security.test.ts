@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import {
   verifyAutomationSecret,
+  verifyBunnyWebhook,
   verifyMetaSignature,
   verifyResendWebhook,
 } from "../src/server/webhook-security";
@@ -61,5 +62,41 @@ describe("communication webhook security", () => {
         }),
       ),
     ).toBe(false);
+  });
+
+  it("verifies Bunny Stream webhook authorization via secret header, query param, and library ID", () => {
+    // 1. With secret configured
+    process.env.BUNNY_STREAM_WEBHOOK_SECRET = "bunny-secret-xyz";
+    process.env.BUNNY_STREAM_LIBRARY_ID = "123456";
+
+    // Valid with x-bunny-secret header
+    const reqWithHeader = new Request("https://example.com/api/webhooks/bunny", {
+      headers: { "x-bunny-secret": "bunny-secret-xyz" },
+    });
+    expect(verifyBunnyWebhook(reqWithHeader, { VideoLibraryId: "123456" })).toBe(true);
+
+    // Valid with ?secret= query parameter
+    const reqWithQuery = new Request(
+      "https://example.com/api/webhooks/bunny?secret=bunny-secret-xyz",
+    );
+    expect(verifyBunnyWebhook(reqWithQuery, { VideoLibraryId: "123456" })).toBe(true);
+
+    // Invalid when secret doesn't match
+    const reqWrongSecret = new Request("https://example.com/api/webhooks/bunny", {
+      headers: { "x-bunny-secret": "wrong-secret" },
+    });
+    expect(verifyBunnyWebhook(reqWrongSecret, { VideoLibraryId: "123456" })).toBe(false);
+
+    // Invalid when secret header or param is missing
+    const reqNoSecret = new Request("https://example.com/api/webhooks/bunny");
+    expect(verifyBunnyWebhook(reqNoSecret, { VideoLibraryId: "123456" })).toBe(false);
+
+    // Invalid when library ID does not match
+    expect(verifyBunnyWebhook(reqWithHeader, { VideoLibraryId: "999999" })).toBe(false);
+
+    // 2. When no secret is configured, allows matching library ID
+    delete process.env.BUNNY_STREAM_WEBHOOK_SECRET;
+    expect(verifyBunnyWebhook(new Request("https://example.com/api/webhooks/bunny"), { VideoLibraryId: "123456" })).toBe(true);
+    expect(verifyBunnyWebhook(new Request("https://example.com/api/webhooks/bunny"), { VideoLibraryId: "wrong-lib" })).toBe(false);
   });
 });

@@ -38,7 +38,7 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
     trackTikTokEvent(
       "ViewContent",
       {
-        value: 3000,
+        value: 10000,
         currency: "NGN",
         content_id: "ea-academy-premium",
         content_type: "product",
@@ -55,7 +55,7 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
 
   async function checkout() {
     const itemParams = {
-      value: 3000,
+      value: 10000,
       currency: "NGN",
       content_id: "ea-academy-premium",
       content_type: "product",
@@ -153,7 +153,7 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
             <h2>Premium</h2>
             <p>More access. More practice. More possibility.</p>
             <div className="price">
-              ₦3,000<span>/ month</span>
+              ₦10,000<span>/ month</span>
             </div>
             <button
               onClick={checkout}
@@ -225,7 +225,7 @@ export function Pricing({ embedded = false }: { embedded?: boolean }) {
               ],
               [
                 "How does monthly billing work?",
-                "Premium costs ₦3,000 monthly. Choose automatic renewal or pay for one month at a time. Cancellation stops future renewal; your paid access continues until its expiry.",
+                "Premium costs ₦10,000 monthly. Choose automatic renewal or pay for one month at a time. Cancellation stops future renewal; your paid access continues until its expiry.",
               ],
               [
                 "What is included with selected courses and reviews?",
@@ -276,7 +276,7 @@ export default function Billing() {
           "Purchase",
           {
             event_id: `purchase_${ref}`,
-            value: res?.amount || 3000,
+            value: res?.amount || 10000,
             currency: "NGN",
             content_id: isDonation
               ? "ea-scholarship-fund"
@@ -482,7 +482,7 @@ export function Donations() {
     };
   }, [configured]);
   const router = useRouter();
-  const [amount, setAmount] = useState(3000);
+  const [amount, setAmount] = useState(10000);
   const [anonymous, setAnonymous] = useState(false);
   const [donorName, setDonorName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -497,7 +497,7 @@ export function Donations() {
     trackTikTokEvent(
       "ViewContent",
       {
-        value: 3000,
+        value: 10000,
         currency: "NGN",
         content_id: "ea-scholarship-fund",
         content_type: "product",
@@ -514,7 +514,7 @@ export function Donations() {
 
   async function give() {
     const itemParams = {
-      value: amount || 3000,
+      value: amount || 10000,
       currency: "NGN",
       content_id: "ea-scholarship-fund",
       content_type: "product",

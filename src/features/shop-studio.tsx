@@ -34,6 +34,7 @@ import { api, uploadFile } from "@/lib/api";
 import { useAction, ActionMessage } from "@/features/admin/shared";
 import { getVideoEmbed } from "@/lib/video";
 import { safeResourceUrl } from "@/lib/urls";
+import { BunnyStreamModal } from "./bunny-stream-modal";
 import type {
   ShopItem,
   ShopCourseModule,
@@ -157,6 +158,7 @@ export function ShopStudio() {
   }, []);
 
   const [activeItem, setActiveItem] = useState<Partial<ShopItem> | null>(null);
+  const [trailerBunnyModalOpen, setTrailerBunnyModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "info" | "curriculum" | "outcomes" | "quizzes"
   >("info");
@@ -808,7 +810,7 @@ export function ShopStudio() {
                         <span style={{ fontWeight: 600 }}>Included in Premium Membership</span>
                       </label>
                       <small className="form-help" style={{ marginLeft: "1.75rem", display: "block" }}>
-                        Active Premium members (₦3,000/mo) unlock this course with no extra charge. Non-members pay the standard price.
+                        Active Premium members (₦10,000/mo) unlock this course with no extra charge. Non-members pay the standard price.
                       </small>
                     </div>
 
@@ -899,7 +901,17 @@ export function ShopStudio() {
                 <section className="studio-section-card">
                   <h3>Promotional Video Trailer</h3>
                   <div className="form-group">
-                    <label>Preview Video URL / Embed</label>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <label style={{ margin: 0 }}>Preview Video URL / Embed</label>
+                      <button
+                        type="button"
+                        onClick={() => setTrailerBunnyModalOpen(true)}
+                        className="btn btn-secondary btn-small"
+                        style={{ padding: "0.25rem 0.65rem", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+                      >
+                        <Video size={13} /> Bunny Stream Hub
+                      </button>
+                    </div>
                     <input
                       type="text"
                       className="input"
@@ -916,6 +928,20 @@ export function ShopStudio() {
                       Shown to prospective buyers on the shop landing page.
                     </small>
                   </div>
+
+                  <BunnyStreamModal
+                    isOpen={trailerBunnyModalOpen}
+                    onClose={() => setTrailerBunnyModalOpen(false)}
+                    initialVideoTitle={`${activeItem.title || "Course"} Trailer`}
+                    currentVideoUrl={activeItem.previewVideoUrl}
+                    onSelectVideo={(vid) => {
+                      setActiveItem({
+                        ...activeItem,
+                        previewVideoUrl: vid.embedUrl,
+                      });
+                      setTrailerBunnyModalOpen(false);
+                    }}
+                  />
                   {previewTrailerEmbed?.embedUrl && (
                     <div className="studio-video-live-preview">
                       <div className="live-preview-label">
@@ -2163,6 +2189,7 @@ function LessonEditorModal({
   const [newResourceTitle, setNewResourceTitle] = useState("");
   const [newResourceUrl, setNewResourceUrl] = useState("");
   const [uploadingResource, setUploadingResource] = useState(false);
+  const [bunnyModalOpen, setBunnyModalOpen] = useState(false);
 
   const videoEmbed = lesson.videoUrl ? getVideoEmbed(lesson.videoUrl) : null;
 
@@ -2273,7 +2300,32 @@ function LessonEditorModal({
           </div>
 
           <div className="form-group">
-            <label>Universal Video Streaming URL or Embed Code *</label>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "0.35rem",
+              }}
+            >
+              <label style={{ margin: 0 }}>
+                Universal Video Streaming URL or Embed Code *
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setBunnyModalOpen(true)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.35rem",
+                  fontSize: "0.78rem",
+                  padding: "0.2rem 0.55rem",
+                }}
+              >
+                🐰 Bunny Stream Hub
+              </button>
+            </div>
             <textarea
               className="input"
               rows={2}
@@ -2413,6 +2465,22 @@ function LessonEditorModal({
             Apply Changes
           </button>
         </div>
+
+        {bunnyModalOpen && (
+          <BunnyStreamModal
+            isOpen={bunnyModalOpen}
+            onClose={() => setBunnyModalOpen(false)}
+            initialTitle={lesson.title || "Lesson Video"}
+            onSelectVideo={({ embedUrl, durationFormatted }) => {
+              setLesson((prev) => ({
+                ...prev,
+                videoUrl: embedUrl,
+                duration: durationFormatted || prev.duration || "0:00",
+              }));
+              setBunnyModalOpen(false);
+            }}
+          />
+        )}
       </div>
     </div>
   );
