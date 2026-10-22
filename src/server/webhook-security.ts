@@ -2,11 +2,13 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-function equal(left: string, right: string) {
+export function timingSafeEqualString(left: string, right: string) {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+const equal = timingSafeEqualString;
 
 export function verifyMetaSignature(payload: string, signature: string | null) {
   const secret = process.env.WHATSAPP_APP_SECRET;
@@ -60,6 +62,13 @@ export function verifyBunnyWebhook(
   payload?: { VideoLibraryId?: number | string; VideoGuid?: string } | null,
 ) {
   const configuredSecret = process.env.BUNNY_STREAM_WEBHOOK_SECRET;
+  const configuredLibraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
+
+  // Fail closed if webhook authentication credentials are not configured
+  if (!configuredSecret && !configuredLibraryId) {
+    return false;
+  }
+
   if (configuredSecret) {
     const url = new URL(request.url);
     const querySecret = url.searchParams.get("secret");
@@ -73,10 +82,15 @@ export function verifyBunnyWebhook(
     }
   }
 
-  const configuredLibraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
-  if (configuredLibraryId && payload?.VideoLibraryId) {
-    return String(payload.VideoLibraryId) === String(configuredLibraryId);
+  if (configuredLibraryId) {
+    if (
+      !payload?.VideoLibraryId ||
+      String(payload.VideoLibraryId) !== String(configuredLibraryId)
+    ) {
+      return false;
+    }
   }
 
   return true;
 }
+

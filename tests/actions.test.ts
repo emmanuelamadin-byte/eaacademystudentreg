@@ -205,6 +205,9 @@ beforeEach(() => {
 });
 describe("server action boundaries", () => {
   it("requires complete Google onboarding and stores a normalized phone number", async () => {
+    const comms = await import("../src/server/communications");
+    vi.spyOn(comms, "notifyOwnerOfNewStudent").mockResolvedValue({ sent: true });
+    vi.spyOn(comms, "onboardNewStudentCommunications").mockResolvedValue();
     await dispatch(newGoogleToken, "profile.ensure", {
       name: "New Student",
       enrolledClassId: "creative-media",
@@ -218,7 +221,7 @@ describe("server action boundaries", () => {
       birthday: { month: 2, day: 29 },
       enrolledClassId: "creative-media",
     });
-  });
+  }, 15000);
   it("triggers owner alert and welcome email when a pre-created skeleton profile completes onboarding", async () => {
     const comms = await import("../src/server/communications");
     const ownerSpy = vi

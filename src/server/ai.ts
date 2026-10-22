@@ -96,53 +96,21 @@ async function generateWithLiveLLM(params: {
   ];
 
   const openAiKey = (process.env.OPENAI_API_KEY || "").trim();
-  const endpoints = openAiKey
-    ? [
-        {
-          url: "https://api.openai.com/v1/chat/completions",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openAiKey}`,
-          } as Record<string, string>,
-          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-          extra: { max_tokens: params.jsonMode ? 1800 : 800 },
-        },
-        {
-          url: "https://text.pollinations.ai/openai",
-          headers: {
-            "Content-Type": "application/json",
-          } as Record<string, string>,
-          model: "openai-fast",
-          extra: {
-            reasoning_effort: "low",
-            max_tokens: params.jsonMode ? 1500 : 700,
-          },
-        },
-      ]
-    : [
-        {
-          url: "https://text.pollinations.ai/openai",
-          headers: {
-            "Content-Type": "application/json",
-          } as Record<string, string>,
-          model: "openai-fast",
-          extra: {
-            reasoning_effort: "low",
-            max_tokens: params.jsonMode ? 1500 : 700,
-          },
-        },
-        {
-          url: "https://text.pollinations.ai/openai",
-          headers: {
-            "Content-Type": "application/json",
-          } as Record<string, string>,
-          model: "openai",
-          extra: {
-            reasoning_effort: "low",
-            max_tokens: params.jsonMode ? 1200 : 550,
-          },
-        },
-      ];
+  if (!openAiKey) {
+    return null;
+  }
+
+  const endpoints = [
+    {
+      url: "https://api.openai.com/v1/chat/completions",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAiKey}`,
+      } as Record<string, string>,
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      extra: { max_tokens: params.jsonMode ? 1800 : 800 },
+    },
+  ];
 
   for (const endpoint of endpoints) {
     const controller = new AbortController();
@@ -549,7 +517,7 @@ export async function askAI(user: AcademyUser, p: Record<string, unknown>) {
           .slice(0, 10)
           .map((l) => {
             const summary = (l.content || "").trim().slice(0, 500);
-            return `- "${l.title}"${l.videoUrl ? ` (Video: ${l.videoUrl})` : ""}${summary ? `\n  Summary/Notes: ${summary}` : ""}`;
+            return `- "${l.title}"${l.videoUrl ? " (Video lesson available)" : ""}${summary ? `\n  Summary/Notes: ${summary}` : ""}`;
           })
           .join("\n");
         context += `Uploaded Course Videos & Lessons on EA Academy for this track:\n${list}`;

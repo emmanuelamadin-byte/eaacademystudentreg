@@ -41,13 +41,7 @@ vi.mock("../src/server/supabase", () => {
       role: token.uid === "admin-user" ? "Admin" : "Student",
     }),
     identity: async (request: Request) => {
-      let bearer = request.headers.get("authorization");
-      if (!bearer?.startsWith("Bearer ")) {
-        try {
-          const token = new URL(request.url).searchParams.get("token");
-          if (token) bearer = `Bearer ${token}`;
-        } catch {}
-      }
+      const bearer = request.headers.get("authorization");
       if (!bearer?.startsWith("Bearer ")) {
         const error = new Error("Please sign in to continue.");
         (error as unknown as { status: number }).status = 401;
@@ -81,6 +75,7 @@ describe("GET /api/upload", () => {
   beforeEach(() => {
     state.documents.clear();
     state.downloadError = null;
+    state.documents.set("users/admin-123", { id: "admin-123", role: "Admin" });
   });
 
   it("rejects missing or traversal paths", async () => {
@@ -93,7 +88,7 @@ describe("GET /api/upload", () => {
     expect(resTraversal.status).toBe(400);
   });
 
-  it("serves image thumbnails publicly and inline without requiring auth headers", async () => {
+  it("serves image thumbnails publicly and inline without requiring auth headers for staff", async () => {
     const req = new Request(
       "http://localhost:3000/api/upload?path=uploads/admin-123/cover-image.png",
     );
@@ -112,6 +107,34 @@ describe("GET /api/upload", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/jpeg");
     expect(res.headers.get("Content-Disposition")).toBe("inline");
+  });
+
+  it("protects student image uploads from unauthenticated or unauthorized access", async () => {
+    state.documents.set("users/student-789", { id: "student-789", role: "Student" });
+
+    // 1. Unauthenticated request to student image upload must be rejected with 401
+    const unauthReq = new Request(
+      "http://localhost:3000/api/upload?path=uploads/student-789/homework.png",
+    );
+    const unauthRes = await GET(unauthReq);
+    expect(unauthRes.status).toBe(401);
+
+    // 2. Another student requesting student-789's image upload must be rejected with 403
+    const otherStudentReq = new Request(
+      "http://localhost:3000/api/upload?path=uploads/student-789/homework.png",
+      { headers: { Authorization: "Bearer student-456" } },
+    );
+    const otherStudentRes = await GET(otherStudentReq);
+    expect(otherStudentRes.status).toBe(403);
+
+    // 3. The owning student can access their image upload with private cache-control
+    const ownerReq = new Request(
+      "http://localhost:3000/api/upload?path=uploads/student-789/homework.png",
+      { headers: { Authorization: "Bearer student-789" } },
+    );
+    const ownerRes = await GET(ownerReq);
+    expect(ownerRes.status).toBe(200);
+    expect(ownerRes.headers.get("Cache-Control")).toContain("no-store");
   });
 
   it("requires authentication for documents like PDF cheat sheets", async () => {

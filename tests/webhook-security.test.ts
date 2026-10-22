@@ -98,5 +98,11 @@ describe("communication webhook security", () => {
     delete process.env.BUNNY_STREAM_WEBHOOK_SECRET;
     expect(verifyBunnyWebhook(new Request("https://example.com/api/webhooks/bunny"), { VideoLibraryId: "123456" })).toBe(true);
     expect(verifyBunnyWebhook(new Request("https://example.com/api/webhooks/bunny"), { VideoLibraryId: "wrong-lib" })).toBe(false);
+    expect(verifyBunnyWebhook(new Request("https://example.com/api/webhooks/bunny"), {})).toBe(false);
+
+    // 3. Fail closed if neither secret nor library ID is configured
+    delete process.env.BUNNY_STREAM_LIBRARY_ID;
+    expect(verifyBunnyWebhook(new Request("https://example.com/api/webhooks/bunny"), { VideoLibraryId: "123456" })).toBe(false);
   });
 });
+

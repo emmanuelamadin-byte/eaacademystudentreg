@@ -2,7 +2,10 @@ import { ApiError } from "@/server/policy";
 import { updateDeliveryStatus } from "@/server/communications";
 import { failure } from "@/server/supabase";
 import { readLimitedBody } from "@/server/request-body";
-import { verifyMetaSignature } from "@/server/webhook-security";
+import {
+  timingSafeEqualString,
+  verifyMetaSignature,
+} from "@/server/webhook-security";
 
 export const runtime = "nodejs";
 
@@ -17,7 +20,7 @@ export async function GET(request: Request) {
     mode === "subscribe" &&
     token &&
     expectedToken &&
-    token.trim() === expectedToken &&
+    timingSafeEqualString(token.trim(), expectedToken) &&
     challenge
   ) {
     return new Response(challenge, {

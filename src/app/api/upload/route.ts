@@ -136,9 +136,18 @@ export async function GET(request: Request) {
       authorizedProduct = true;
     }
 
-    if (!isImage) {
+    const owner = objectPath.split("/")[1];
+    const ownerDoc = await db().collection("users").doc(owner).get();
+    const ownerUser = ownerDoc.data();
+    const isStaffUpload =
+      ownerUser?.role === "Admin" || ownerUser?.role === "Instructor";
+
+    // Staff images (course banners, lesson covers, badges) can be served publicly
+    // unless they are purchased digital shop products.
+    // Non-staff images (e.g. student assignment screenshots, homework uploads)
+    // and all non-image attachments require authentication and authorization.
+    if (!isImage || !isStaffUpload) {
       const user = await actor(await identity(request));
-      const owner = objectPath.split("/")[1];
       if (owner !== user.id && user.role !== "Admin" && !authorizedProduct) {
         if (user.role === "Instructor") {
           const submissions = await db()
@@ -152,11 +161,7 @@ export async function GET(request: Request) {
             );
         } else {
           // Staff lesson resources remain available to signed-in students.
-          // allow authenticated students to download.
-          const ownerDoc = await db().collection("users").doc(owner).get();
-          const ownerUser = ownerDoc.data();
-          const isStaffUpload =
-            ownerUser?.role === "Admin" || ownerUser?.role === "Instructor";
+          // Non-staff uploads are private to the student and authorized staff.
           if (!isStaffUpload) {
             throw new ApiError(403, "This attachment is private.");
           }
@@ -183,7 +188,7 @@ export async function GET(request: Request) {
         headers: {
           "Content-Type": imageContentType,
           "Content-Disposition": "inline",
-          "Cache-Control": authorizedProduct
+          "Cache-Control": authorizedProduct || !isStaffUpload
             ? "private, no-store, max-age=0"
             : "public, max-age=86400, stale-while-revalidate=604800",
           "X-Content-Type-Options": "nosniff",
