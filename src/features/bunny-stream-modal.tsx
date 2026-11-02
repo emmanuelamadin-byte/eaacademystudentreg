@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Upload,
   Link2,
@@ -16,6 +16,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { Upload as TusUpload } from "tus-js-client";
 
 export interface BunnySelectedVideo {
   embedUrl: string;
@@ -71,7 +72,6 @@ export function BunnyStreamModal({
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string>("");
   const [uploadSuccess, setUploadSuccess] = useState<string>("");
-  const xhrRef = useRef<XMLHttpRequest | null>(null);
 
   // Fetch / Ingest state
   const [fetchUrl, setFetchUrl] = useState<string>("");
@@ -151,7 +151,7 @@ export function BunnyStreamModal({
         libraryId: string;
         embedUrl: string;
         directUpload: {
-          directPutUrl: string;
+          uploadEndpoint: string;
           authorizationSignature: string;
           authorizationExpire: number;
         };
@@ -159,33 +159,31 @@ export function BunnyStreamModal({
 
       const { videoId, embedUrl, directUpload } = createRes;
 
-      // Step 2: Upload file directly to Bunny Stream via Direct PUT
+      // Step 2: Upload directly to Bunny Stream using its signed TUS protocol.
+      // The upload signature is not an API key and must not be sent as AccessKey.
       await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhrRef.current = xhr;
+        const upload = new TusUpload(uploadFile, {
+          endpoint: directUpload.uploadEndpoint,
+          chunkSize: 10 * 1024 * 1024,
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            AuthorizationSignature: directUpload.authorizationSignature,
+            AuthorizationExpire: String(directUpload.authorizationExpire),
+            VideoId: videoId,
+            LibraryId: createRes.libraryId,
+          },
+          metadata: {
+            filetype: uploadFile.type || "application/octet-stream",
+            title,
+          },
+          onError: (error) => reject(error),
+          onProgress: (bytesUploaded, bytesTotal) => {
+            setUploadProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+          },
+          onSuccess: () => resolve(),
+        });
 
-        xhr.upload.onprogress = (evt) => {
-          if (evt.lengthComputable) {
-            const percent = Math.round((evt.loaded / evt.total) * 100);
-            setUploadProgress(percent);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Upload failed with HTTP status ${xhr.status}: ${xhr.statusText}`));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error("Network connection error during video upload."));
-        xhr.onabort = () => reject(new Error("Upload cancelled."));
-
-        xhr.open("PUT", directUpload.directPutUrl);
-        xhr.setRequestHeader("AccessKey", directUpload.authorizationSignature);
-        xhr.setRequestHeader("Content-Type", "application/octet-stream");
-        xhr.send(uploadFile);
+        upload.start();
       });
 
       setUploadSuccess(`Upload complete! Transcoding started on Bunny Stream.`);
@@ -200,7 +198,6 @@ export function BunnyStreamModal({
       setUploadError(err instanceof Error ? err.message : "Failed to upload video to Bunny Stream.");
     } finally {
       setUploading(false);
-      xhrRef.current = null;
     }
   }
 
