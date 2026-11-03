@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Upload,
   Link2,
@@ -72,6 +72,48 @@ export function BunnyStreamModal({
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string>("");
   const [uploadSuccess, setUploadSuccess] = useState<string>("");
+  const [pendingVideo, setPendingVideo] = useState<BunnySelectedVideo | null>(null);
+  const [processingMessage, setProcessingMessage] = useState("");
+  const selectVideoRef = useRef(onSelectVideo);
+  useEffect(() => { selectVideoRef.current = onSelectVideo; }, [onSelectVideo]);
+
+  // Keep the upload open until Bunny supplies real metadata. Clean up polling
+  // when the dialog closes or unmounts, and never attach a placeholder duration.
+  useEffect(() => {
+    if (!isOpen || !pendingVideo) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const video = await api<BunnyVideoItem>("bunny.status", {
+          videoId: pendingVideo!.videoId,
+        });
+        if (cancelled) return;
+        if (video.status === 5 || video.status === 6) {
+          setProcessingMessage("Bunny could not process this video. Please try another video.");
+          setPendingVideo(null);
+          return;
+        }
+        if (Number.isFinite(video.lengthSeconds) && video.lengthSeconds > 0) {
+          setPendingVideo(null);
+          setProcessingMessage("");
+          selectVideoRef.current({
+            ...pendingVideo!,
+            duration: video.durationFormatted,
+            durationFormatted: video.durationFormatted,
+          });
+          return;
+        }
+        setProcessingMessage("Upload received. Bunny is processing your video; its duration will fill in automatically. Please keep this window open.");
+      } catch {
+        if (cancelled) return;
+        setProcessingMessage("Your video has been uploaded. Reconnecting to check its duration automatically…");
+      }
+      if (!cancelled) timer = setTimeout(poll, 10000);
+    }
+    void poll();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [isOpen, pendingVideo]);
 
   // Fetch / Ingest state
   const [fetchUrl, setFetchUrl] = useState<string>("");
@@ -187,12 +229,10 @@ export function BunnyStreamModal({
       });
 
       setUploadSuccess(`Upload complete! Transcoding started on Bunny Stream.`);
-      onSelectVideo({
+      setPendingVideo({
         embedUrl,
         videoId,
         title,
-        duration: "0:00",
-        durationFormatted: "0:00",
       });
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : "Failed to upload video to Bunny Stream.");
@@ -224,12 +264,10 @@ export function BunnyStreamModal({
 
       setFetchSuccess("Bunny Stream is downloading and transcoding the video!");
       if (res.embedUrl && res.videoId) {
-        onSelectVideo({
+        setPendingVideo({
           embedUrl: res.embedUrl,
           videoId: res.videoId,
           title,
-          duration: "0:00",
-          durationFormatted: "0:00",
         });
       }
     } catch (err: unknown) {
@@ -270,7 +308,7 @@ export function BunnyStreamModal({
         padding: "1rem",
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !uploading) onClose();
+        if (e.target === e.currentTarget && !uploading && !fetching && !pendingVideo) onClose();
       }}
     >
       <div
@@ -313,7 +351,7 @@ export function BunnyStreamModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={uploading}
+            disabled={uploading || fetching || Boolean(pendingVideo)}
             style={{
               background: "transparent",
               border: "none",
@@ -445,6 +483,12 @@ export function BunnyStreamModal({
 
         {/* Tab Body */}
         <div style={{ padding: "1.5rem", overflowY: "auto", flex: 1 }}>
+          {(pendingVideo || processingMessage) && (
+            <p role="status" style={{ color: "#0284c7", fontSize: "0.9rem" }}>
+              {processingMessage || "Reading your video’s duration automatically…"}
+            </p>
+          )}
+          <fieldset disabled={Boolean(pendingVideo)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           {/* TAB 1: DIRECT UPLOAD */}
           {tab === "upload" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -797,6 +841,10 @@ export function BunnyStreamModal({
                       <button
                         type="button"
                         onClick={() => {
+                          if (!(vid.lengthSeconds > 0)) {
+                            setPendingVideo({ embedUrl: vid.embedUrl, videoId: vid.videoId, title: vid.title });
+                            return;
+                          }
                           onSelectVideo({
                             embedUrl: vid.embedUrl,
                             videoId: vid.videoId,
@@ -931,6 +979,7 @@ export function BunnyStreamModal({
               )}
             </div>
           )}
+          </fieldset>
         </div>
       </div>
     </div>
