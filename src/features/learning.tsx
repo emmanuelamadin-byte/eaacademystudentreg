@@ -62,6 +62,7 @@ import { isBirthdayToday } from "@/lib/birthdays";
 import Assignments from "./learning/assignments";
 import { queueAction, readQueue } from "./learning/offline";
 import { BunnyStreamModal } from "./bunny-stream-modal";
+import { applyBunnyVideo } from "@/lib/bunny-selection";
 import "./learning/learning.css";
 export { LearningSync } from "./learning/offline";
 import { safeResourceUrl } from "@/lib/urls";
@@ -1128,12 +1129,9 @@ function Classroom() {
               isOpen={bunnyModalOpen}
               onClose={() => setBunnyModalOpen(false)}
               initialTitle={draft.title || "Classroom Video"}
-              onSelectVideo={({ embedUrl, durationFormatted }) => {
-                setDraft((prev) => ({
-                  ...prev,
-                  videoUrl: embedUrl,
-                  duration: durationFormatted || prev.duration || "45 minutes",
-                }));
+              currentVideoUrl={draft.videoUrl}
+              onSelectVideo={(video) => {
+                setDraft((prev) => applyBunnyVideo(prev, video));
                 setBunnyModalOpen(false);
               }}
             />

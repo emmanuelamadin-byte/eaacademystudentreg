@@ -99,6 +99,7 @@ export function BunnyStreamModal({
           setProcessingMessage("");
           selectVideoRef.current({
             ...pendingVideo!,
+            title: video.title || pendingVideo!.title,
             duration: video.durationFormatted,
             durationFormatted: video.durationFormatted,
           });

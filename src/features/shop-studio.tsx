@@ -34,6 +34,7 @@ import { api, uploadFile } from "@/lib/api";
 import { useAction, ActionMessage } from "@/features/admin/shared";
 import { getVideoEmbed } from "@/lib/video";
 import { safeResourceUrl } from "@/lib/urls";
+import { applyBunnyVideo, curriculumDuration } from "@/lib/bunny-selection";
 import { BunnyStreamModal } from "./bunny-stream-modal";
 import type {
   ShopItem,
@@ -159,6 +160,19 @@ export function ShopStudio() {
 
   const [activeItem, setActiveItem] = useState<Partial<ShopItem> | null>(null);
   const [trailerBunnyModalOpen, setTrailerBunnyModalOpen] = useState(false);
+  const [trailerMetadata, setTrailerMetadata] = useState<{ title?: string; durationFormatted?: string } | null>(null);
+  const [videoLessonModuleId, setVideoLessonModuleId] = useState<string | null>(null);
+  const trailerUrl = activeItem?.previewVideoUrl;
+  useEffect(() => {
+    setTrailerMetadata(null);
+    const match = trailerUrl?.match(/\/(?:embed|play)\/\d+\/([a-zA-Z0-9_-]+)/);
+    if (!match) return;
+    let cancelled = false;
+    void api<{ title: string; durationFormatted: string }>("bunny.status", { videoId: match[1] })
+      .then((video) => { if (!cancelled) setTrailerMetadata(video); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [trailerUrl]);
   const [activeTab, setActiveTab] = useState<
     "info" | "curriculum" | "outcomes" | "quizzes"
   >("info");
@@ -457,7 +471,7 @@ export function ShopStudio() {
         lessons: (m.lessons || []).map((l) => (l.id === lesson.id ? lesson : l)),
       };
     });
-    setActiveItem({ ...activeItem, curriculum: curr });
+    setActiveItem({ ...activeItem, curriculum: curr, totalDuration: curriculumDuration(curr) || activeItem.totalDuration });
     setSelectedLessonEdit(null);
   };
 
@@ -932,13 +946,14 @@ export function ShopStudio() {
                   <BunnyStreamModal
                     isOpen={trailerBunnyModalOpen}
                     onClose={() => setTrailerBunnyModalOpen(false)}
-                    initialVideoTitle={`${activeItem.title || "Course"} Trailer`}
+                    initialVideoTitle={trailerMetadata?.title || `${activeItem.title || "Course"} Trailer`}
                     currentVideoUrl={activeItem.previewVideoUrl}
                     onSelectVideo={(vid) => {
-                      setActiveItem({
-                        ...activeItem,
+                      setActiveItem((prev) => ({
+                        ...prev,
                         previewVideoUrl: vid.embedUrl,
-                      });
+                      }));
+                      setTrailerMetadata(vid);
                       setTrailerBunnyModalOpen(false);
                     }}
                   />
@@ -946,7 +961,8 @@ export function ShopStudio() {
                     <div className="studio-video-live-preview">
                       <div className="live-preview-label">
                         <PlayCircle size={13} />
-                        Live Trailer Preview
+                        {trailerMetadata?.title || "Live Trailer Preview"}
+                        {trailerMetadata?.durationFormatted && ` · ${trailerMetadata.durationFormatted}`}
                       </div>
                       {previewTrailerEmbed.isDirectVideo ? (
                         <video
@@ -1070,6 +1086,13 @@ export function ShopStudio() {
                       />
                     </div>
                     <div className="studio-module-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-small"
+                        onClick={() => setVideoLessonModuleId(mod.id)}
+                      >
+                        <Upload size={14} /> Upload video lesson
+                      </button>
                       <button
                         type="button"
                         className="btn btn-secondary btn-small"
@@ -1349,6 +1372,28 @@ export function ShopStudio() {
             </div>
 
             {/* Lesson Editor Modal / Drawer */}
+            {videoLessonModuleId && (
+              <BunnyStreamModal
+                isOpen
+                onClose={() => setVideoLessonModuleId(null)}
+                onSelectVideo={(video) => {
+                  setActiveItem((prev) => {
+                    if (!prev) return prev;
+                    const curriculum = (prev.curriculum || []).map((module) => {
+                      if (module.id !== videoLessonModuleId) return module;
+                      const lesson = applyBunnyVideo({
+                        id: crypto.randomUUID(), title: "Video lesson", duration: "",
+                        videoUrl: "", content: "", resources: [], isFreePreview: false,
+                        order: module.lessons.length + 1,
+                      }, video);
+                      return { ...module, lessons: [...module.lessons, lesson] };
+                    });
+                    return { ...prev, curriculum, totalDuration: curriculumDuration(curriculum) || prev.totalDuration };
+                  });
+                  setVideoLessonModuleId(null);
+                }}
+              />
+            )}
             {selectedLessonEdit && (
               <LessonEditorModal
                 moduleId={selectedLessonEdit.moduleId}
@@ -2471,12 +2516,9 @@ function LessonEditorModal({
             isOpen={bunnyModalOpen}
             onClose={() => setBunnyModalOpen(false)}
             initialTitle={lesson.title || "Lesson Video"}
-            onSelectVideo={({ embedUrl, durationFormatted }) => {
-              setLesson((prev) => ({
-                ...prev,
-                videoUrl: embedUrl,
-                duration: durationFormatted || prev.duration || "0:00",
-              }));
+            currentVideoUrl={lesson.videoUrl}
+            onSelectVideo={(video) => {
+              setLesson((prev) => applyBunnyVideo(prev, video));
               setBunnyModalOpen(false);
             }}
           />
