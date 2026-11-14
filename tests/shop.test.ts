@@ -13,6 +13,9 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+// Retain coverage of the legacy adapter used when checkout is explicitly disabled.
+// The default-enabled flow has dedicated checkout and PostgreSQL tests.
+vi.mock("../src/lib/commerce-flags", () => ({ purchaseFirstEnabled: false, landingPagesEnabled: false }));
 vi.mock("../src/server/supabase", () => {
   const snapshot = (path: string) => {
     const id = path.split("/").pop() || "";

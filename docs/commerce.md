@@ -1,12 +1,12 @@
 # Landing pages and purchase-first checkout
 
-The implementation is off by default. Existing shop checkout, memberships, and donations remain available until activation. No production database changes or real payments are performed by the automated tests.
+Landing pages and purchase-first shop checkout are enabled by default. Membership and donation checkout remain unchanged. An explicit `false` feature setting overrides the default. No production database changes or real payments are performed by the automated tests.
 
-## Activate in a test environment first
+## Deployment configuration
 
 1. Back up the database and apply `supabase/migrations/20261114120000_landing_pages_and_guest_shop_checkout.sql` after the existing shop migrations. It adds draft/published campaign records, anonymous request limits, a receipt outbox, nullable account IDs for shop payments, and atomic shop fulfillment/claim functions. Existing membership/donation payments still require an account.
 2. Configure the existing Supabase, Google OAuth, Paystack **test** key, application URL, and Resend sender settings. The application URL must be the same origin used by the browser. Add the checkout recovery URL to Supabase's allowed redirect URLs, including query parameters, e.g. `https://your-test-host/checkout/complete**` (and the localhost equivalent for local testing).
-3. Set `NEXT_PUBLIC_PURCHASE_FIRST_ENABLED=true` and `NEXT_PUBLIC_LANDING_PAGES_ENABLED=true`, then rebuild/restart. Public flags are compiled into the browser bundle. Keep `SHOP_CHECKOUT_PAUSED=false` for purchases.
+3. Both features work with no feature variables configured. If your hosting settings already contain `NEXT_PUBLIC_PURCHASE_FIRST_ENABLED=false` or `NEXT_PUBLIC_LANDING_PAGES_ENABLED=false`, change them to `true`, then rebuild/restart. Public flags are compiled into the browser bundle. Keep `SHOP_CHECKOUT_PAUSED=false` for purchases.
 4. Keep the existing authenticated `/api/automation/messages` worker running every 5–10 minutes. It now retries receipt delivery. A confirmed purchase is recorded even when email delivery fails. Receipts use provider idempotency keys and database reservation; monitor failed jobs in `shop_receipt_outbox`.
 5. As the academy administrator, open **Shop Studio → edit a saved course/product → Landing Pages**. Create a template, edit content, save a draft, and publish. The product must be published, and checkout must be enabled, before a campaign can go live. Campaign URLs are `/offer/[slug]`; store URLs stay unchanged. Previously published campaign slugs are fixed; duplicate a page to create another link.
 

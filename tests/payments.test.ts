@@ -5,6 +5,9 @@ const state = vi.hoisted(() => ({
   documents: new Map<string, Record<string, unknown>>(),
 }));
 vi.mock("server-only", () => ({}));
+// These adapter tests cover the legacy fulfillment path; the atomic shop flow
+// is exercised by shop-checkout.test.ts and commerce-database.test.ts.
+vi.mock("../src/lib/commerce-flags", () => ({ purchaseFirstEnabled: false, landingPagesEnabled: false }));
 vi.mock("../src/server/supabase", () => {
   const snapshot = (path: string) => ({
     exists: state.documents.has(path),
