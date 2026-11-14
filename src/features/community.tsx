@@ -110,7 +110,7 @@ function Discussions({
 }) {
   const premium = isPremium(user);
   const [track, setTrack] = useState<CareerPathClassId | "all">(
-    premium ? "all" : user.enrolledClassId,
+    premium ? "all" : user.enrolledClassId || "all",
   );
   // Free tier students are strictly filtered to their enrolled career path
   const filters: [string, "==" | "in" | "array-contains", unknown][] = !premium

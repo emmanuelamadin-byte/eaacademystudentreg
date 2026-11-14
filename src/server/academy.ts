@@ -46,6 +46,9 @@ import {
 import * as s from "./schemas";
 import { askAI, generateChapterQuiz } from "./ai";
 import { checkout, verifyPayment, manageSubscription } from "./payments";
+import { claimPaidShopPurchases } from "./shop-payments";
+import { landingAdmin } from "./landing-pages";
+import { purchaseFirstEnabled } from "@/lib/commerce-flags";
 import {
   cancelStudentNurtureSequence,
   createBroadcast,
@@ -182,6 +185,16 @@ async function ensureProfile(token: AuthToken, p: Payload) {
       birthday: s.birthday.optional(),
     })
     .parse(p);
+  if (purchaseFirstEnabled) {
+    await claimPaidShopPurchases(token);
+    const buyer = await db().collection("users").doc(token.uid).get();
+    if (
+      buyer.data()?.enrollmentStatus === "purchase_only" &&
+      initialRole(token.email, token.email_verified) !== "Admin" &&
+      !input.enrolledClassId
+    )
+      return actor(token);
+  }
   const ref = db().collection("users").doc(token.uid);
   const normalizedEmail = token.email?.trim().toLowerCase();
   const canClaimRoster =
@@ -287,6 +300,7 @@ async function ensureProfile(token: AuthToken, p: Payload) {
           input.enrolledClassId ||
           "system-dev",
         membershipPlan,
+        ...(purchaseFirstEnabled ? { enrollmentStatus: "enrolled" } : {}),
         enrolledAt,
         lastActiveAt: now(),
         ...((rosterCanBeClaimed && rosterData?.countryCode) || input.countryCode
@@ -399,8 +413,33 @@ export async function dispatch(
 ): Promise<unknown> {
   maybeTriggerSubscriptionReminders();
   if (action === "profile.ensure") return ensureProfile(token, p);
+  if (purchaseFirstEnabled && ["shop.library", "shop.course.get"].includes(action))
+    await claimPaidShopPurchases(token);
   const user = await actor(token);
   await limit(user.id, "writes", 120);
+  if (action.startsWith("landing.admin.")) return landingAdmin(user, action, p);
+  if (
+    user.enrollmentStatus === "purchase_only" &&
+    ![
+      "profile.update",
+      "profile.timezone",
+      "profile.birthday",
+      "communications.update",
+      "push.unsubscribe",
+      "shop.library",
+      "shop.course.get",
+      "shop.course.progress",
+      "shop.course.quiz.submit",
+      "shop.certificate.get",
+      "billing.checkout",
+      "billing.verify",
+      "billing.manage",
+    ].includes(action)
+  )
+    throw new ApiError(
+      409,
+      "Complete academy enrollment to use this feature. Your purchases remain available in My Library.",
+    );
   switch (action) {
     case "track.save": {
       const input = z

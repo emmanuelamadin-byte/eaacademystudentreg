@@ -843,6 +843,7 @@ function RevenueAnalyticsSection({
 }
 
 function UsersPanel() {
+  const [viewTime] = useState(() => Date.now());
   const records = useRecords<AcademyUser>("users");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
@@ -904,7 +905,7 @@ function UsersPanel() {
                     ? "Granted Premium"
                     : user.membershipPlan === "Premium" ||
                         (!!user.premiumUntil &&
-                          Date.parse(user.premiumUntil) > Date.now())
+                          Date.parse(user.premiumUntil) > viewTime)
                       ? "Active Premium"
                       : "Free"}
                 </td>
@@ -970,7 +971,7 @@ function UserEditor({
   const [track, setTrack] = useState<CareerPathClassId>(
     (user.enrolledClassId as CareerPathClassId) || "system-dev",
   );
-  const [premium, setPremium] = useState(
+  const [premium, setPremium] = useState(() =>
     user.premiumGranted === true ||
       user.membershipPlan === "Premium" ||
       (!!user.premiumUntil && Date.parse(user.premiumUntil) > Date.now()),

@@ -173,7 +173,7 @@ export function buildUnifiedRevenueLedger(input: {
       const purchase = purchaseByRef.get(ref);
       const itemId = purchase?.itemId || p.itemId;
       const item = itemId ? itemById.get(itemId) : undefined;
-      const itemType = purchase?.itemType || item?.type || "course";
+      const itemType = purchase?.itemType || p.itemType || item?.type || "course";
       const stream: RevenueStream =
         itemType === "digital_product" ? "digital_product" : "course";
       const itemTitle =
@@ -188,8 +188,8 @@ export function buildUnifiedRevenueLedger(input: {
         stream,
         amount,
         createdAt: p.createdAt || purchase?.purchasedAt || "",
-        customerName: purchase?.studentName || user?.name || "Student",
-        customerEmail: purchase?.studentEmail || user?.email || "",
+        customerName: purchase?.studentName || p.buyerName || user?.name || "Student",
+        customerEmail: purchase?.studentEmail || p.buyerEmail || user?.email || "",
         studentId: purchase?.studentId || p.studentId,
         itemId,
         itemTitle,

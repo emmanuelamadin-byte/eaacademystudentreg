@@ -2109,7 +2109,7 @@ function LearningRecord() {
 
   const activeRecordId = issued?.id || userTranscripts.data[0]?.id || null;
   const activeRecordUrl = activeRecordId ? `/verify/${activeRecordId}` : null;
-  const certTitle = getCertificateTitle(user.enrolledClassId);
+  const certTitle = getCertificateTitle(user.enrolledClassId || undefined);
   const fullCertUrl =
     typeof window !== "undefined" && activeRecordUrl
       ? new URL(activeRecordUrl, window.location.origin).href

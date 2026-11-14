@@ -1952,6 +1952,7 @@ export async function sendShopPurchaseConfirmationEmail(info: {
   amount: number;
   reference: string;
   whatsappGroupUrl?: string;
+  guest?: boolean;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = formatEmailSender();
@@ -1959,6 +1960,40 @@ export async function sendShopPurchaseConfirmationEmail(info: {
 
   const studentEmail = info.studentEmail?.trim();
   if (!studentEmail) return { sent: false, reason: "missing_email" };
+
+  if (info.guest) {
+    const origin = (
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://student.cleanbrandagency.com"
+    ).replace(/\/$/, "");
+    const recoveryUrl = `${origin}/checkout/complete?reference=${encodeURIComponent(info.reference)}`;
+    const text = `Hi ${info.studentName || "there"},\n\nYour payment of ₦${info.amount.toLocaleString("en-NG")} for ${info.itemTitle} is confirmed.\n\nOpen your purchase: ${recoveryUrl}\n\nContinue with Google using ${studentEmail} to access your course or download. You do not need to pay again. You can return to this link later if you have not signed in yet.\n\nPayment reference: ${info.reference}\n\nIf you entered the wrong purchase email, contact support with this reference: ${getDirectWhatsappUrl()}\n\nEA Academy`;
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        signal: AbortSignal.timeout(15000),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": `shop_purchase:${info.reference}:email`,
+        },
+        body: JSON.stringify({
+          from,
+          to: [studentEmail],
+          subject: `Payment received: ${info.itemTitle}`,
+          reply_to: process.env.EMAIL_REPLY_TO || undefined,
+          text,
+          html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:auto;padding:32px;color:#183149"><h1>Payment received</h1><p>Your purchase of <strong>${escapeHtml(info.itemTitle)}</strong> is ready.</p><p>Continue with Google using <strong>${escapeHtml(studentEmail)}</strong>. You do not need to pay again.</p><p><a href="${escapeHtml(recoveryUrl)}" style="display:inline-block;padding:14px 22px;background:#002751;color:white;border-radius:8px">Access your purchase</a></p><p>You can return through this email anytime.</p><p>Reference: ${escapeHtml(info.reference)}</p><p><a href="${escapeHtml(getDirectWhatsappUrl())}">Contact support</a> if your purchase email needs correcting.</p><p>EA Academy</p></div>`,
+        }),
+      });
+      return response.ok
+        ? { sent: true }
+        : { sent: false, reason: `Email provider returned ${response.status}` };
+    } catch {
+      return { sent: false, reason: "Receipt delivery failed. Will retry." };
+    }
+  }
 
   const firstName =
     String(info.studentName || "Student")

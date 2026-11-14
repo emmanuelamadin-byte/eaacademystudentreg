@@ -36,6 +36,7 @@ import { getVideoEmbed } from "@/lib/video";
 import { safeResourceUrl } from "@/lib/urls";
 import { applyBunnyVideo, curriculumDuration } from "@/lib/bunny-selection";
 import { BunnyStreamModal } from "./bunny-stream-modal";
+import { LandingPageStudio } from "./landing-page-studio";
 import type {
   ShopItem,
   ShopCourseModule,
@@ -173,9 +174,15 @@ export function ShopStudio() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [trailerUrl]);
-  const [activeTab, setActiveTab] = useState<
-    "info" | "curriculum" | "outcomes" | "quizzes"
+  const [landingDirty, setLandingDirty] = useState(false);
+  const [activeTab, setActiveTabState] = useState<
+    "info" | "curriculum" | "outcomes" | "quizzes" | "landing"
   >("info");
+  function setActiveTab(next: typeof activeTab) {
+    if (activeTab === "landing" && next !== "landing" && landingDirty &&
+      !confirm("Discard unsaved landing-page changes? Save the draft before switching tabs to keep them.")) return;
+    setActiveTabState(next);
+  }
   const [selectedLessonEdit, setSelectedLessonEdit] = useState<{
     moduleId: string;
     lesson: ShopCourseLesson;
@@ -525,7 +532,7 @@ export function ShopStudio() {
             </div>
           </div>
 
-          <div className="studio-topbar-actions">
+          <div className="studio-topbar-actions" style={activeTab === "landing" ? { display: "none" } : undefined}>
             {activeItem.slug && activeItem.published && (
               <Link
                 href={`/shop/${activeItem.slug}`}
@@ -571,6 +578,7 @@ export function ShopStudio() {
 
         {/* Tab Navigation */}
         <div className="studio-nav-tabs">
+          <button type="button" className={`studio-tab-btn ${activeTab === "landing" ? "active" : ""}`} onClick={() => setActiveTab("landing")}>Landing Pages</button>
           <button
             type="button"
             className={`studio-tab-btn ${activeTab === "info" ? "active" : ""}`}
@@ -617,6 +625,10 @@ export function ShopStudio() {
             </button>
           )}
         </div>
+
+        {activeTab === "landing" && (activeItem.id
+          ? <><p className="landing-studio-note">Campaigns use the product’s last saved details and price. Save product changes before editing landing pages.</p><LandingPageStudio itemId={activeItem.id} onDirtyChange={setLandingDirty} /></>
+          : <div className="landing-empty"><h3>Save your product first.</h3><p>Save this course or digital product, reopen it, then create its campaign pages here.</p></div>)}
 
         {/* Tab 1: General Info & Pricing */}
         {activeTab === "info" && (

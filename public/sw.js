@@ -1,4 +1,4 @@
-const CACHE = "ea-academy-static-v1";
+const CACHE = "ea-academy-static-v2";
 const SHELL = ["/", "/app/dashboard", "/offline.html", "/icon.svg"];
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -28,7 +28,9 @@ self.addEventListener("fetch", (event) => {
   if (
     request.method !== "GET" ||
     url.origin !== self.location.origin ||
-    url.pathname.startsWith("/api/")
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/checkout/") ||
+    url.pathname.startsWith("/offer/")
   )
     return;
   if (request.mode === "navigate") {

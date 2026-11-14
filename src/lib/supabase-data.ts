@@ -65,6 +65,7 @@ const specs: Record<string, CollectionSpec> = {
 
 const fields: Record<string, Record<string, string>> = {
   users: {
+    enrollmentStatus: "enrollment_status",
     name: "full_name",
     avatarUrl: "avatar_url",
     enrolledClassId: "primary_track",
@@ -218,6 +219,11 @@ const fields: Record<string, Record<string, string>> = {
     updatedAt: "updated_at",
   },
   payments: {
+    buyerName: "buyer_name",
+    buyerEmail: "buyer_email",
+    itemId: "item_id",
+    itemTitle: "item_title",
+    itemType: "item_type",
     id: "reference",
     studentId: "student_id",
     paidAt: "paid_at",
@@ -233,6 +239,10 @@ const fields: Record<string, Record<string, string>> = {
     updatedAt: "updated_at",
   },
   billingIntents: {
+    buyerName: "buyer_name",
+    campaignId: "campaign_id",
+    visitId: "visit_id",
+    claimedAt: "claimed_at",
     id: "reference",
     studentId: "student_id",
     amount: "amount_kobo",
@@ -353,6 +363,7 @@ export function rowFromDatabase(name: string, source: Row): Row {
     result[reverse[key] || key] = value === null ? undefined : value;
   }
   if (name === "users") {
+    result.enrolledClassId = source.primary_track ?? null;
     result.birthday =
       source.birth_month && source.birth_day
         ? { month: source.birth_month, day: source.birth_day }
@@ -403,7 +414,10 @@ export function rowFromDatabase(name: string, source: Row): Row {
   if (name === "shopPurchases") {
     if (result.amount !== undefined) result.amount = Number(result.amount);
   }
-  if (name === "shopCourseProgress" && Array.isArray(result.completedLessonIds)) {
+  if (
+    name === "shopCourseProgress" &&
+    Array.isArray(result.completedLessonIds)
+  ) {
     const rawIds = result.completedLessonIds as string[];
     const cleanIds: string[] = [];
     for (const entry of rawIds) {

@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   documents: new Map<string, Record<string, unknown>>(),
 }));
 vi.mock("server-only", () => ({}));
+vi.mock("../src/server/tiktok", () => ({ sendTikTokServerEvent: vi.fn().mockResolvedValue({ ok: true }) }));
 vi.mock("../src/server/ai", () => ({ askAI: vi.fn() }));
 vi.mock("../src/server/payments", () => ({
   checkout: vi.fn(),

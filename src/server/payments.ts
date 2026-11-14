@@ -13,8 +13,10 @@ import {
 } from "./communications";
 import { sendTikTokServerEvent } from "./tiktok";
 import { sendMetaServerEvent } from "./meta";
+import { purchaseFirstEnabled } from "@/lib/commerce-flags";
+import { applyShopPayment } from "./shop-payments";
 
-type PaystackTransaction = {
+export type PaystackTransaction = {
   reference: string;
   status: string;
   amount: number;
@@ -30,7 +32,7 @@ function secret() {
   if (!value) throw new ApiError(503, "Paystack has not been configured.");
   return value;
 }
-async function paystack<T>(
+export async function paystack<T>(
   path: string,
   method = "GET",
   body?: object,
@@ -352,6 +354,9 @@ async function applyPayment(
       400,
       "The payment does not match the monthly subscription plan.",
     );
+  if (intent.kind === "shop_item" && purchaseFirstEnabled) {
+    return applyShopPayment(transaction);
+  }
   const ownerRef = store.collection("users").doc(intent.studentId);
   let newlyFulfilled = false;
   let ownerPhone: string | undefined;

@@ -68,7 +68,7 @@ export function TrackSelect({
   all = false,
   allowed,
 }: {
-  value: string;
+  value: string | null;
   onChange: (value: CareerPathClassId | "all") => void;
   all?: boolean;
   allowed?: string[];
@@ -76,7 +76,7 @@ export function TrackSelect({
   return (
     <select
       aria-label="Career track"
-      value={value}
+      value={value || ""}
       onChange={(event) =>
         onChange(event.target.value as CareerPathClassId | "all")
       }
@@ -92,7 +92,8 @@ export function TrackSelect({
     </select>
   );
 }
-export function trackName(id: string) {
+export function trackName(id: string | null) {
+  if (!id) return "Not enrolled in a track";
   return TRACKS.find((track) => track.id === id)?.name ?? "All tracks";
 }
 export function dateLabel(value?: string) {

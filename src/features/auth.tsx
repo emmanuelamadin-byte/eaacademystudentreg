@@ -74,12 +74,16 @@ export default function AuthPage({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const signup = mode === "signup";
+  const enrollingBuyer =
+    user?.enrollmentStatus === "purchase_only" && search.get("enroll") === "1";
   const hasValidTrack =
     !!user && TRACKS.some((item) => item.id === user.enrolledClassId);
   const onboarding =
     !!authUser &&
     (!user ||
-      (user.role === "Student" && (!hasValidTrack || !user.phoneNumber))) &&
+      (user.role === "Student" &&
+        (user.enrollmentStatus !== "purchase_only" || enrollingBuyer) &&
+        (!hasValidTrack || !user.phoneNumber))) &&
     !loading;
   const countries = useMemo(() => {
     const names = new Intl.DisplayNames(["en"], { type: "region" });
@@ -113,7 +117,12 @@ export default function AuthPage({
   }, [birthDay, dayCount]);
   useEffect(() => {
     if (user && !onboarding && !createdProfile.current)
-      router.replace(safeRedirectPath || "/app/dashboard");
+      router.replace(
+        safeRedirectPath ||
+          (user.enrollmentStatus === "purchase_only"
+            ? "/app/library"
+            : "/app/dashboard"),
+      );
   }, [user, onboarding, router, safeRedirectPath]);
 
   async function google() {

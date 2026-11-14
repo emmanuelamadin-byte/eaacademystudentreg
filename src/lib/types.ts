@@ -7,7 +7,8 @@ export interface AcademyUser {
   name: string;
   email: string;
   role: UserRole;
-  enrolledClassId: CareerPathClassId;
+  enrolledClassId: CareerPathClassId | null;
+  enrollmentStatus?: "enrolled" | "purchase_only";
   membershipPlan: MembershipPlan;
   avatarUrl?: string;
   enrolledAt: string;
@@ -201,7 +202,7 @@ export interface PlatformSettings {
 }
 export interface Payment {
   id: string;
-  studentId: string;
+  studentId?: string;
   amount: number;
   kind: "premium" | "donation" | "shop_item";
   status: string;
@@ -209,6 +210,9 @@ export interface Payment {
   reference: string;
   itemId?: string;
   itemTitle?: string;
+  itemType?: ShopItemType;
+  buyerName?: string;
+  buyerEmail?: string;
 }
 
 export type ShopItemType = "course" | "digital_product";
@@ -231,10 +235,7 @@ export interface ShopCourseLesson {
 }
 
 export type ShopQuizQuestionType =
-  | "multiple_choice"
-  | "true_false"
-  | "multiple_answer"
-  | "short_answer";
+  "multiple_choice" | "true_false" | "multiple_answer" | "short_answer";
 
 export type ShopQuizRetakePolicy = "unlimited" | "limited" | "single";
 export type ShopQuizScoringMethod = "highest" | "latest" | "average";

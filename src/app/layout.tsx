@@ -11,6 +11,7 @@ import {
   WebSiteSchema,
 } from "@/components/seo-structured-data";
 import "./globals.css";
+import "./commerce.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],

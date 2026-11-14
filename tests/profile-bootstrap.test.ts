@@ -37,4 +37,14 @@ describe("profile bootstrap", () => {
       }),
     ).toBe(false);
   });
+  it("lets purchase-only buyers use their library without academy onboarding", () => {
+    expect(
+      needsProfileBootstrap({
+        ...completeStudent,
+        enrollmentStatus: "purchase_only",
+        enrolledClassId: null,
+        phoneNumber: undefined,
+      }),
+    ).toBe(false);
+  });
 });

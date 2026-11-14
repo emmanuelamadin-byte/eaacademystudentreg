@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Download, X, WifiOff, Bell } from "lucide-react";
 import { useOnline } from "@/lib/hooks";
 import { useAcademy } from "@/components/academy-provider";
+import { usePathname } from "next/navigation";
 import {
   isPushSupported,
   getNotificationPermission,
@@ -15,6 +16,7 @@ interface InstallEvent extends Event {
 }
 
 export function PwaTools() {
+  const pathname = usePathname();
   const { user } = useAcademy();
   const [install, setInstall] = useState<InstallEvent | null>(null);
   const [dismissed, setDismissed] = useState(true);
@@ -46,6 +48,7 @@ export function PwaTools() {
     // Check if push notifications can be prompted
     if (
       user &&
+      user.enrollmentStatus !== "purchase_only" &&
       isPushSupported() &&
       getNotificationPermission() === "default" &&
       sessionStorage.getItem("ea-push-prompt-dismissed") !== "1"
@@ -79,6 +82,8 @@ export function PwaTools() {
     } else setHelp(!help);
   }
 
+  if (pathname.startsWith("/offer/") || pathname.startsWith("/checkout/"))
+    return null;
   return (
     <>
       {!online && (
@@ -128,7 +133,9 @@ export function PwaTools() {
           </span>
           <div>
             <strong>Get instant updates</strong>
-            <p>Turn on notifications for announcements & feedback on your phone.</p>
+            <p>
+              Turn on notifications for announcements & feedback on your phone.
+            </p>
           </div>
           <button
             className="btn btn-secondary btn-small"

@@ -7,8 +7,10 @@ import {
 } from "@/server/communications";
 import { failure } from "@/server/supabase";
 import { verifyAutomationSecret } from "@/server/webhook-security";
+import { retryShopReceipts } from "@/server/shop-payments";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 async function handleAutomation(request: Request) {
   try {
@@ -18,6 +20,7 @@ async function handleAutomation(request: Request) {
     const subscriptionReminders = await queueSubscriptionExpiryReminders();
     const abandonedCheckouts = await queueAbandonedCheckoutReminders();
     const deliveries = await processMessageQueue(50);
+    await retryShopReceipts();
     return Response.json(
       { birthdays, subscriptionReminders, abandonedCheckouts, deliveries },
       { headers: { "Cache-Control": "no-store" } },
@@ -34,4 +37,3 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   return handleAutomation(request);
 }
-

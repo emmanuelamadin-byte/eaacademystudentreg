@@ -30,6 +30,7 @@ import { getVideoEmbed } from "@/lib/video";
 import { type ShopItem, type ShopCourseLesson, isPremium } from "@/lib/types";
 import { trackTikTokEvent } from "@/lib/tiktok";
 import { ViewerWatermark } from "@/components/viewer-watermark";
+import { purchaseFirstEnabled } from "@/lib/commerce-flags";
 
 export function ShopCatalogPage() {
   const [items, setItems] = useState<ShopItem[]>([]);
@@ -526,6 +527,11 @@ export function ShopProductDetailPage({ item }: { item: ShopItem }) {
     };
 
     trackTikTokEvent("AddToCart", itemParams, userParams);
+
+    if (purchaseFirstEnabled) {
+      router.push(`/checkout/${encodeURIComponent(item.id)}`);
+      return;
+    }
 
     if (!user) {
       // Direct visitor to signup/login while remembering their intent

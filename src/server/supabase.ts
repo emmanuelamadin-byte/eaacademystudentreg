@@ -20,6 +20,7 @@ export type AuthToken = {
   name?: string;
   avatar_url?: string;
   provider?: string;
+  providers?: string[];
 };
 
 let client: SupabaseClient | null = null;
@@ -356,6 +357,7 @@ export async function identity(request: Request): Promise<AuthToken> {
     name: metadata.full_name || metadata.name,
     avatar_url: metadata.avatar_url,
     provider: data.user.app_metadata?.provider,
+    providers: data.user.app_metadata?.providers,
   };
 }
 

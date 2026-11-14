@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -98,11 +99,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showLogoutModal, signingOut]);
   const userId = user?.id;
+  const purchaseOnly = user?.enrollmentStatus === "purchase_only";
+  const buyerRoute =
+    /^\/app\/(library|learn-course|account|billing|membership)(\/|$)/.test(
+      pathname,
+    );
   const validPrimaryTrack =
     !!user && TRACKS.some((track) => track.id === user.enrolledClassId);
   const needsOnboarding =
     !!user &&
     user.role === "Student" &&
+    !purchaseOnly &&
     (!validPrimaryTrack || !user.phoneNumber);
   useEffect(() => {
     if (!userId) return;
@@ -115,7 +122,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [userId, user?.timeZone, refreshProfile]);
   const { data: notifications } = useRecords<AcademyNotification>(
     "notifications",
-    [["targetTrack", "in", ["all", user?.enrolledClassId || "system-dev"]]],
+    [
+      [
+        "targetTrack",
+        "in",
+        user?.enrolledClassId ? ["all", user.enrolledClassId] : ["all"],
+      ],
+    ],
     !!user,
   );
   useEffect(() => {
@@ -124,7 +137,22 @@ export function AppShell({ children }: { children: ReactNode }) {
       router.replace("/signup");
     if (!loading && configured && authUser && needsOnboarding)
       router.replace("/signup");
-  }, [loading, configured, authUser, user, error, needsOnboarding, router]);
+    if (!loading && configured && authUser && purchaseOnly && !buyerRoute)
+      router.replace(
+        `/signup?enroll=1&redirect=${encodeURIComponent(pathname)}`,
+      );
+  }, [
+    loading,
+    configured,
+    authUser,
+    user,
+    error,
+    needsOnboarding,
+    router,
+    purchaseOnly,
+    buyerRoute,
+    pathname,
+  ]);
   useEffect(() => {
     setMenu(false);
     setBell(false);
@@ -158,7 +186,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     );
-  if (!user || needsOnboarding) return <Loading />;
+  if (!user || needsOnboarding || (purchaseOnly && !buyerRoute))
+    return <Loading />;
   const staff = user.role !== "Student";
   const allLinks = [
     ...studentLinks,
@@ -177,14 +206,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const today = localDateParts(user.timeZone || "UTC");
   const todayKey = `${today.year}-${String(today.month).padStart(2, "0")}-${String(today.day).padStart(2, "0")}`;
   const personalNotifications: AcademyNotification[] = [];
-  if (!user.birthday)
+  if (!user.birthday && !purchaseOnly)
     personalNotifications.push({
       id: "birthday-missing",
       title: "Add your birthday",
       message:
         "Add your birthday month and day so EA Academy can celebrate you.",
       type: "system",
-      targetTrack: user.enrolledClassId,
+      targetTrack: user.enrolledClassId || "all",
       priority: "normal",
       actionScreen: "/app/account",
       createdAt: user.enrolledAt,
@@ -196,7 +225,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       message:
         "Everyone at EA Academy is celebrating you today. We hope this new year brings you growth, joy, and bold new opportunities.",
       type: "system",
-      targetTrack: user.enrolledClassId,
+      targetTrack: user.enrolledClassId || "all",
       priority: "high",
       createdAt: `${todayKey}T00:00:00.000Z`,
     });
@@ -206,7 +235,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     items: {
       href: string;
       label: string;
-      icon: any;
+      icon: LucideIcon;
       pro?: boolean;
     }[],
   ) {
@@ -276,9 +305,23 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <nav aria-label="Workspace navigation">
           <span className="sidebar-caption">YOUR LEARNING</span>
-          {nav(studentLinks)}
-          <span className="sidebar-caption">GROW TOGETHER</span>
-          {nav(communityLinks)}
+          {nav(
+            purchaseOnly
+              ? studentLinks.filter((link) =>
+                  ["/shop", "/app/library"].includes(link.href),
+                )
+              : studentLinks,
+          )}
+          {purchaseOnly ? (
+            <Link className="sidebar-link" href="/signup?enroll=1">
+              Explore the academy ↗
+            </Link>
+          ) : (
+            <>
+              <span className="sidebar-caption">GROW TOGETHER</span>
+              {nav(communityLinks)}
+            </>
+          )}
           {staff && (
             <>
               <span className="sidebar-caption">ACADEMY MANAGEMENT</span>
@@ -451,42 +494,57 @@ export function AppShell({ children }: { children: ReactNode }) {
         </footer>
       </div>
       {/* Native App Bottom Navigation Bar (Mobile only, hidden on desktop) */}
-      <nav className="mobile-bottom-nav" aria-label="Mobile application navigation">
+      <nav
+        className="mobile-bottom-nav"
+        aria-label="Mobile application navigation"
+      >
         <Link
-          href="/app/dashboard"
+          href={purchaseOnly ? "/app/library" : "/app/dashboard"}
           scroll={true}
-          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-          className={`mobile-tab ${pathname === "/app/dashboard" ? "active" : ""}`}
+          onClick={() =>
+            window.scrollTo({ top: 0, left: 0, behavior: "instant" })
+          }
+          className={`mobile-tab ${(purchaseOnly ? buyerRoute && /library|learn-course/.test(pathname) : pathname === "/app/dashboard") ? "active" : ""}`}
         >
-          <LayoutDashboard size={20} />
-          <span>Overview</span>
+          {purchaseOnly ? (
+            <ShoppingBag size={20} />
+          ) : (
+            <LayoutDashboard size={20} />
+          )}
+          <span>{purchaseOnly ? "Library" : "Overview"}</span>
         </Link>
         <Link
-          href="/app/classes"
+          href={purchaseOnly ? "/shop" : "/app/classes"}
           scroll={true}
-          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-          className={`mobile-tab ${pathname.startsWith("/app/classes") ? "active" : ""}`}
+          onClick={() =>
+            window.scrollTo({ top: 0, left: 0, behavior: "instant" })
+          }
+          className={`mobile-tab ${pathname.startsWith(purchaseOnly ? "/shop" : "/app/classes") ? "active" : ""}`}
         >
-          <Video size={20} />
-          <span>Classes</span>
+          {purchaseOnly ? <Store size={20} /> : <Video size={20} />}
+          <span>{purchaseOnly ? "Shop" : "Classes"}</span>
         </Link>
         <Link
-          href="/app/tracks"
+          href={purchaseOnly ? "/app/account" : "/app/tracks"}
           scroll={true}
-          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-          className={`mobile-tab ${pathname.startsWith("/app/tracks") ? "active" : ""}`}
+          onClick={() =>
+            window.scrollTo({ top: 0, left: 0, behavior: "instant" })
+          }
+          className={`mobile-tab ${pathname.startsWith(purchaseOnly ? "/app/account" : "/app/tracks") ? "active" : ""}`}
         >
-          <BookOpen size={20} />
-          <span>Tracks</span>
+          {purchaseOnly ? <Settings size={20} /> : <BookOpen size={20} />}
+          <span>{purchaseOnly ? "Account" : "Tracks"}</span>
         </Link>
         <Link
-          href="/shop"
+          href={purchaseOnly ? "/signup?enroll=1" : "/shop"}
           scroll={true}
-          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-          className={`mobile-tab ${pathname.startsWith("/shop") ? "active" : ""}`}
+          onClick={() =>
+            window.scrollTo({ top: 0, left: 0, behavior: "instant" })
+          }
+          className={`mobile-tab ${!purchaseOnly && pathname.startsWith("/shop") ? "active" : ""}`}
         >
-          <Store size={20} />
-          <span>Shop</span>
+          {purchaseOnly ? <GraduationCap size={20} /> : <Store size={20} />}
+          <span>{purchaseOnly ? "Academy" : "Shop"}</span>
         </Link>
         <button
           type="button"
