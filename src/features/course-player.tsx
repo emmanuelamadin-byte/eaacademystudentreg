@@ -478,10 +478,7 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
         {/* Left / Center: Video Stage OR Chapter Quiz Assessment Stage */}
         <main className="classroom-stage">
           {activeQuizModule && activeQuizModule.quiz ? (
-            <div
-              className="classroom-content-box"
-              style={{ marginTop: 0, padding: "1.75rem" }}
-            >
+            <div className="classroom-content-box classroom-quiz-box">
               <div
                 style={{
                   display: "flex",
@@ -700,6 +697,7 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          flexWrap: "wrap",
                           gap: "0.5rem",
                           marginBottom: "0.75rem",
                         }}
@@ -974,14 +972,13 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                   </button>
                 </div>
 
-                <div className="action-bar-right" style={{ display: "flex", gap: "0.5rem" }}>
+                <div className="action-bar-right">
                   {currentLessonEntry?.moduleHasQuiz && (
                     <button
                       type="button"
                       className="btn btn-secondary btn-small"
                       onClick={() => openChapterQuiz(currentLessonEntry.moduleId)}
                     >
-                      <HelpCircle size={15} />
                       Chapter Quiz
                     </button>
                   )}
@@ -1318,6 +1315,8 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "6px",
                   marginBottom: "6px",
                   fontWeight: 700,
                 }}
@@ -1356,6 +1355,8 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "4px 8px",
                     fontSize: "11px",
                     opacity: 0.85,
                     marginBottom: quizEligibility.certificateUnlocked ? "8px" : 0,

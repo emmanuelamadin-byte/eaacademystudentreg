@@ -100,6 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [showLogoutModal, signingOut]);
   const userId = user?.id;
   const purchaseOnly = user?.enrollmentStatus === "purchase_only";
+  const isCoursePlayer = /^\/app\/learn-course\/[^/]+/.test(pathname);
   const buyerRoute =
     /^\/app\/(library|learn-course|account|billing|membership)(\/|$)/.test(
       pathname,
@@ -478,7 +479,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
-        <main key={pathname} className="workspace-content">
+        <main
+          key={pathname}
+          className={`workspace-content${isCoursePlayer ? " workspace-content-classroom" : ""}`}
+        >
           <LearningSync />
           {children}
         </main>

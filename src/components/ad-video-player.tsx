@@ -326,17 +326,7 @@ export function AdVideoPlayer({
     hadAd && embedUrl ? withLessonAutoplay(embedUrl) : embedUrl;
 
   return (
-    <div
-      className={`ad-player-wrapper ${className}`}
-      style={{
-        position: "relative",
-        width: "100%",
-        aspectRatio: "16 / 9",
-        background: "#000000",
-        borderRadius: "14px",
-        overflow: "hidden",
-      }}
-    >
+    <div className={`ad-player-wrapper ${className}`}>
       {/* Underlying Lesson Video Player */}
       {videoUrl ? (
         isDirectVideo ? (
@@ -344,9 +334,16 @@ export function AdVideoPlayer({
             ref={lessonVideoRef}
             src={embedUrl || videoUrl}
             controls={adPhase === "done"}
+            playsInline
             className="classroom-player-element"
             poster={poster}
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+            }}
           />
         ) : embedUrl ? (
           <iframe
@@ -356,6 +353,8 @@ export function AdVideoPlayer({
             allowFullScreen
             className="classroom-player-element"
             style={{
+              position: "absolute",
+              inset: 0,
               width: "100%",
               height: "100%",
               border: 0,

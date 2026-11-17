@@ -2384,6 +2384,8 @@ tr:last-child td {
 .app-main {
   margin-left: var(--sidebar);
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -2536,6 +2538,7 @@ tr:last-child td {
   padding: 37px 38px 45px;
   max-width: 1450px;
   width: 100%;
+  min-width: 0;
   margin-inline: auto;
   flex: 1;
 }
@@ -5955,6 +5958,11 @@ tr:last-child td {
     animation: mobilePageGlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  .workspace-content.workspace-content-classroom,
+  .workspace-content:has(.classroom-layout) {
+    padding: 0 0 calc(84px + env(safe-area-inset-bottom, 16px)) !important;
+  }
+
   @keyframes mobilePageGlide {
     from {
       opacity: 0.84;
@@ -8215,6 +8223,10 @@ tr:last-child td {
 
 .classroom-layout {
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
   background: #f8fafc;
   display: flex;
   flex-direction: column;
@@ -8231,12 +8243,15 @@ tr:last-child td {
   position: sticky;
   top: 0;
   z-index: 50;
+  min-width: 0;
 }
 
 .classroom-topbar-left {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+  flex: 1;
 }
 
 .classroom-back-btn {
@@ -8249,6 +8264,8 @@ tr:last-child td {
   padding: 6px 12px;
   border-radius: 8px;
   background: var(--warm);
+  flex-shrink: 0;
+  white-space: nowrap;
   transition: all 0.15s;
 }
 
@@ -8257,12 +8274,18 @@ tr:last-child td {
   color: var(--ink);
 }
 
+.classroom-course-title {
+  min-width: 0;
+  flex: 1;
+}
+
 .classroom-course-title h2 {
   font-size: 1rem;
   font-weight: 700;
   color: var(--navy);
   margin: 0;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .classroom-track-badge {
@@ -8273,19 +8296,24 @@ tr:last-child td {
 .classroom-topbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
 }
 
 .classroom-progress-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 12px;
   font-weight: 600;
   color: var(--body);
   background: var(--warm);
   padding: 6px 12px;
   border-radius: 999px;
+  white-space: nowrap;
+  max-width: 100%;
+  line-height: 1.25;
 }
 
 .progress-fill-bar {
@@ -8294,6 +8322,7 @@ tr:last-child td {
   background: #cbd5e1;
   border-radius: 999px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .progress-fill-val {
@@ -8313,9 +8342,12 @@ tr:last-child td {
 
 .classroom-main-container {
   display: grid;
-  grid-template-columns: 1fr 360px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   flex: 1;
   min-height: calc(100vh - 64px);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .classroom-stage {
@@ -8325,16 +8357,27 @@ tr:last-child td {
   gap: 20px;
   max-width: 1000px;
   width: 100%;
+  min-width: 0;
   margin: 0 auto;
 }
 
 .classroom-video-frame {
+  position: relative;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   aspect-ratio: 16 / 9;
   background: #000000;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: var(--shadow-md);
+}
+
+.classroom-video-frame > .ad-player-wrapper {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: inherit;
 }
 
 .classroom-player-element {
@@ -8361,12 +8404,22 @@ tr:last-child td {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  min-width: 0;
 }
 
 .action-bar-left {
   display: flex;
+  align-items: center;
   gap: 10px;
+}
+
+.action-bar-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .completed-btn {
@@ -8380,6 +8433,13 @@ tr:last-child td {
   border-radius: 16px;
   padding: 24px;
   box-shadow: var(--shadow-xs);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.classroom-quiz-box {
+  margin-top: 0;
+  padding: 1.75rem;
 }
 
 .classroom-lesson-header h1 {
@@ -8387,6 +8447,7 @@ tr:last-child td {
   font-weight: 700;
   color: var(--navy);
   margin: 4px 0 8px;
+  overflow-wrap: anywhere;
 }
 
 .classroom-duration {
@@ -8399,7 +8460,8 @@ tr:last-child td {
 
 .classroom-tabs {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   border-bottom: 1px solid var(--line);
   margin: 20px 0 16px;
 }
@@ -8415,6 +8477,7 @@ tr:last-child td {
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -8424,10 +8487,14 @@ tr:last-child td {
   border-bottom-color: var(--orange);
 }
 
-.classroom-notes-body {
+.classroom-notes-body,
+.classroom-tutor-body {
   font-size: 14px;
   line-height: 1.7;
   color: var(--body);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .classroom-resource-list {
@@ -8459,12 +8526,14 @@ tr:last-child td {
 
 .res-info {
   flex: 1;
+  min-width: 0;
 }
 
 .res-info strong {
   display: block;
   font-size: 13px;
   color: var(--navy);
+  overflow-wrap: anywhere;
 }
 
 .res-info span {
@@ -8486,6 +8555,7 @@ tr:last-child td {
   height: calc(100vh - 64px);
   position: sticky;
   top: 64px;
+  min-width: 0;
 }
 
 .classroom-sidebar-header {
@@ -8532,11 +8602,17 @@ tr:last-child td {
   text-align: left;
 }
 
+.mod-header-left {
+  min-width: 0;
+  flex: 1;
+}
+
 .mod-header-left h4 {
   margin: 2px 0 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--navy);
+  overflow-wrap: anywhere;
 }
 
 .mod-idx {
@@ -8593,6 +8669,7 @@ tr:last-child td {
 
 .sidebar-lesson-info {
   flex: 1;
+  min-width: 0;
 }
 
 .sidebar-lesson-title {
@@ -8601,6 +8678,7 @@ tr:last-child td {
   color: var(--ink);
   font-weight: 500;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .classroom-sidebar-lesson.active .sidebar-lesson-title {
@@ -8846,7 +8924,12 @@ tr:last-child td {
     display: block;
   }
   .classroom-main-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+  }
+  .classroom-stage {
+    padding: 16px;
+    gap: 16px;
   }
   .classroom-sidebar {
     height: auto;
@@ -8859,6 +8942,14 @@ tr:last-child td {
   }
 }
 
+@media (max-width: 768px) {
+  .classroom-topbar {
+    position: static;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+}
+
 @media (max-width: 640px) {
   .shop-grid {
     grid-template-columns: 1fr;
@@ -8868,11 +8959,149 @@ tr:last-child td {
   }
   .classroom-topbar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .classroom-topbar-left {
+    width: 100%;
+    gap: 10px;
+    align-items: center;
+  }
+  .classroom-back-btn {
+    padding: 6px 10px;
+    font-size: 12.5px;
+    min-height: 36px;
+  }
+  .classroom-course-title h2 {
+    font-size: 0.95rem;
+    line-height: 1.25;
   }
   .classroom-topbar-right {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .classroom-progress-pill {
+    padding: 5px 10px;
+    font-size: 11.5px;
+    gap: 6px;
+    border-radius: 999px;
+    white-space: normal;
+    line-height: 1.25;
+  }
+  .progress-fill-bar {
+    width: 44px;
+  }
+  .classroom-cert-btn {
+    min-height: 34px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .classroom-stage {
+    padding: 0 0 16px;
+    gap: 14px;
+  }
+  .classroom-video-frame {
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .classroom-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding-inline: 14px;
+  }
+  .action-bar-left {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .action-bar-left .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 42px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .action-bar-right {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .action-bar-right .btn {
+    flex: 1 1 140px;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+  }
+  .classroom-content-box {
+    margin-inline: 12px;
+    padding: 16px;
+    border-radius: 14px;
+  }
+  .classroom-quiz-box {
+    margin-top: 12px;
+    padding: 16px;
+  }
+  .classroom-lesson-header h1 {
+    font-size: 1.25rem;
+    line-height: 1.25;
+  }
+  .classroom-tabs {
+    gap: 4px 8px;
+    margin: 14px 0 12px;
+  }
+  .classroom-tab {
+    padding: 8px 10px;
+    font-size: 13px;
+    gap: 6px;
+  }
+  .classroom-sidebar-header {
+    padding: 14px 16px;
+  }
+  .classroom-mod-header {
+    padding: 12px 16px;
+  }
+  .classroom-sidebar-lesson {
+    padding: 12px 16px;
+  }
+  .certificate-modal-backdrop {
+    padding: 12px;
+  }
+  .certificate-modal-top {
+    padding: 12px 16px;
+  }
+  .certificate-sheet-wrap {
+    padding: 14px;
+    gap: 14px;
+  }
+  .certificate-sheet {
+    padding: 10px;
+  }
+  .cert-border-inner {
+    padding: 24px 14px;
+  }
+  .cert-logo {
+    font-size: 1.25rem;
+  }
+  .cert-recipient-name {
+    font-size: 1.5rem;
+  }
+  .cert-course-title {
+    font-size: 1.15rem;
+    margin-bottom: 20px;
+  }
+  .certificate-actions {
+    flex-direction: column-reverse;
+  }
+  .certificate-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
   .cert-footer {
     flex-direction: column;
@@ -8897,6 +9126,18 @@ tr:last-child td {
   background: #000000;
   border-radius: 14px;
   overflow: hidden;
+}
+
+.ad-player-wrapper > video,
+.ad-player-wrapper > iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border: 0;
+  display: block;
 }
 
 .ad-overlay {
