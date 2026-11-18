@@ -5,13 +5,17 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
+  ArrowLeft,
   ArrowRight,
   BookOpen,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  Circle,
   Clock,
-  Code2,
   Download,
   FileText,
   Flame,
@@ -20,6 +24,7 @@ import {
   MessageCircle,
   Pencil,
   Play,
+  PlayCircle,
   Plus,
   Send,
   Target,
@@ -31,12 +36,10 @@ import {
   Copy,
   ExternalLink,
   Store,
-  ShoppingBag,
 } from "lucide-react";
 import { useAcademy } from "@/components/academy-provider";
 import { api } from "@/lib/api";
 import { useRecords } from "@/lib/hooks";
-import { extractVideoUrl, getVideoEmbed } from "@/lib/video";
 import { AdVideoPlayer } from "@/components/ad-video-player";
 import {
   getCertificateTitle,
@@ -341,165 +344,6 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* SHOP SECTION */}
-      <section className="dashboard-shop-section">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">DIGITAL PRODUCTS & MASTERCLASSES</span>
-            <h2>Shop</h2>
-          </div>
-          <Link
-            href="/shop"
-            scroll={true}
-            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-            className="dashboard-shop-browse-link"
-          >
-            Explore all items <ArrowRight size={15} />
-          </Link>
-        </div>
-
-        {shopItems.loading ? (
-          <div className="dashboard-shop-loading">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="dashboard-shop-card-skeleton" />
-            ))}
-          </div>
-        ) : shopItems.data.length > 0 ? (
-          <div className="dashboard-shop-grid">
-            {shopItems.data.slice(0, 3).map((item) => {
-              const isCourse = item.type === "course";
-              const isIncludedWithPremium =
-                isCourse && item.includedInPremium === true && isPremium(user);
-              const isOwned =
-                myPurchases.data.some((p) => p.itemId === item.id) ||
-                isIncludedWithPremium;
-              return (
-                <article key={item.id} className="dashboard-shop-card">
-                  <Link
-                    href={`/shop/${item.slug}`}
-                    scroll={true}
-                    onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-                    className="dashboard-shop-card-img"
-                  >
-                    {item.thumbnailUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.thumbnailUrl}
-                        alt={item.title}
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          const fallback = e.currentTarget.parentElement?.querySelector(".dashboard-shop-card-fallback");
-                          if (fallback) (fallback as HTMLElement).style.display = "flex";
-                        }}
-                      />
-                    )}
-                    <div
-                      className="dashboard-shop-card-fallback"
-                      style={{ display: item.thumbnailUrl ? "none" : "flex" }}
-                    >
-                      {isCourse ? <BookOpen size={28} /> : <Download size={28} />}
-                    </div>
-                    <span className={`dashboard-shop-type-tag ${isCourse ? "course" : "product"}`}>
-                      {isCourse ? "Course" : "Digital Asset"}
-                    </span>
-                  </Link>
-                  <div className="dashboard-shop-card-body">
-                    <div className="dashboard-shop-card-category">{item.category}</div>
-                    <h3 className="dashboard-shop-card-title">
-                      <Link
-                        href={`/shop/${item.slug}`}
-                        scroll={true}
-                        onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-                      >
-                        {item.title}
-                      </Link>
-                    </h3>
-                    <p className="dashboard-shop-card-sub">{item.subtitle}</p>
-                    <div className="dashboard-shop-card-footer">
-                      <div className="dashboard-shop-card-price">
-                        {isIncludedWithPremium ? (
-                          <div style={{ display: "flex", flexDirection: "column" }}>
-                            <strong style={{ color: "#059669", fontSize: "0.95rem" }}>
-                              Included with Premium
-                            </strong>
-                            <span style={{ fontSize: "11px", color: "var(--muted, #64748b)" }}>
-                              <span style={{ textDecoration: "line-through" }}>
-                                ₦{item.price.toLocaleString("en-NG")}
-                              </span>{" "}
-                              · Full Access
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                            <strong>₦{item.price.toLocaleString("en-NG")}</strong>
-                            {item.compareAtPrice && item.compareAtPrice > item.price && (
-                              <small>₦{item.compareAtPrice.toLocaleString("en-NG")}</small>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      {isOwned ? (
-                        <Link
-                          href={isCourse ? `/app/learn-course/${item.id}` : "/app/library"}
-                          scroll={true}
-                          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-                          className="btn btn-secondary btn-small"
-                          style={
-                            isIncludedWithPremium
-                              ? {
-                                  background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-                                  color: "#ffffff",
-                                  border: "none",
-                                  fontWeight: 600,
-                                }
-                              : undefined
-                          }
-                        >
-                          {isCourse ? "Open classroom" : "Download"}
-                        </Link>
-                      ) : (
-                        <Link
-                          href={`/shop/${item.slug}`}
-                          scroll={true}
-                          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-                          className="btn btn-primary btn-small"
-                        >
-                          View details
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="dashboard-shop-empty-banner">
-            <div className="dashboard-shop-empty-content">
-              <div className="dashboard-shop-empty-icon">
-                <Store size={26} />
-              </div>
-              <div>
-                <h3>EA Academy Shop</h3>
-                <p>
-                  Explore standard professional masterclasses, certification courses, and
-                  production-ready digital assets, templates, and guides.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/shop"
-              scroll={true}
-              onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
-              className="btn btn-primary"
-            >
-              Browse shop <ArrowRight size={15} />
-            </Link>
-          </div>
-        )}
-      </section>
-
       <div className="dashboard-columns">
         <section>
           <div className="section-heading">
@@ -605,6 +449,165 @@ function Dashboard() {
           )}
         </aside>
       </div>
+
+      {/* SHOP SECTION */}
+      <section className="dashboard-shop-section">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">DIGITAL PRODUCTS & MASTERCLASSES</span>
+            <h2>Shop</h2>
+          </div>
+          <Link
+            href="/shop"
+            scroll={true}
+            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+            className="dashboard-shop-browse-link"
+          >
+            Explore all items <ArrowRight size={15} />
+          </Link>
+        </div>
+
+        {shopItems.loading ? (
+          <div className="dashboard-shop-loading">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="dashboard-shop-card-skeleton" />
+            ))}
+          </div>
+        ) : shopItems.data.length > 0 ? (
+          <div className="dashboard-shop-grid">
+            {shopItems.data.slice(0, 3).map((item) => {
+              const isCourse = item.type === "course";
+              const isIncludedWithPremium =
+                isCourse && item.includedInPremium === true && isPremium(user);
+              const isOwned =
+                myPurchases.data.some((p) => p.itemId === item.id) ||
+                isIncludedWithPremium;
+              return (
+                <article key={item.id} className="dashboard-shop-card">
+                  <Link
+                    href={`/shop/${item.slug}`}
+                    scroll={true}
+                    onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+                    className="dashboard-shop-card-img"
+                  >
+                    {item.thumbnailUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.thumbnailUrl}
+                        alt={item.title}
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          const fallback = e.currentTarget.parentElement?.querySelector(".dashboard-shop-card-fallback");
+                          if (fallback) (fallback as HTMLElement).style.display = "flex";
+                        }}
+                      />
+                    )}
+                    <div
+                      className="dashboard-shop-card-fallback"
+                      style={{ display: item.thumbnailUrl ? "none" : "flex" }}
+                    >
+                      {isCourse ? <BookOpen size={28} /> : <Download size={28} />}
+                    </div>
+                    <span className={`dashboard-shop-type-tag ${isCourse ? "course" : "product"}`}>
+                      {isCourse ? "Course" : "Digital Asset"}
+                    </span>
+                  </Link>
+                  <div className="dashboard-shop-card-body">
+                    <div className="dashboard-shop-card-category">{item.category}</div>
+                    <h3 className="dashboard-shop-card-title">
+                      <Link
+                        href={`/shop/${item.slug}`}
+                        scroll={true}
+                        onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+                      >
+                        {item.title}
+                      </Link>
+                    </h3>
+                    <p className="dashboard-shop-card-sub">{item.subtitle}</p>
+                    <div className="dashboard-shop-card-footer">
+                      <div className="dashboard-shop-card-price">
+                        {isIncludedWithPremium ? (
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <strong style={{ color: "#047857", fontSize: "0.95rem" }}>
+                              Included with Premium
+                            </strong>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                              <span style={{ textDecoration: "line-through" }}>
+                                ₦{item.price.toLocaleString("en-NG")}
+                              </span>{" "}
+                              · Full Access
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <strong>₦{item.price.toLocaleString("en-NG")}</strong>
+                            {item.compareAtPrice && item.compareAtPrice > item.price && (
+                              <small>₦{item.compareAtPrice.toLocaleString("en-NG")}</small>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {isOwned ? (
+                        <Link
+                          href={isCourse ? `/app/learn-course/${item.id}` : "/app/library"}
+                          scroll={true}
+                          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+                          className="btn btn-secondary btn-small"
+                          style={
+                            isIncludedWithPremium
+                              ? {
+                                  background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                                  color: "#ffffff",
+                                  border: "none",
+                                  fontWeight: 600,
+                                }
+                              : undefined
+                          }
+                        >
+                          {isCourse ? "Open classroom" : "Download"}
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/shop/${item.slug}`}
+                          scroll={true}
+                          onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+                          className="btn btn-primary btn-small"
+                        >
+                          View details
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="dashboard-shop-empty-banner">
+            <div className="dashboard-shop-empty-content">
+              <div className="dashboard-shop-empty-icon">
+                <Store size={26} />
+              </div>
+              <div>
+                <h3>EA Academy Shop</h3>
+                <p>
+                  Explore standard professional masterclasses, certification courses, and
+                  production-ready digital assets, templates, and guides.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/shop"
+              scroll={true}
+              onClick={() => window.scrollTo({ top: 0, left: 0, behavior: "instant" })}
+              className="btn btn-primary"
+            >
+              Browse shop <ArrowRight size={15} />
+            </Link>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -1665,19 +1668,59 @@ function LessonPlayer({ id }: { id?: string }) {
     window.addEventListener("ea:queue-synced", update);
     return () => window.removeEventListener("ea:queue-synced", update);
   }, [user, id]);
+  const [openModuleIds, setOpenModuleIds] = useState<Record<string, boolean>>({});
   const completed =
     doneLocally || progress.data.some((item) => item.lessonId === id);
-  const ordered = useMemo(
+  const completedSet = useMemo(() => {
+    const set = new Set(progress.data.map((item) => item.lessonId));
+    if (doneLocally && id) set.add(id);
+    return set;
+  }, [progress.data, doneLocally, id]);
+  const trackModules = useMemo(
     () =>
       modules.data
         .filter((module) => module.classId === lesson?.classId)
-        .sort((a, b) => a.order - b.order)
-        .flatMap((module) =>
-          [...(module.lessons || [])].sort((a, b) => a.order - b.order),
-        ),
+        .sort((a, b) => a.order - b.order),
     [modules.data, lesson],
   );
-  const next = ordered[ordered.findIndex((item) => item.id === id) + 1];
+  useEffect(() => {
+    if (!trackModules.length) return;
+    setOpenModuleIds((prev) => {
+      const nextMap = { ...prev };
+      let changed = false;
+      for (const mod of trackModules) {
+        if (nextMap[mod.id] === undefined) {
+          nextMap[mod.id] = true;
+          changed = true;
+        }
+      }
+      return changed ? nextMap : prev;
+    });
+  }, [trackModules]);
+  const ordered = useMemo(
+    () =>
+      trackModules.flatMap((module) =>
+        [...(module.lessons || [])].sort((a, b) => a.order - b.order),
+      ),
+    [trackModules],
+  );
+  const currentIndex = ordered.findIndex((item) => item.id === id);
+  const prev = currentIndex > 0 ? ordered[currentIndex - 1] : undefined;
+  const next =
+    currentIndex >= 0 && currentIndex < ordered.length - 1
+      ? ordered[currentIndex + 1]
+      : undefined;
+  const trackTotalLessons = ordered.length;
+  const trackCompletedLessons = ordered.filter((item) =>
+    completedSet.has(item.id),
+  ).length;
+  const trackProgressPercent =
+    trackTotalLessons > 0
+      ? Math.min(100, Math.round((trackCompletedLessons / trackTotalLessons) * 100))
+      : 0;
+  const trackName =
+    TRACKS.find((item) => item.id === lesson?.classId)?.name ||
+    "Your Classroom";
   const mark = async () => {
     if (!id || !user) return;
     setSaving(true);
@@ -1722,129 +1765,309 @@ function LessonPlayer({ id }: { id?: string }) {
       </div>
     );
   return (
-    <div>
-      <Link href="/app/tracks" className="back-link">
-        ← Back to curriculum
-      </Link>
-      <Header
-        eyebrow={
-          TRACKS.find((item) => item.id === lesson.classId)?.name ||
-          "YOUR CLASSROOM"
-        }
-        title={lesson.title}
-        description={`${lesson.duration || "Self-paced"} · Learn, practice, make progress.`}
-      >
-        <span className={`badge ${completed ? "badge-success" : ""}`}>
-          {completed
-            ? "Completed"
-            : queued
-              ? "Completion saved offline"
-              : "In progress"}
-        </span>
-      </Header>
-      {error && (
-        <p className="alert" role="alert">
-          {error}
-        </p>
-      )}
-      {offline && (
-        <p className="alert">
-          You’re reading a lesson saved on this device. Notes and exercises work
-          offline; streamed video and AI need a connection.
-        </p>
-      )}
-      <div className="video-container">
-        <LessonVideo
-          key={lesson.id}
-          url={lesson.videoUrl}
-          title={lesson.title}
-          trackId={lesson.classId}
-        />
-      </div>
-      <div className="lesson-workspace card">
-        <div
-          className="tabs lesson-tabs"
-          role="tablist"
-          aria-label="Lesson content"
-        >
-          {[
-            { id: "overview", label: "Overview", icon: BookOpen },
-            { id: "resources", label: "Resources", icon: Download },
-            { id: "discussion", label: "Discussion", icon: MessageCircle },
-            { id: "tutor", label: "AI tutor", icon: MessageCircle },
-          ].map((item) => (
-            <button
-              key={item.id}
-              role="tab"
-              aria-selected={tab === item.id}
-              onClick={() => setTab(item.id)}
-              className={tab === item.id ? "active" : ""}
-            >
-              <item.icon size={16} />
-              {item.label}
-            </button>
-          ))}
+    <div className="classroom-layout">
+      <header className="classroom-topbar">
+        <div className="classroom-topbar-left">
+          <Link href="/app/tracks" className="classroom-back-btn">
+            <ArrowLeft size={16} />
+            <span>Curriculum</span>
+          </Link>
+          <div className="classroom-course-title">
+            <h2>{lesson.title}</h2>
+            <span className="classroom-track-badge">{trackName}</span>
+          </div>
         </div>
-        <div className="lesson-tab-content" role="tabpanel">
-          {tab === "overview" && (
-            <div className="prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {lesson.content ||
-                  "Your instructor has not added lesson notes yet."}
-              </ReactMarkdown>
-            </div>
-          )}
-          {tab === "resources" && (
-            <div>
-              {lesson.resources?.length ? (
-                lesson.resources.map((resource, index) => (
-                  <a
-                    className="resource-row"
-                    key={index}
-                    href={safeUrl(resource.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <FileText size={22} />
-                    <span>{resource.title}</span>
-                    <ArrowRight size={18} />
-                  </a>
-                ))
-              ) : (
-                <Empty
-                  title="Resources will live here"
-                  body="Your instructor can attach reading lists, toolkits, and supporting files to this lesson."
+        <div className="classroom-topbar-right">
+          {trackTotalLessons > 0 && (
+            <div className="classroom-progress-pill">
+              <div className="progress-fill-bar">
+                <div
+                  className="progress-fill-val"
+                  style={{ width: `${trackProgressPercent}%` }}
                 />
-              )}
+              </div>
+              <span>
+                {trackCompletedLessons}/{trackTotalLessons} lessons (
+                {trackProgressPercent}%)
+              </span>
             </div>
           )}
-          {tab === "discussion" && <LessonDiscussion lesson={lesson} />}
-          {tab === "tutor" && <Tutor lesson={lesson} />}
-        </div>
-      </div>
-      <div className="lesson-footer">
-        <p className="muted">Ready for your next step?</p>
-        <div className="button-row">
-          <button
-            className={`btn ${completed ? "btn-secondary completed-btn" : "btn-primary"}`}
-            disabled={completed || queued || saving}
-            onClick={mark}
-          >
-            <CheckCircle2 size={17} className={completed ? "text-emerald" : ""} />
+          <span className={`badge ${completed ? "badge-success" : ""}`}>
             {completed
               ? "Completed"
               : queued
-                ? "Saved for sync"
-                : saving
-                  ? "Saving…"
-                  : "Mark as complete"}
-          </button>
-          {next && next.id !== id && (
-            <Link className="btn btn-primary" href={`/app/lesson/${next.id}`}>
-              Next lesson <ArrowRight size={17} />
-            </Link>
-          )}
+                ? "Saved offline"
+                : "In progress"}
+          </span>
         </div>
+      </header>
+
+      <div className="classroom-main-container">
+        <div className="classroom-stage">
+          {error && (
+            <p className="alert" role="alert">
+              {error}
+            </p>
+          )}
+          {offline && (
+            <p className="alert">
+              You’re reading a lesson saved on this device. Notes and exercises
+              work offline; streamed video and AI need a connection.
+            </p>
+          )}
+          <div className="classroom-video-frame">
+            <LessonVideo
+              key={lesson.id}
+              url={lesson.videoUrl}
+              title={lesson.title}
+              trackId={lesson.classId}
+            />
+          </div>
+
+          <div className="classroom-action-bar">
+            <div className="action-bar-left">
+              {prev ? (
+                <Link
+                  href={`/app/lesson/${prev.id}`}
+                  className="btn btn-secondary btn-small"
+                >
+                  <ChevronLeft size={16} />
+                  Previous
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-small"
+                  disabled
+                >
+                  <ChevronLeft size={16} />
+                  Previous
+                </button>
+              )}
+              {next && next.id !== id ? (
+                <Link
+                  href={`/app/lesson/${next.id}`}
+                  className="btn btn-secondary btn-small"
+                >
+                  Next
+                  <ChevronRight size={16} />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-small"
+                  disabled
+                >
+                  Next
+                  <ChevronRight size={16} />
+                </button>
+              )}
+            </div>
+            <div className="action-bar-right">
+              <button
+                type="button"
+                className={`btn ${completed ? "btn-secondary completed-btn" : "btn-primary"}`}
+                disabled={completed || queued || saving}
+                onClick={mark}
+              >
+                <CheckCircle2
+                  size={16}
+                  className={completed ? "text-emerald" : ""}
+                />
+                {completed
+                  ? "Completed"
+                  : queued
+                    ? "Saved for sync"
+                    : saving
+                      ? "Saving…"
+                      : "Mark as Complete"}
+              </button>
+            </div>
+          </div>
+
+          <div className="classroom-content-box">
+            <div className="classroom-lesson-header">
+              <span className="eyebrow">
+                {currentIndex >= 0
+                  ? `LESSON ${currentIndex + 1} OF ${trackTotalLessons}`
+                  : trackName}
+              </span>
+              <h1>{lesson.title}</h1>
+              <span className="classroom-duration">
+                <Clock size={13} /> {lesson.duration || "Self-paced"}
+              </span>
+            </div>
+
+            <div
+              className="classroom-tabs"
+              role="tablist"
+              aria-label="Lesson content"
+            >
+              {[
+                { id: "overview", label: "Overview", icon: BookOpen },
+                {
+                  id: "resources",
+                  label: `Resources (${lesson.resources?.length || 0})`,
+                  icon: Download,
+                },
+                { id: "discussion", label: "Discussion", icon: MessageCircle },
+                { id: "tutor", label: "AI tutor", icon: MessageCircle },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === item.id}
+                  onClick={() => setTab(item.id)}
+                  className={`classroom-tab ${tab === item.id ? "active" : ""}`}
+                >
+                  <item.icon size={15} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="lesson-tab-content" role="tabpanel">
+              {tab === "overview" && (
+                <div className="prose">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {lesson.content ||
+                      "Your instructor has not added lesson notes yet."}
+                  </ReactMarkdown>
+                </div>
+              )}
+              {tab === "resources" && (
+                <div>
+                  {lesson.resources?.length ? (
+                    lesson.resources.map((resource, index) => (
+                      <a
+                        className="classroom-resource-card"
+                        key={index}
+                        href={safeUrl(resource.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <div className="res-icon">
+                          <FileText size={18} />
+                        </div>
+                        <div className="res-info">
+                          <strong>{resource.title}</strong>
+                        </div>
+                        <ArrowRight size={16} className="res-arrow" />
+                      </a>
+                    ))
+                  ) : (
+                    <Empty
+                      title="Resources will live here"
+                      body="Your instructor can attach reading lists, toolkits, and supporting files to this lesson."
+                    />
+                  )}
+                </div>
+              )}
+              {tab === "discussion" && <LessonDiscussion lesson={lesson} />}
+              {tab === "tutor" && <Tutor lesson={lesson} />}
+            </div>
+          </div>
+        </div>
+
+        <aside className="classroom-sidebar" aria-label="Track curriculum">
+          <div className="classroom-sidebar-header">
+            <h3>Track Curriculum</h3>
+            <span className="sidebar-total-badge">
+              {trackTotalLessons} lessons
+            </span>
+          </div>
+          <div className="classroom-modules-accordion">
+            {trackModules.map((mod, modIdx) => {
+              const modLessons = [...(mod.lessons || [])].sort(
+                (a, b) => a.order - b.order,
+              );
+              const isOpen = !!openModuleIds[mod.id];
+              const modDoneCount = modLessons.filter((l) =>
+                completedSet.has(l.id),
+              ).length;
+              return (
+                <div key={mod.id} className="classroom-mod-item">
+                  <button
+                    type="button"
+                    className="classroom-mod-header"
+                    onClick={() =>
+                      setOpenModuleIds((prevMap) => ({
+                        ...prevMap,
+                        [mod.id]: !prevMap[mod.id],
+                      }))
+                    }
+                  >
+                    <div className="mod-header-left">
+                      <span className="mod-idx">
+                        Module {String(modIdx + 1).padStart(2, "0")}
+                      </span>
+                      <h4>{mod.title}</h4>
+                    </div>
+                    <div className="mod-header-right">
+                      <span>
+                        {modDoneCount}/{modLessons.length}
+                      </span>
+                      {isOpen ? (
+                        <ChevronUp size={16} />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
+                    </div>
+                  </button>
+                  {isOpen && (
+                    <div className="classroom-mod-lessons">
+                      {modLessons.map((les) => {
+                        const isDone = completedSet.has(les.id);
+                        const isActive = les.id === id;
+                        const unlocked =
+                          isPremium(user) ||
+                          (mod.classId === user?.enrolledClassId &&
+                            les.free &&
+                            mod.free);
+                        return (
+                          <Link
+                            key={les.id}
+                            href={
+                              unlocked ? `/app/lesson/${les.id}` : "/app/billing"
+                            }
+                            className={`classroom-sidebar-lesson ${isActive ? "active" : ""}`}
+                          >
+                            <span className="lesson-check-btn">
+                              {isDone ? (
+                                <CheckCircle2
+                                  size={16}
+                                  className="checked-icon"
+                                />
+                              ) : !unlocked ? (
+                                <Lock size={15} />
+                              ) : isActive ? (
+                                <PlayCircle size={16} />
+                              ) : (
+                                <Circle size={16} />
+                              )}
+                            </span>
+                            <span className="sidebar-lesson-info">
+                              <span className="sidebar-lesson-title">
+                                {les.title}
+                              </span>
+                              <span className="sidebar-lesson-meta">
+                                <span className="sidebar-lesson-duration">
+                                  <Clock size={11} />{" "}
+                                  {les.duration || "Self-paced"}
+                                </span>
+                              </span>
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </aside>
       </div>
     </div>
   );

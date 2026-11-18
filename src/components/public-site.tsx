@@ -23,6 +23,9 @@ import {
   Star,
   BadgeCheck,
   Quote,
+  FileCheck2,
+  Lock,
+  Sparkles,
 } from "lucide-react";
 import { Brand } from "./ui";
 import { TRACKS, type CourseModule, type PlatformSettings } from "@/lib/types";
@@ -41,7 +44,7 @@ export function PublicHeader() {
   const { data: settings } = useRecord<PlatformSettings>("settings", "public");
   return (
     <>
-      <header className="public-header">
+      <header className={open ? "public-header menu-open" : "public-header"}>
         <div className="container nav-inner">
           <Brand name={settings?.academyName} />
           <nav
@@ -64,20 +67,32 @@ export function PublicHeader() {
             <Link href="/#approach" onClick={() => setOpen(false)}>
               How it works
             </Link>
-            <Link href="/#stories" onClick={() => setOpen(false)}>
-              Stories
-            </Link>
-            <Link href="/#about" onClick={() => setOpen(false)}>
-              About
-            </Link>
-            <Link href="/#faq" onClick={() => setOpen(false)}>
-              FAQs
-            </Link>
             <Link href="/pricing" onClick={() => setOpen(false)}>
               Membership
             </Link>
             <Link href="/donate" onClick={() => setOpen(false)}>
               Give back <ArrowUpRight size={13} />
+            </Link>
+            <Link
+              href="/#stories"
+              className="mobile-only-nav-link"
+              onClick={() => setOpen(false)}
+            >
+              Student stories
+            </Link>
+            <Link
+              href="/#about"
+              className="mobile-only-nav-link"
+              onClick={() => setOpen(false)}
+            >
+              About the founder
+            </Link>
+            <Link
+              href="/#faq"
+              className="mobile-only-nav-link"
+              onClick={() => setOpen(false)}
+            >
+              FAQs
             </Link>
             <div className="mobile-nav-actions">
               <Link
@@ -143,7 +158,7 @@ export function PublicFooter() {
         <div>
           <Brand name={settings?.academyName} />
           <p>
-            A place to turn your ambition
+            A place to turn your ambition{" "}
             <br />
             into something that matters.
           </p>
@@ -339,49 +354,231 @@ export function TrackCards() {
   );
 }
 function HeroVideoCard() {
+  const [playing, setPlaying] = useState(false);
   return (
     <motion.div
       className="hero-video-card"
       variants={heroItem}
     >
       <div className="hero-video-player-box">
-        <iframe
-          className="hero-video-iframe"
-          src="https://www.youtube-nocookie.com/embed/7nLBDiFGwt4?autoplay=1&mute=1&loop=1&playlist=7nLBDiFGwt4&rel=0&controls=1"
-          title="Welcome to EA Academy"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
+        {playing ? (
+          <>
+            <button
+              type="button"
+              className="hero-video-close"
+              onClick={() => setPlaying(false)}
+              aria-label="Close video player"
+            >
+              <X size={15} />
+            </button>
+            <iframe
+              className="hero-video-iframe"
+              src="https://www.youtube-nocookie.com/embed/7nLBDiFGwt4?autoplay=1&rel=0&controls=1"
+              title="Welcome to EA Academy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </>
+        ) : (
+          <button
+            type="button"
+            className="hero-video-overlay"
+            onClick={() => setPlaying(true)}
+            aria-label="Play Welcome to EA Academy video"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://i.ytimg.com/vi/7nLBDiFGwt4/hqdefault.jpg"
+              alt="Welcome to EA Academy video preview"
+              className="hero-video-poster"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+            <span className="hero-video-badge">
+              <Video size={12} /> Founder Welcome
+            </span>
+            <span className="hero-video-play-btn">
+              <Play size={22} fill="currentColor" />
+            </span>
+            <span className="hero-video-duration">90s Tour</span>
+          </button>
+        )}
       </div>
 
       <div className="hero-video-info">
         <div className="hero-video-progress-meta">
-          <strong>Welcome to EA Academy</strong>
-          <span>From the founder</span>
+          <strong>Inside EA Academy (90s Tour)</strong>
+          <span>By Emmanuel Amadin</span>
         </div>
-        <div className="hero-video-progress-bar">
-          <div className="hero-video-progress-fill" />
+        <div className="hero-video-stats">
+          <div>
+            <strong>3 Tracks</strong>
+            <span>AI, Media &amp; Growth</span>
+          </div>
+          <div>
+            <strong>Free Start</strong>
+            <span>No card required</span>
+          </div>
+          <div>
+            <strong>Verified</strong>
+            <span>Digital transcript</span>
+          </div>
         </div>
         <div className="hero-video-checklist">
           <div className="hero-video-check-item">
             <span className="hero-video-check-box checked">
               <Check size={12} strokeWidth={3} />
             </span>
-            <span>Free tracks in AI, media &amp; business</span>
+            <span>Structured lessons &amp; real-world assignments</span>
           </div>
           <div className="hero-video-check-item">
-            <span className="hero-video-check-box">
-              <Play size={10} />
+            <span className="hero-video-check-box checked">
+              <Check size={12} strokeWidth={3} />
             </span>
-            <span>Hands-on assignments &amp; instructor feedback</span>
-          </div>
-          <div className="hero-video-check-item">
-            <span className="hero-video-check-box" />
-            <span>Earn verified certificates at zero cost</span>
+            <span>Weekly live sessions &amp; instructor feedback</span>
           </div>
         </div>
       </div>
     </motion.div>
+  );
+}
+
+function TrackCurriculumExplorer() {
+  const [selectedId, setSelectedId] = useState(TRACKS[0].id);
+  const { data: modules, loading } = useRecords<CourseModule>("modules", [
+    ["published", "==", true],
+  ]);
+
+  const activeTrack =
+    TRACKS.find((track) => track.id === selectedId) || TRACKS[0];
+  const trackModules = modules
+    .filter((mod) => mod.classId === activeTrack.id)
+    .sort((a, b) => a.order - b.order);
+
+  return (
+    <div className="syllabus-explorer">
+      <div className="syllabus-explorer-header">
+        <div>
+          <span className="eyebrow">PREVIEW THE CURRICULUM</span>
+          <h3>See what you’ll study before you sign up.</h3>
+        </div>
+        <div
+          className="syllabus-tabs"
+          role="tablist"
+          aria-label="Preview track curriculum"
+        >
+          {TRACKS.map((track) => (
+            <button
+              key={track.id}
+              type="button"
+              role="tab"
+              aria-selected={selectedId === track.id}
+              className={`syllabus-tab ${selectedId === track.id ? "active" : ""}`}
+              onClick={() => setSelectedId(track.id)}
+            >
+              {track.short}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="syllabus-explorer-body" role="tabpanel">
+        <div className="syllabus-summary-col">
+          <span className="track-eyebrow">{activeTrack.eyebrow}</span>
+          <h4>{activeTrack.name}</h4>
+          <p>{activeTrack.description}</p>
+          <div className="syllabus-competencies">
+            {activeTrack.skills.map((skill) => (
+              <span key={skill} className="track-skill-chip">
+                <Check size={13} /> {skill}
+              </span>
+            ))}
+          </div>
+          <div className="syllabus-actions">
+            <Link
+              href={`/signup?track=${activeTrack.id}`}
+              className="btn btn-primary"
+            >
+              Start {activeTrack.short} free <ArrowUpRight size={16} />
+            </Link>
+            <Link href={`/tracks#${activeTrack.id}`} className="text-link">
+              Full track details <ArrowRight size={15} />
+            </Link>
+          </div>
+        </div>
+
+        <div className="syllabus-modules-col">
+          {loading ? (
+            <div className="syllabus-loading">Loading published modules…</div>
+          ) : trackModules.length > 0 ? (
+            <div className="syllabus-module-list">
+              {trackModules.slice(0, 4).map((mod, idx) => {
+                const lessons = [...(mod.lessons || [])].sort(
+                  (a, b) => a.order - b.order,
+                );
+                return (
+                  <div key={mod.id} className="syllabus-module-item">
+                    <div className="syllabus-module-top">
+                      <span className="syllabus-module-num">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <div className="syllabus-module-title-wrap">
+                        <strong>{mod.title}</strong>
+                        <small>
+                          {lessons.length}{" "}
+                          {lessons.length === 1 ? "lesson" : "lessons"}
+                        </small>
+                      </div>
+                      <span
+                        className={`badge ${mod.free ? "badge-success" : "badge-warning"}`}
+                      >
+                        {mod.free ? "Free starter" : "Premium"}
+                      </span>
+                    </div>
+                    {lessons.length > 0 && (
+                      <ul className="syllabus-lesson-preview">
+                        {lessons.slice(0, 3).map((lesson) => (
+                          <li key={lesson.id}>
+                            {lesson.free !== false && mod.free ? (
+                              <Play size={12} />
+                            ) : (
+                              <Lock size={12} />
+                            )}
+                            <span>{lesson.title}</span>
+                            {lesson.duration && <small>{lesson.duration}</small>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="syllabus-fallback-list">
+              <p className="syllabus-fallback-label">
+                Core competencies covered in {activeTrack.name}:
+              </p>
+              {activeTrack.skills.map((skill, idx) => (
+                <div key={skill} className="syllabus-module-item">
+                  <div className="syllabus-module-top">
+                    <span className="syllabus-module-num">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <div className="syllabus-module-title-wrap">
+                      <strong>{skill}</strong>
+                      <small>Guided lessons &amp; practical assignment</small>
+                    </div>
+                    <span className="badge badge-success">Starter included</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -451,20 +648,51 @@ export function Landing() {
           >
             <div
               className="live-class-visual"
-              aria-label="Illustration of a live online academy class"
+              aria-label="Preview of the EA Academy student workspace"
             >
-              <div className="live-class-screen">
-                {["EA", "AO", "MI", "KN", "TU", "ZA"].map((initials, index) => (
-                  <span
-                    key={initials}
-                    className={`class-person person-${index}`}
-                  >
-                    {initials}
+              <div className="workspace-preview-card">
+                <div className="workspace-preview-bar">
+                  <span className="preview-dots" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
                   </span>
-                ))}
+                  <strong>Systems · Workspace</strong>
+                  <span className="preview-pill">Free Starter</span>
+                </div>
+                <div className="workspace-preview-row active">
+                  <span className="preview-row-icon">
+                    <Play size={14} />
+                  </span>
+                  <div>
+                    <strong>01. AI &amp; Modern Workflow Automation</strong>
+                    <small>Video lesson · Notes · Resources</small>
+                  </div>
+                  <span className="badge badge-success">Completed</span>
+                </div>
+                <div className="workspace-preview-row">
+                  <span className="preview-row-icon accent">
+                    <FileCheck2 size={14} />
+                  </span>
+                  <div>
+                    <strong>Practical Brief: Build &amp; Deploy Landing App</strong>
+                    <small>Instructor review: 94 / 100 · Approved</small>
+                  </div>
+                  <span className="preview-score">94%</span>
+                </div>
+                <div className="workspace-preview-row">
+                  <span className="preview-row-icon">
+                    <Sparkles size={14} />
+                  </span>
+                  <div>
+                    <strong>Weekly Live Session &amp; AI Mentor</strong>
+                    <small>Ask questions &amp; debug your code anytime</small>
+                  </div>
+                  <span className="preview-tag">Live</span>
+                </div>
               </div>
               <div className="live-class-status">
-                <Video size={15} /> VIRTUAL CLASSROOM ACTIVE
+                <Video size={15} /> ONE WORKSPACE FOR EVERY STEP
               </div>
             </div>
             <div className="highlight-copy">
@@ -512,6 +740,7 @@ export function Landing() {
               </p>
             </div>
             <TrackCards />
+            <TrackCurriculumExplorer />
           </motion.section>
           <motion.section
             className="approach-section"

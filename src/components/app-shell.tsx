@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -30,11 +30,17 @@ import {
   Store,
   Bot,
   Tv,
+  Lock,
 } from "lucide-react";
 import { useAcademy } from "./academy-provider";
 import { Brand, Loading, SetupNotice } from "./ui";
 import { useRecords, useOnline } from "@/lib/hooks";
-import { TRACKS, isPremium, type AcademyNotification } from "@/lib/types";
+import {
+  TRACKS,
+  isPremium,
+  type AcademyNotification,
+  type CourseModule,
+} from "@/lib/types";
 import { LearningSync } from "@/features/learning/offline";
 import { api } from "@/lib/api";
 import { isBirthdayToday, localDateParts } from "@/lib/birthdays";
@@ -84,6 +90,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [seen, setSeen] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const online = useOnline();
 
   useEffect(() => {
@@ -98,9 +106,26 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showLogoutModal, signingOut]);
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (window.innerWidth <= 1150) {
+          setMobileSearchOpen(true);
+        } else {
+          searchInputRef.current?.focus();
+        }
+      } else if (e.key === "Escape") {
+        setSearch("");
+        setMobileSearchOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
   const userId = user?.id;
   const purchaseOnly = user?.enrollmentStatus === "purchase_only";
-  const isCoursePlayer = /^\/app\/learn-course\/[^/]+/.test(pathname);
+  const isCoursePlayer = /^\/app\/(learn-course|lesson)\/[^/]+/.test(pathname);
   const buyerRoute =
     /^\/app\/(library|learn-course|account|billing|membership)(\/|$)/.test(
       pathname,
@@ -132,6 +157,30 @@ export function AppShell({ children }: { children: ReactNode }) {
     ],
     !!user,
   );
+  const { data: publishedModules } = useRecords<CourseModule>(
+    "modules",
+    [["published", "==", true]],
+    !!user && !purchaseOnly,
+  );
+  const searchableLessons = useMemo(() => {
+    if (!user || purchaseOnly) return [];
+    const premiumUser = isPremium(user);
+    return publishedModules
+      .filter((m) => premiumUser || m.classId === user.enrolledClassId)
+      .sort((a, b) => a.order - b.order)
+      .flatMap((mod) =>
+        [...(mod.lessons || [])]
+          .sort((a, b) => a.order - b.order)
+          .map((les) => ({
+            id: les.id,
+            title: les.title,
+            moduleTitle: mod.title,
+            unlocked:
+              premiumUser ||
+              (mod.classId === user.enrolledClassId && les.free && mod.free),
+          })),
+      );
+  }, [publishedModules, user, purchaseOnly]);
   useEffect(() => {
     if (!loading && configured && !authUser) router.replace("/login");
     if (!loading && configured && authUser && !user && !error)
@@ -158,6 +207,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMenu(false);
     setBell(false);
     setSearch("");
+    setMobileSearchOpen(false);
   }, [pathname]);
   useEffect(() => {
     if (user)
@@ -340,14 +390,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             { href: "/app/billing", label: "Membership", icon: Wallet },
             { href: "/app/account", label: "Settings", icon: Settings },
           ])}
-          <button
-            type="button"
-            className="sidebar-link sidebar-logout-nav-item"
-            onClick={() => setShowLogoutModal(true)}
-          >
-            <LogOut size={16} />
-            <span>Log out</span>
-          </button>
         </nav>
         {!isPremium(user) && (
           <div className="sidebar-upgrade">
@@ -391,32 +433,89 @@ export function AppShell({ children }: { children: ReactNode }) {
             <strong>{current?.label || "Lesson"}</strong>
           </div>
           <div className="workspace-tools">
+            <button
+              type="button"
+              className="icon-btn mobile-search-trigger"
+              aria-label="Search workspace and lessons"
+              onClick={() => setMobileSearchOpen((v) => !v)}
+            >
+              <Search size={19} />
+            </button>
             <div className="workspace-search">
               <Search size={17} />
               <input
-                aria-label="Search workspace pages"
-                placeholder="Find your next step…"
+                ref={searchInputRef}
+                aria-label="Search workspace pages and lessons"
+                placeholder="Search pages or lessons…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+              {!search && <kbd className="search-shortcut">Ctrl K</kbd>}
               {search && (
                 <div className="search-results">
-                  {allLinks.filter((l) =>
-                    l.label.toLowerCase().includes(search.toLowerCase()),
-                  ).length ? (
-                    allLinks
-                      .filter((l) =>
-                        l.label.toLowerCase().includes(search.toLowerCase()),
+                  {(() => {
+                    const q = search.trim().toLowerCase();
+                    const matchedPages = allLinks.filter((l) =>
+                      l.label.toLowerCase().includes(q),
+                    );
+                    const matchedLessons = searchableLessons
+                      .filter(
+                        (les) =>
+                          les.title.toLowerCase().includes(q) ||
+                          les.moduleTitle.toLowerCase().includes(q),
                       )
-                      .map((l) => (
-                        <Link key={l.href} href={l.href}>
-                          {l.label}
-                          <ArrowUpRight size={14} />
-                        </Link>
-                      ))
-                  ) : (
-                    <p>No matching workspace pages.</p>
-                  )}
+                      .slice(0, 6);
+                    if (!matchedPages.length && !matchedLessons.length) {
+                      return <p>No matching pages or lessons.</p>;
+                    }
+                    return (
+                      <>
+                        {matchedPages.length > 0 && (
+                          <>
+                            <span className="search-group-label">Pages</span>
+                            {matchedPages.map((l) => (
+                              <Link
+                                key={l.href}
+                                href={l.href}
+                                onClick={() => setSearch("")}
+                              >
+                                <span>{l.label}</span>
+                                <ArrowUpRight size={14} />
+                              </Link>
+                            ))}
+                          </>
+                        )}
+                        {matchedLessons.length > 0 && (
+                          <>
+                            <span className="search-group-label">
+                              Lessons
+                            </span>
+                            {matchedLessons.map((les) => (
+                              <Link
+                                key={les.id}
+                                href={
+                                  les.unlocked
+                                    ? `/app/lesson/${les.id}`
+                                    : "/app/billing"
+                                }
+                                onClick={() => setSearch("")}
+                              >
+                                <span className="search-lesson-meta">
+                                  <strong>{les.title}</strong>
+                                  <small>{les.moduleTitle}</small>
+                                </span>
+                                {les.unlocked ? (
+                                  <ArrowUpRight size={14} />
+                                ) : (
+                                  <Lock size={13} />
+                                )}
+                              </Link>
+                            ))}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -479,6 +578,92 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        {mobileSearchOpen && (
+          <div className="mobile-search-bar">
+            <div className="mobile-search-input-wrap">
+              <Search size={16} />
+              <input
+                autoFocus
+                aria-label="Search workspace pages and lessons"
+                placeholder="Search pages or lessons…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Close search"
+                onClick={() => {
+                  setSearch("");
+                  setMobileSearchOpen(false);
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {search && (
+              <div className="mobile-search-results">
+                {(() => {
+                  const q = search.trim().toLowerCase();
+                  const matchedPages = allLinks.filter((l) =>
+                    l.label.toLowerCase().includes(q),
+                  );
+                  const matchedLessons = searchableLessons
+                    .filter(
+                      (les) =>
+                        les.title.toLowerCase().includes(q) ||
+                        les.moduleTitle.toLowerCase().includes(q),
+                    )
+                    .slice(0, 5);
+                  if (!matchedPages.length && !matchedLessons.length) {
+                    return <p>No matching pages or lessons.</p>;
+                  }
+                  return (
+                    <>
+                      {matchedPages.map((l) => (
+                        <Link
+                          key={l.href}
+                          href={l.href}
+                          onClick={() => {
+                            setSearch("");
+                            setMobileSearchOpen(false);
+                          }}
+                        >
+                          <span>{l.label}</span>
+                          <ArrowUpRight size={14} />
+                        </Link>
+                      ))}
+                      {matchedLessons.map((les) => (
+                        <Link
+                          key={les.id}
+                          href={
+                            les.unlocked
+                              ? `/app/lesson/${les.id}`
+                              : "/app/billing"
+                          }
+                          onClick={() => {
+                            setSearch("");
+                            setMobileSearchOpen(false);
+                          }}
+                        >
+                          <span className="search-lesson-meta">
+                            <strong>{les.title}</strong>
+                            <small>{les.moduleTitle}</small>
+                          </span>
+                          {les.unlocked ? (
+                            <ArrowUpRight size={14} />
+                          ) : (
+                            <Lock size={13} />
+                          )}
+                        </Link>
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
         <main
           key={pathname}
           className={`workspace-content${isCoursePlayer ? " workspace-content-classroom" : ""}`}

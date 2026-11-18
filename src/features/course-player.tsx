@@ -463,10 +463,10 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
             ) : (
               <span
                 className="classroom-progress-pill"
-                style={{ opacity: 0.85 }}
+                style={{ color: "#334155" }}
                 title="Complete all required lessons and achieve a minimum overall quiz score of 50%"
               >
-                <Lock size={13} />
+                <Lock size={13} style={{ color: "#b45309" }} />
                 <span>Certificate Locked (Min 50% Quiz)</span>
               </span>
             ))}
@@ -488,7 +488,7 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                   gap: "1rem",
                   marginBottom: "1.25rem",
                   paddingBottom: "1rem",
-                  borderBottom: "1px solid rgba(255,255,255,0.08)",
+                  borderBottom: "1px solid #e2e8f0",
                 }}
               >
                 <div>
@@ -531,8 +531,8 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                     style={{
                       padding: "0.9rem 1.1rem",
                       borderRadius: "10px",
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.08)",
+                      background: "#f8fafc",
+                      border: "1px solid #cbd5e1",
                       marginBottom: "1.25rem",
                     }}
                   >
@@ -552,9 +552,9 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                   style={{
                     padding: "0.85rem 1rem",
                     borderRadius: "10px",
-                    background: "rgba(239, 68, 68, 0.12)",
-                    border: "1px solid rgba(239, 68, 68, 0.35)",
-                    color: "#f87171",
+                    background: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    color: "#991b1b",
                     marginBottom: "1rem",
                     fontSize: "13px",
                   }}
@@ -616,10 +616,10 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                           Percentage:{" "}
                           <strong>{latestQuizAttempt.percentage}%</strong>
                         </span>
-                        <span style={{ color: "#10b981" }}>
+                        <span style={{ color: "#166534" }}>
                           Correct: <strong>{latestQuizAttempt.correctCount}</strong>
                         </span>
-                        <span style={{ color: "#f87171" }}>
+                        <span style={{ color: "#991b1b" }}>
                           Incorrect:{" "}
                           <strong>{latestQuizAttempt.incorrectCount}</strong>
                         </span>
@@ -685,12 +685,12 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                       style={{
                         padding: "1.15rem",
                         borderRadius: "12px",
-                        background: "rgba(255,255,255,0.03)",
+                        background: "#f8fafc",
                         border: fb
                           ? fb.correct
-                            ? "1px solid rgba(16, 185, 129, 0.45)"
-                            : "1px solid rgba(239, 68, 68, 0.45)"
-                          : "1px solid rgba(255,255,255,0.08)",
+                            ? "1px solid #16a34a"
+                            : "1px solid #dc2626"
+                          : "1px solid #cbd5e1",
                       }}
                     >
                       <div
@@ -742,11 +742,11 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                                   padding: "0.6rem 0.85rem",
                                   borderRadius: "8px",
                                   border: selected
-                                    ? "1px solid rgba(217, 119, 6, 0.6)"
-                                    : "1px solid rgba(255,255,255,0.08)",
+                                    ? "1px solid #b45309"
+                                    : "1px solid #cbd5e1",
                                   background: selected
-                                    ? "rgba(217, 119, 6, 0.1)"
-                                    : "rgba(255,255,255,0.02)",
+                                    ? "#fffbeb"
+                                    : "#ffffff",
                                   cursor: latestQuizAttempt ? "default" : "pointer",
                                 }}
                               >
@@ -792,11 +792,11 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                                   padding: "0.6rem 0.85rem",
                                   borderRadius: "8px",
                                   border: checked
-                                    ? "1px solid rgba(217, 119, 6, 0.6)"
-                                    : "1px solid rgba(255,255,255,0.08)",
+                                    ? "1px solid #b45309"
+                                    : "1px solid #cbd5e1",
                                   background: checked
-                                    ? "rgba(217, 119, 6, 0.1)"
-                                    : "rgba(255,255,255,0.02)",
+                                    ? "#fffbeb"
+                                    : "#ffffff",
                                   cursor: latestQuizAttempt ? "default" : "pointer",
                                 }}
                               >
@@ -846,9 +846,9 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                           style={{
                             marginTop: "0.75rem",
                             paddingTop: "0.65rem",
-                            borderTop: "1px solid rgba(255,255,255,0.08)",
+                            borderTop: "1px solid #cbd5e1",
                             fontSize: "13px",
-                            color: fb.correct ? "#10b981" : "#f87171",
+                            color: fb.correct ? "#166534" : "#991b1b",
                           }}
                         >
                           <strong>
@@ -1187,15 +1187,15 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                                 borderRadius: "10px",
                                 background:
                                   item.role === "You"
-                                    ? "rgba(56, 189, 248, 0.12)"
-                                    : "rgba(255, 255, 255, 0.04)",
+                                    ? "#e0f2fe"
+                                    : "#f8fafc",
                                 border:
                                   item.role === "You"
-                                    ? "1px solid rgba(56, 189, 248, 0.3)"
-                                    : "1px solid rgba(255, 255, 255, 0.1)",
+                                    ? "1px solid #7dd3fc"
+                                    : "1px solid #cbd5e1",
                               }}
                             >
-                              <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.75, marginBottom: "0.35rem" }}>
+                              <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#334155", marginBottom: "0.35rem" }}>
                                 {item.role}
                               </div>
                               <div className="prose" style={{ fontSize: "0.92rem", lineHeight: 1.6 }}>
@@ -1302,11 +1302,11 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                 padding: "0.95rem 1rem",
                 borderRadius: "12px",
                 background: quizEligibility.certificateUnlocked
-                  ? "rgba(16, 185, 129, 0.12)"
-                  : "rgba(255, 255, 255, 0.04)",
+                  ? "#ecfdf5"
+                  : "#f8fafc",
                 border: quizEligibility.certificateUnlocked
-                  ? "1px solid rgba(16, 185, 129, 0.4)"
-                  : "1px solid rgba(255, 255, 255, 0.1)",
+                  ? "1px solid #6ee7b7"
+                  : "1px solid #cbd5e1",
                 fontSize: "12px",
               }}
             >
@@ -1324,13 +1324,13 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                 <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   {quizEligibility.certificateUnlocked ? (
                     <>
-                      <Award size={15} style={{ color: "#10b981" }} />
-                      <span style={{ color: "#10b981" }}>Certificate Unlocked</span>
+                      <Award size={15} style={{ color: "#047857" }} />
+                      <span style={{ color: "#047857" }}>Certificate Unlocked</span>
                     </>
                   ) : (
                     <>
-                      <Lock size={14} style={{ color: "#f59e0b" }} />
-                      <span>Certificate Locked</span>
+                      <Lock size={14} style={{ color: "#b45309" }} />
+                      <span style={{ color: "#0f172a" }}>Certificate Locked</span>
                     </>
                   )}
                 </span>
@@ -1357,8 +1357,8 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                     justifyContent: "space-between",
                     flexWrap: "wrap",
                     gap: "4px 8px",
-                    fontSize: "11px",
-                    opacity: 0.85,
+                    fontSize: "11.5px",
+                    color: "#334155",
                     marginBottom: quizEligibility.certificateUnlocked ? "8px" : 0,
                   }}
                 >

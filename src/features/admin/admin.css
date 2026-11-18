@@ -116,11 +116,11 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #758092;
+  color: #334155;
 }
 .admin-workspace td small {
   display: block;
-  color: #758092;
+  color: #475569;
   margin-top: 5px;
 }
 .workspace-panel {
@@ -227,8 +227,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
-  color: #7b8696;
+  font-size: 12.5px;
+  color: #475569;
   flex-wrap: wrap;
 }
 .discussion-avatar {
@@ -360,7 +360,7 @@
   background: #eaf6f1;
 }
 .broadcast-health .waiting {
-  color: #7b5b26;
+  color: #78350f;
   background: #fff6e5;
 }
 .broadcast-preview {
@@ -373,9 +373,9 @@
   background: #f8fbfa;
 }
 .broadcast-preview small {
-  color: #73879a;
-  font-size: 9px;
-  font-weight: 750;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.12em;
 }
 .broadcast-preview strong {
@@ -384,12 +384,12 @@
 }
 .broadcast-preview p {
   margin: 0;
-  color: #465f76;
+  color: #1e293b;
   white-space: pre-wrap;
 }
 .broadcast-preview span {
-  color: #72869a;
-  font-size: 11px;
+  color: #475569;
+  font-size: 12px;
   text-transform: capitalize;
 }
 .workspace-chart-row {
@@ -505,7 +505,7 @@
   padding-top: 10px;
   margin-top: 4px;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 .revenue-stacked-bar {
   height: 12px;
@@ -592,7 +592,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #64748b;
+  color: #475569;
   font-weight: 700;
 }
 .revenue-summary-stat strong {

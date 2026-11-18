@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Play, RotateCcw } from "lucide-react";
+import { Check, Copy, Play, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import ReactMarkdown from "react-markdown";
 import { useAcademy } from "@/components/academy-provider";
@@ -16,6 +16,7 @@ export default function CodeSandbox({
   const { user } = useAcademy();
   const codeKey = `ea:exercise:${user?.id}:${lessonId}`;
   const [code, setCode] = useState(initialCode);
+  const [copied, setCopied] = useState(false);
   const [document, setDocument] = useState("");
   const [output, setOutput] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
@@ -142,6 +143,20 @@ export default function CodeSandbox({
         </div>
         <div className="button-row">
           <button
+            type="button"
+            className="btn btn-secondary btn-small"
+            disabled={!code}
+            onClick={() => {
+              void navigator.clipboard.writeText(code);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1800);
+            }}
+          >
+            {copied ? <Check size={15} /> : <Copy size={15} />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <button
+            type="button"
             className="btn btn-secondary btn-small"
             onClick={() => {
               updateCode(initialCode);
@@ -151,6 +166,7 @@ export default function CodeSandbox({
             <RotateCcw size={15} /> Reset
           </button>
           <button
+            type="button"
             className="btn btn-primary btn-small"
             disabled={running}
             onClick={() => run()}
@@ -163,22 +179,63 @@ export default function CodeSandbox({
       <div className="sandbox-grid">
         <label className="code-panel">
           <span>EDITOR · JAVASCRIPT</span>
-          <textarea
-            spellCheck={false}
-            value={code}
-            onChange={(event) => updateCode(event.target.value)}
-            aria-label="JavaScript code editor"
-            placeholder="Write JavaScript and use console.log() to inspect the result."
-          />
+          <div className="code-editor-wrap">
+            <div className="code-gutter" aria-hidden="true">
+              {Array.from(
+                { length: Math.max(code.split("\n").length, 10) },
+                (_, i) => (
+                  <span key={i + 1}>{i + 1}</span>
+                ),
+              )}
+            </div>
+            <textarea
+              spellCheck={false}
+              value={code}
+              onChange={(event) => updateCode(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Tab") {
+                  event.preventDefault();
+                  const target = event.currentTarget;
+                  const start = target.selectionStart;
+                  const end = target.selectionEnd;
+                  const next =
+                    code.slice(0, start) + "  " + code.slice(end);
+                  updateCode(next);
+                  requestAnimationFrame(() => {
+                    target.selectionStart = target.selectionEnd = start + 2;
+                  });
+                }
+              }}
+              aria-label="JavaScript code editor"
+              placeholder="Write JavaScript and use console.log() to inspect the result."
+            />
+          </div>
         </label>
         <div className="console-panel">
-          <span>CONSOLE</span>
+          <span>
+            CONSOLE{running ? " · RUNNING…" : output.length ? ` · ${output.length} LINES` : ""}
+          </span>
           <pre aria-live="polite">
-            {output.length
-              ? output.join("\n")
-              : running
-                ? "Executing…"
-                : "Run your code to see output here."}
+            {output.length ? (
+              output.map((line, i) => (
+                <div
+                  key={i}
+                  className={
+                    line.startsWith("ERROR:")
+                      ? "console-line error"
+                      : line.startsWith("WARN:")
+                        ? "console-line warn"
+                        : "console-line"
+                  }
+                >
+                  {line}
+                </div>
+              ))
+            ) : running ? (
+              "Executing…"
+            ) : (
+              "Run your code to see output here."
+            )}
           </pre>
         </div>
       </div>

@@ -482,7 +482,7 @@ export function AIMentor() {
               <h4 style={{ color: "#fff", margin: "0 0 0.5rem 0" }}>
                 Code & Architecture Review
               </h4>
-              <p style={{ margin: 0, fontSize: "0.9rem", color: "#94a3b8" }}>
+              <p style={{ margin: 0, fontSize: "0.9rem", color: "#cbd5e1" }}>
                 Paste snippets to spot edge cases, runtime bugs, and optimize
                 code structure with line-by-line feedback.
               </p>
@@ -503,7 +503,7 @@ export function AIMentor() {
               <h4 style={{ color: "#fff", margin: "0 0 0.5rem 0" }}>
                 Assignment Pre-Checks
               </h4>
-              <p style={{ margin: 0, fontSize: "0.9rem", color: "#94a3b8" }}>
+              <p style={{ margin: 0, fontSize: "0.9rem", color: "#cbd5e1" }}>
                 Test your projects and write-ups against rubrics before using
                 your monthly official instructor evaluations.
               </p>
@@ -524,7 +524,7 @@ export function AIMentor() {
               <h4 style={{ color: "#fff", margin: "0 0 0.5rem 0" }}>
                 Track-Specific Coaching
               </h4>
-              <p style={{ margin: 0, fontSize: "0.9rem", color: "#94a3b8" }}>
+              <p style={{ margin: 0, fontSize: "0.9rem", color: "#cbd5e1" }}>
                 Tailored for {track?.name || "your track"}: video editing tips,
                 growth experiments, and client pitch preparation.
               </p>
@@ -546,7 +546,7 @@ export function AIMentor() {
               <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#fff" }}>
                 ₦10,000
               </span>
-              <span style={{ color: "#94a3b8", fontSize: "0.95rem" }}>
+              <span style={{ color: "#cbd5e1", fontSize: "0.95rem" }}>
                 {" "}
                 / month · Cancel anytime
               </span>
@@ -935,8 +935,7 @@ export function AIMentor() {
                         style={{
                           fontSize: "12px",
                           fontWeight: 700,
-                          color: isUser ? "#ffffff" : "inherit",
-                          opacity: isUser ? 0.95 : 0.65,
+                          color: isUser ? "#ffffff" : "#334155",
                           textTransform: "uppercase",
                           letterSpacing: "0.04em",
                         }}
@@ -954,7 +953,7 @@ export function AIMentor() {
                             alignItems: "center",
                             gap: "0.25rem",
                             fontSize: "12px",
-                            opacity: 0.7,
+                            color: "#334155",
                           }}
                         >
                           {copiedIndex === index ? (

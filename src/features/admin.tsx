@@ -2898,7 +2898,7 @@ function NotificationsPanel() {
                         <strong style={{ color: "#128C7E", fontSize: "0.88rem" }}>
                           Live WhatsApp Message Preview
                         </strong>
-                        <span style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+                        <span style={{ fontSize: "0.75rem", color: "#334155" }}>
                           {placeholders.length === 0
                             ? "Fixed text (no variables)"
                             : `${placeholders.length} variable${placeholders.length === 1 ? "" : "s"}`}
@@ -2983,8 +2983,8 @@ function NotificationsPanel() {
                         style={{
                           marginTop: "0.65rem",
                           padding: "0.85rem 1rem",
-                          background: "rgba(255, 255, 255, 0.03)",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          background: "#f8fafc",
+                          border: "1px solid #cbd5e1",
                           borderRadius: "8px",
                           display: "flex",
                           flexDirection: "column",
@@ -3023,7 +3023,7 @@ function NotificationsPanel() {
                             ✨ Copy to Title & Message
                           </button>
                         </div>
-                        <small style={{ opacity: 0.75, fontSize: "0.75rem" }}>
+                        <small style={{ color: "#475569", fontSize: "0.75rem" }}>
                           Type your class details, date, time, or link below. The live preview above updates automatically.
                         </small>
 
@@ -3323,7 +3323,7 @@ function NotificationsPanel() {
                       justifyContent: "space-between",
                       fontSize: "0.8rem",
                       marginBottom: "0.35rem",
-                      color: "var(--text-muted, #9ca3af)",
+                      color: "var(--text-muted, #475569)",
                     }}
                   >
                     <span>

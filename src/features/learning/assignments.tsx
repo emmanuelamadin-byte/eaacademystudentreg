@@ -598,8 +598,7 @@ export default function Assignments({ id }: { id?: string }) {
                     style={{
                       display: "block",
                       marginTop: "0.75rem",
-                      color: "#b45309",
-                      opacity: 0.8,
+                      color: "#92400e",
                     }}
                   >
                     Note: This evaluation is advisory. Final grading will be conducted by your assigned track instructor.

@@ -1333,7 +1333,7 @@ export function ShopStudio() {
                           style={{
                             fontSize: "12px",
                             fontWeight: 600,
-                            opacity: 0.8,
+                            color: "#334155",
                             display: "block",
                             marginBottom: "4px",
                           }}
@@ -1355,7 +1355,7 @@ export function ShopStudio() {
                           style={{
                             fontSize: "12px",
                             fontWeight: 600,
-                            opacity: 0.8,
+                            color: "#334155",
                             display: "block",
                             marginBottom: "4px",
                           }}

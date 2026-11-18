@@ -44,7 +44,7 @@
 }
 .offer-header > span {
   font-size: 12px;
-  color: #61717d;
+  color: #475569;
   margin-left: auto;
 }
 .offer-header > a:last-child {
@@ -64,7 +64,7 @@
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 1.9px;
-  color: #61717d;
+  color: #475569;
   margin: 0 0 20px;
   line-height: 1.8;
 }
@@ -139,7 +139,7 @@
 }
 .offer-assurance {
   font-size: 11px;
-  color: #61717d;
+  color: #475569;
   margin: 16px 0 0;
   line-height: 1.8;
 }
@@ -207,7 +207,7 @@
 .offer-list-number {
   display: block;
   font-size: 10px;
-  color: #61717d;
+  color: #475569;
   letter-spacing: 1px;
   margin-bottom: 12px;
 }
@@ -244,13 +244,13 @@
   line-height: 1.7;
 }
 .offer-curriculum summary > span {
-  color: #7e8f99;
+  color: #475569;
   margin-right: 20px;
   font-size: 11px;
 }
 .offer-curriculum summary small {
   float: right;
-  color: #61717d;
+  color: #475569;
   font-weight: 400;
 }
 .offer-curriculum ul {
@@ -313,20 +313,20 @@
   letter-spacing: -1.3px;
 }
 .offer-price del {
-  color: #7e8f99;
+  color: #475569;
   font-size: 17px;
 }
 .offer-price > span {
   width: 100%;
   font-size: 12px;
-  color: #61717d;
+  color: #475569;
 }
 .offer-price-panel .offer-button {
   width: 100%;
 }
 .offer-price-panel > p {
   font-size: 11px;
-  color: #61717d;
+  color: #475569;
   line-height: 1.9;
   margin-top: 15px;
 }
@@ -346,7 +346,7 @@
 .offer-footer p,
 .offer-footer a {
   font-size: 12px;
-  color: #61717d;
+  color: #475569;
 }
 .offer-footer nav {
   margin-left: auto;
@@ -435,7 +435,7 @@
 .checkout-summary > p {
   font-size: 14px;
   line-height: 1.85;
-  color: #61717d;
+  color: #475569;
 }
 .checkout-summary > img {
   width: 100%;
@@ -480,7 +480,7 @@
 }
 .checkout-form-panel > p {
   font-size: 13px;
-  color: #61717d;
+  color: #475569;
   line-height: 1.8;
 }
 .commerce-form {
@@ -538,7 +538,7 @@
   line-height: 1.8;
   margin: 0;
   font-weight: 400;
-  color: #61717d;
+  color: #475569;
 }
 .commerce-text-button {
   display: inline-block;
@@ -567,7 +567,7 @@
 }
 .checkout-review dt {
   font-size: 11px;
-  color: #61717d;
+  color: #475569;
   margin-top: 14px;
 }
 .checkout-review dd {
@@ -592,7 +592,7 @@
 }
 .checkout-legal {
   font-size: 11px !important;
-  color: #61717d;
+  color: #475569;
   line-height: 1.9;
   margin-top: 26px;
 }
@@ -676,7 +676,7 @@
   padding: 35px;
   min-height: 110px;
   font-size: 13px;
-  color: #61717d;
+  color: #475569;
 }
 @keyframes commerce-loading {
   to {
@@ -703,7 +703,7 @@
 }
 .landing-studio-heading p {
   font-size: 13px;
-  color: #61717d;
+  color: #475569;
 }
 .landing-studio-note {
   background: #f0f4f5;
@@ -740,8 +740,8 @@
 }
 .landing-campaign-list span {
   display: block;
-  color: #61717d;
-  font-size: 10px;
+  color: #475569;
+  font-size: 11.5px;
   overflow-wrap: anywhere;
   line-height: 1.8;
 }
@@ -759,7 +759,7 @@
 }
 .landing-empty p {
   font-size: 14px;
-  color: #61717d;
+  color: #475569;
   max-width: 60ch;
   line-height: 1.8;
 }
@@ -793,7 +793,7 @@
 .landing-template-options small {
   display: block;
   font-size: 11px;
-  color: #61717d;
+  color: #475569;
   margin-top: 10px;
   line-height: 1.8;
 }
@@ -845,13 +845,13 @@
 }
 .landing-control-group small {
   font-weight: 400;
-  color: #61717d;
+  color: #475569;
   font-size: 11px;
   line-height: 1.7;
 }
 .landing-slug-prefix {
   font-size: 10px;
-  color: #61717d;
+  color: #475569;
   font-weight: 400;
   margin-bottom: -8px;
 }
@@ -890,8 +890,8 @@
 }
 .landing-section-select small {
   margin-left: 8px;
-  font-size: 9px;
-  color: #7c8e99;
+  font-size: 11px;
+  color: #475569;
 }
 .landing-add-section {
   display: flex;
@@ -933,7 +933,7 @@
 }
 .landing-preview-toolbar > span {
   font-size: 11px;
-  color: #61717d;
+  color: #475569;
 }
 .landing-preview-toolbar > div {
   display: flex;
@@ -992,7 +992,7 @@
 }
 .landing-ai-panel > p,
 .landing-ai-review > p {
-  color: #61717d;
+  color: #475569;
   font-size: 12px;
   line-height: 1.9;
 }
@@ -1037,7 +1037,7 @@
 .landing-metrics span {
   display: block;
   font-size: 10px;
-  color: #61717d;
+  color: #475569;
   margin-bottom: 12px;
 }
 .landing-metrics strong {
@@ -1048,7 +1048,7 @@
   width: 100%;
   font-size: 11px;
   line-height: 1.8;
-  color: #61717d;
+  color: #475569;
   margin: 0;
 }
 @media (max-width: 1100px) {

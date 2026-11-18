@@ -132,7 +132,7 @@ export function ShopCatalogPage() {
             <Search size={18} className="shop-search-icon" />
             <input
               type="text"
-              placeholder="Search courses, guides, topics, or software…"
+              placeholder="Search courses, guides, or topics…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="shop-search-input"
